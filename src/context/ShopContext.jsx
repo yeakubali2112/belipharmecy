@@ -6,7 +6,10 @@ import {
   fetchCloudPrescriptions, 
   saveCloudPrescription, 
   fetchCloudSettings, 
-  saveCloudSettings 
+  saveCloudSettings,
+  fetchCloudCustomers,
+  saveCloudCustomer,
+  deleteCloudCustomer
 } from '../services/firebaseService';
 
 const ShopContext = createContext();
@@ -298,6 +301,7 @@ export const ShopProvider = ({ children }) => {
 
     setCurrentCustomer(profile);
     safeSetItem('beli_current_customer', JSON.stringify(profile));
+    saveCloudCustomer(profile);
     showToast(lang === 'bn' ? `স্বাগতম, ${profile.name}!` : `Welcome, ${profile.name}!`, 'success');
     return true;
   };
@@ -321,6 +325,8 @@ export const ShopProvider = ({ children }) => {
       return next;
     });
 
+    saveCloudCustomer(merged);
+
     if (updatedData.avatar) {
       setOrders(prev => {
         const nextOrders = prev.map(o => o.customerPhone === merged.phone ? { ...o, customerAvatar: updatedData.avatar } : o);
@@ -330,6 +336,145 @@ export const ShopProvider = ({ children }) => {
     }
 
     showToast(lang === 'bn' ? 'প্রোফাইল তথ্য আপডেট হয়েছে' : 'Profile updated', 'success');
+  };
+
+  // Admin Customer Management CRUD
+  const adminUpdateCustomer = (oldPhone, updatedData) => {
+    const cleanOldPhone = String(oldPhone || '').trim();
+    const newPhone = String(updatedData.phone || cleanOldPhone).trim();
+
+    if (!newPhone) {
+      showToast(lang === 'bn' ? 'মোবাইল নম্বর খালি রাখা যাবে না' : 'Phone cannot be empty', 'error');
+      return false;
+    }
+
+    setCustomerProfiles(prev => {
+      const existing = prev.find(p => p.phone === cleanOldPhone) || {};
+      const updated = {
+        ...existing,
+        ...updatedData,
+        phone: newPhone,
+        updatedAt: new Date().toLocaleDateString('bn-BD')
+      };
+      const filtered = prev.filter(p => p.phone !== cleanOldPhone && p.phone !== newPhone);
+      const next = [updated, ...filtered];
+      safeSetItem('beli_customer_profiles', JSON.stringify(next));
+
+      // Cloud Firestore Sync
+      saveCloudCustomer(updated);
+      if (cleanOldPhone && newPhone !== cleanOldPhone) {
+        deleteCloudCustomer(cleanOldPhone);
+      }
+      return next;
+    });
+
+    // Update active user session if it matches this customer
+    if (currentCustomer && (currentCustomer.phone === cleanOldPhone || currentCustomer.phone === newPhone)) {
+      const mergedCurrent = {
+        ...currentCustomer,
+        ...updatedData,
+        phone: newPhone
+      };
+      setCurrentCustomer(mergedCurrent);
+      safeSetItem('beli_current_customer', JSON.stringify(mergedCurrent));
+    }
+
+    // Update orders customer fields
+    setOrders(prev => {
+      let changed = false;
+      const nextOrders = prev.map(o => {
+        if (o.customerPhone === cleanOldPhone || (cleanOldPhone && o.customerPhone && o.customerPhone.includes(cleanOldPhone))) {
+          changed = true;
+          const updatedOrder = {
+            ...o,
+            customerName: updatedData.name || o.customerName,
+            customerPhone: newPhone,
+            deliveryAddress: updatedData.address !== undefined ? updatedData.address : o.deliveryAddress,
+            customerAvatar: updatedData.avatar !== undefined ? updatedData.avatar : o.customerAvatar
+          };
+          saveCloudOrder(updatedOrder);
+          return updatedOrder;
+        }
+        return o;
+      });
+      if (changed) {
+        safeSetItem('beli_orders', JSON.stringify(nextOrders));
+      }
+      return nextOrders;
+    });
+
+    // Update prescriptions customer fields
+    setPrescriptions(prev => {
+      let changed = false;
+      const nextPresc = prev.map(p => {
+        if (p.customerPhone === cleanOldPhone || (cleanOldPhone && p.customerPhone && p.customerPhone.includes(cleanOldPhone))) {
+          changed = true;
+          const updatedP = {
+            ...p,
+            customerName: updatedData.name || p.customerName,
+            customerPhone: newPhone,
+            deliveryAddress: updatedData.address !== undefined ? updatedData.address : p.deliveryAddress,
+            customerAvatar: updatedData.avatar !== undefined ? updatedData.avatar : p.customerAvatar
+          };
+          saveCloudPrescription(updatedP);
+          return updatedP;
+        }
+        return p;
+      });
+      if (changed) {
+        safeSetItem('beli_prescriptions', JSON.stringify(nextPresc));
+      }
+      return nextPresc;
+    });
+
+    showToast(lang === 'bn' ? 'গ্রাহকের তথ্য সফলভাবে আপডেট হয়েছে' : 'Customer updated successfully', 'success');
+    return true;
+  };
+
+  const adminAddCustomer = (customerData) => {
+    const phone = String(customerData.phone || '').trim();
+    if (!phone) {
+      showToast(lang === 'bn' ? 'অনুগ্রহ করে গ্রাহকের মোবাইল নম্বর লিখুন' : 'Please provide customer phone number', 'error');
+      return false;
+    }
+
+    const newCustomer = {
+      name: customerData.name?.trim() || 'নতুন গ্রাহক',
+      phone,
+      address: customerData.address?.trim() || '',
+      avatar: customerData.avatar || null,
+      createdAt: new Date().toLocaleDateString('bn-BD'),
+      updatedAt: new Date().toLocaleDateString('bn-BD')
+    };
+
+    setCustomerProfiles(prev => {
+      const next = [newCustomer, ...prev.filter(p => p.phone !== phone)];
+      safeSetItem('beli_customer_profiles', JSON.stringify(next));
+      saveCloudCustomer(newCustomer);
+      return next;
+    });
+
+    showToast(lang === 'bn' ? 'নতুন গ্রাহক প্রোফাইল সফলভাবে তৈরি হয়েছে' : 'New customer profile created', 'success');
+    return true;
+  };
+
+  const adminDeleteCustomer = (phone) => {
+    const cleanPhone = String(phone || '').trim();
+    if (!cleanPhone) return;
+
+    setCustomerProfiles(prev => {
+      const next = prev.filter(p => p.phone !== cleanPhone);
+      safeSetItem('beli_customer_profiles', JSON.stringify(next));
+      deleteCloudCustomer(cleanPhone);
+      return next;
+    });
+
+    if (currentCustomer && currentCustomer.phone === cleanPhone) {
+      setCurrentCustomer(null);
+      localStorage.removeItem('beli_current_customer');
+    }
+
+    showToast(lang === 'bn' ? 'গ্রাহকের প্রোফাইল মুছে ফেলা হয়েছে' : 'Customer profile deleted', 'info');
   };
 
   // Filters & Search
@@ -658,6 +803,22 @@ export const ShopProvider = ({ children }) => {
           });
         }
 
+        const cloudCustomers = await fetchCloudCustomers();
+        if (cloudCustomers && Array.isArray(cloudCustomers) && isMounted) {
+          setCustomerProfiles(prev => {
+            const map = new Map();
+            prev.forEach(p => {
+              if (p && p.phone) map.set(p.phone.trim(), p);
+            });
+            cloudCustomers.forEach(p => {
+              if (p && p.phone) map.set(p.phone.trim(), p);
+            });
+            const merged = Array.from(map.values()).filter(p => p.phone !== '01711223344' && p.name !== 'তানভীর আহমেদ');
+            safeSetItem('beli_customer_profiles', JSON.stringify(merged));
+            return merged;
+          });
+        }
+
         const cloudSettings = await fetchCloudSettings();
         if (cloudSettings && isMounted) {
           if (cloudSettings.deliverySettings) {
@@ -743,6 +904,9 @@ export const ShopProvider = ({ children }) => {
       return next;
     });
 
+    // Save Customer Profile to Firebase Cloud
+    saveCloudCustomer(profile);
+
     setActiveInvoiceOrder(newOrder);
     showToast(
       lang === 'bn' 
@@ -794,6 +958,7 @@ export const ShopProvider = ({ children }) => {
           safeSetItem('beli_customer_profiles', JSON.stringify(next));
           return next;
         });
+        saveCloudCustomer(newProf);
         if (!currentCustomer) {
           setCurrentCustomer(newProf);
           safeSetItem('beli_current_customer', JSON.stringify(newProf));
@@ -1007,7 +1172,10 @@ export const ShopProvider = ({ children }) => {
       addMedicine,
       updateMedicine,
       deleteMedicine,
-      resetToDefaultMedicines,
+      // Admin Customer CRUD
+      adminUpdateCustomer,
+      adminAddCustomer,
+      adminDeleteCustomer,
 
       // Ad Banner & Popup
       adBanner,

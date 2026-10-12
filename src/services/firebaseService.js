@@ -126,3 +126,53 @@ export const saveCloudSettings = async (settings) => {
     return false;
   }
 };
+
+// ==========================================
+// CUSTOMER PROFILES CLOUD SYNC
+// ==========================================
+
+export const fetchCloudCustomers = async () => {
+  try {
+    const res = await fetch(`${BASE_URL}/customers?key=${API_KEY}&pageSize=300`, { cache: 'no-store' });
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (!data.documents) return [];
+    return data.documents.map(fromFirestoreDoc).filter(Boolean);
+  } catch (err) {
+    console.error('Cloud fetch customers error:', err);
+    return null;
+  }
+};
+
+export const saveCloudCustomer = async (customer) => {
+  if (!customer || !customer.phone) return false;
+  try {
+    const cleanId = String(customer.phone).trim().replace(/[^0-9+]/g, '');
+    const docId = encodeURIComponent(cleanId);
+    const res = await fetch(`${BASE_URL}/customers/${docId}?key=${API_KEY}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(toFirestoreDoc({ id: cleanId, ...customer }))
+    });
+    return res.ok;
+  } catch (err) {
+    console.error('Cloud save customer error:', err);
+    return false;
+  }
+};
+
+export const deleteCloudCustomer = async (phone) => {
+  if (!phone) return false;
+  try {
+    const cleanId = String(phone).trim().replace(/[^0-9+]/g, '');
+    const docId = encodeURIComponent(cleanId);
+    const res = await fetch(`${BASE_URL}/customers/${docId}?key=${API_KEY}`, {
+      method: 'DELETE'
+    });
+    return res.ok;
+  } catch (err) {
+    console.error('Cloud delete customer error:', err);
+    return false;
+  }
+};
+

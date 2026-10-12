@@ -40,10 +40,16 @@ import {
   Percent,
   Gift,
   CheckCircle2,
-  Copy
+  Copy,
+  Users,
+  UserPlus,
+  PhoneCall,
+  MapPin,
+  Calendar
 } from 'lucide-react';
 import { useShop } from '../context/ShopContext';
 import { CATEGORIES } from '../data/medicines';
+import { PRESET_AVATARS } from '../data/avatars';
 
 export const AdminPortal = () => {
   const { 
@@ -63,6 +69,9 @@ export const AdminPortal = () => {
     prescriptions, 
     medicines, 
     customerProfiles,
+    adminUpdateCustomer,
+    adminAddCustomer,
+    adminDeleteCustomer,
     updateOrderStatus, 
     updateOrderPaymentMethod,
     updatePrescriptionStatus,
@@ -617,6 +626,294 @@ export const AdminPortal = () => {
   };
 
   // ==========================================
+  // CUSTOMER MANAGEMENT STATE & HELPERS
+  // ==========================================
+  const [customerSearch, setCustomerSearch] = useState('');
+  const [customerFilter, setCustomerFilter] = useState('all'); // 'all', 'ordered', 'prescriptions'
+  const [customerPage, setCustomerPage] = useState(1);
+  const customersPerPage = 9;
+
+  // Edit Customer Modal State
+  const [editingCustomer, setEditingCustomer] = useState(null);
+  const [editCustomerForm, setEditCustomerForm] = useState({
+    name: '',
+    phone: '',
+    address: '',
+    avatar: null
+  });
+  const [showEditAvatarPicker, setShowEditAvatarPicker] = useState(false);
+  const editCustomerPhotoRef = useRef(null);
+
+  // Add Customer Modal State
+  const [showAddCustomerModal, setShowAddCustomerModal] = useState(false);
+  const [newCustomerForm, setNewCustomerForm] = useState({
+    name: '',
+    phone: '',
+    address: '',
+    avatar: null
+  });
+  const [showNewAvatarPicker, setShowNewAvatarPicker] = useState(false);
+  const newCustomerPhotoRef = useRef(null);
+
+  // Inspect Customer History Modal State
+  const [inspectCustomer, setInspectCustomer] = useState(null);
+
+  // Compress photo for customer avatars
+  const compressCustomerAvatar = (file, callback) => {
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      showToast(lang === 'bn' ? 'অনুগ্রহ করে ছবি ফাইল নির্বাচন করুন' : 'Please select an image file', 'error');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const maxDim = 256;
+        let width = img.width;
+        let height = img.height;
+        if (width > height) {
+          if (width > maxDim) {
+            height = Math.round((height * maxDim) / width);
+            width = maxDim;
+          }
+        } else {
+          if (height > maxDim) {
+            width = Math.round((width * maxDim) / height);
+            height = maxDim;
+          }
+        }
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+        callback(canvas.toDataURL('image/jpeg', 0.85));
+      };
+      img.src = event.target.result;
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleEditCustomerPhotoUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    compressCustomerAvatar(file, (base64) => {
+      setEditCustomerForm(prev => ({ ...prev, avatar: base64 }));
+    });
+    e.target.value = '';
+  };
+
+  const handleNewCustomerPhotoUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    compressCustomerAvatar(file, (base64) => {
+      setNewCustomerForm(prev => ({ ...prev, avatar: base64 }));
+    });
+    e.target.value = '';
+  };
+
+  // Consolidate customers from customerProfiles, orders, prescriptions
+  const consolidatedCustomers = React.useMemo(() => {
+    const map = new Map();
+
+    // 1. From customerProfiles
+    (customerProfiles || []).forEach(cp => {
+      if (cp && cp.phone) {
+        const cleanPhone = String(cp.phone).trim();
+        if (cleanPhone && cleanPhone !== '01711223344') {
+          map.set(cleanPhone, {
+            name: cp.name || 'বেলী গ্রাহক',
+            phone: cleanPhone,
+            address: cp.address || '',
+            avatar: cp.avatar || null,
+            createdAt: cp.createdAt || '',
+            lastOrderDate: cp.lastOrderDate || '',
+            updatedAt: cp.updatedAt || ''
+          });
+        }
+      }
+    });
+
+    // 2. Discover from orders
+    (orders || []).forEach(o => {
+      if (o && o.customerPhone) {
+        const cleanPhone = String(o.customerPhone).trim();
+        if (cleanPhone && cleanPhone !== '01711223344') {
+          if (!map.has(cleanPhone)) {
+            map.set(cleanPhone, {
+              name: o.customerName || 'বেলী গ্রাহক',
+              phone: cleanPhone,
+              address: o.deliveryAddress || '',
+              avatar: o.customerAvatar || null,
+              createdAt: o.createdAt ? String(o.createdAt).split(',')[0].trim() : '',
+              lastOrderDate: o.createdAt ? String(o.createdAt).split(',')[0].trim() : '',
+              updatedAt: ''
+            });
+          } else {
+            const existing = map.get(cleanPhone);
+            if (!existing.lastOrderDate && o.createdAt) {
+              existing.lastOrderDate = String(o.createdAt).split(',')[0].trim();
+            }
+            if (!existing.address && o.deliveryAddress) {
+              existing.address = o.deliveryAddress;
+            }
+            if (!existing.avatar && o.customerAvatar) {
+              existing.avatar = o.customerAvatar;
+            }
+          }
+        }
+      }
+    });
+
+    // 3. Discover from prescriptions
+    (prescriptions || []).forEach(p => {
+      if (p && p.customerPhone) {
+        const cleanPhone = String(p.customerPhone).trim();
+        if (cleanPhone && cleanPhone !== '01711223344') {
+          if (!map.has(cleanPhone)) {
+            map.set(cleanPhone, {
+              name: p.customerName || 'বেলী গ্রাহক',
+              phone: cleanPhone,
+              address: p.deliveryAddress || '',
+              avatar: p.customerAvatar || null,
+              createdAt: p.createdAt ? String(p.createdAt).split(',')[0].trim() : '',
+              lastOrderDate: '',
+              updatedAt: ''
+            });
+          } else {
+            const existing = map.get(cleanPhone);
+            if (!existing.avatar && p.customerAvatar) {
+              existing.avatar = p.customerAvatar;
+            }
+          }
+        }
+      }
+    });
+
+    return Array.from(map.values()).sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+  }, [customerProfiles, orders, prescriptions]);
+
+  // Customer stats calculator helper
+  const getCustomerStats = (phone) => {
+    const clean = String(phone || '').trim();
+    if (!clean) return { orders: [], prescriptions: [], totalSpent: '0.00', deliveredOrders: 0 };
+
+    const custOrders = orders.filter(o => 
+      o.customerPhone && (
+        o.customerPhone.trim() === clean ||
+        o.customerPhone.includes(clean) ||
+        clean.includes(o.customerPhone.trim())
+      )
+    );
+
+    const custRx = prescriptions.filter(p => 
+      p.customerPhone && (
+        p.customerPhone.trim() === clean ||
+        p.customerPhone.includes(clean)
+      )
+    );
+
+    const totalSpent = custOrders.reduce((sum, o) => sum + (Number(o.grandTotal) || 0), 0);
+    const deliveredOrders = custOrders.filter(o => o.status === 'Delivered').length;
+
+    return {
+      orders: custOrders,
+      prescriptions: custRx,
+      totalSpent: totalSpent.toFixed(2),
+      deliveredOrders
+    };
+  };
+
+  const totalCustomersWithOrders = consolidatedCustomers.filter(c => {
+    return orders.some(o => o.customerPhone && (o.customerPhone.includes(c.phone) || c.phone.includes(o.customerPhone)));
+  }).length;
+
+  const totalCustomersWithRx = consolidatedCustomers.filter(c => {
+    return prescriptions.some(p => p.customerPhone && (p.customerPhone.includes(c.phone) || c.phone.includes(p.customerPhone)));
+  }).length;
+
+  const totalCustomerSpent = orders.reduce((sum, o) => sum + (Number(o.grandTotal) || 0), 0);
+
+  // Filtered & Paginated Customers
+  const filteredCustomers = consolidatedCustomers.filter(c => {
+    const q = customerSearch.toLowerCase().trim();
+    const matchSearch = !q || (
+      c.name.toLowerCase().includes(q) ||
+      c.phone.includes(q) ||
+      (c.address && c.address.toLowerCase().includes(q))
+    );
+
+    if (!matchSearch) return false;
+
+    if (customerFilter === 'ordered') {
+      return orders.some(o => o.customerPhone && (o.customerPhone.includes(c.phone) || c.phone.includes(o.customerPhone)));
+    }
+    if (customerFilter === 'prescriptions') {
+      return prescriptions.some(p => p.customerPhone && (p.customerPhone.includes(c.phone) || c.phone.includes(p.customerPhone)));
+    }
+    return true;
+  });
+
+  const totalCustomerPages = Math.ceil(filteredCustomers.length / customersPerPage) || 1;
+  const paginatedCustomers = filteredCustomers.slice(
+    (customerPage - 1) * customersPerPage,
+    (customerPage - 1) * customersPerPage + customersPerPage
+  );
+
+  React.useEffect(() => {
+    setCustomerPage(1);
+  }, [customerSearch, customerFilter]);
+
+  const handleCustomerPageChange = (newPage) => {
+    if (newPage < 1 || newPage > totalCustomerPages) return;
+    setCustomerPage(newPage);
+    const topElem = document.getElementById('admin-customers-top');
+    if (topElem) {
+      topElem.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
+
+  const handleStartEditCustomer = (cust) => {
+    setEditingCustomer(cust);
+    setEditCustomerForm({
+      name: cust.name || '',
+      phone: cust.phone || '',
+      address: cust.address || '',
+      avatar: cust.avatar || null
+    });
+    setShowEditAvatarPicker(false);
+  };
+
+  const handleSaveEditCustomer = (e) => {
+    e.preventDefault();
+    if (!editCustomerForm.name.trim() || !editCustomerForm.phone.trim()) {
+      showToast(lang === 'bn' ? 'নাম ও মোবাইল নম্বর আবশ্যক' : 'Name and phone required', 'error');
+      return;
+    }
+    adminUpdateCustomer(editingCustomer.phone, editCustomerForm);
+    setEditingCustomer(null);
+  };
+
+  const handleSaveNewCustomer = (e) => {
+    e.preventDefault();
+    if (!newCustomerForm.phone.trim()) {
+      showToast(lang === 'bn' ? 'গ্রাহকের মোবাইল নম্বর আবশ্যক' : 'Phone is required', 'error');
+      return;
+    }
+    adminAddCustomer(newCustomerForm);
+    setShowAddCustomerModal(false);
+    setNewCustomerForm({ name: '', phone: '', address: '', avatar: null });
+    setShowNewAvatarPicker(false);
+  };
+
+  const handleDeleteCustomer = (phone, name) => {
+    if (window.confirm(lang === 'bn' ? `আপনি কি নিশ্চিতভাবে "${name}" (${phone}) গ্রাহকের প্রোফাইল ডিলিট করতে চান?` : `Are you sure you want to delete ${name} (${phone})?`)) {
+      adminDeleteCustomer(phone);
+    }
+  };
+
+  // ==========================================
   // VIEW 1: DEDICATED ADMIN LOGIN SCREEN
   // ==========================================
   if (!isAdminAuthenticated) {
@@ -834,6 +1131,23 @@ export const AdminPortal = () => {
             </button>
 
             <button
+              onClick={() => setActiveTab('customers')}
+              className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-all cursor-pointer text-left ${
+                activeTab === 'customers' 
+                  ? 'bg-white/20 text-white shadow-md backdrop-blur-xs border border-white/20' 
+                  : 'text-blue-100/80 hover:bg-white/10'
+              }`}
+            >
+              <span className="flex items-center gap-3">
+                <Users className="w-4 h-4 text-emerald-300" />
+                <span>গ্রাহক ম্যানেজমেন্ট</span>
+              </span>
+              <span className="bg-emerald-500 text-white text-[10px] px-2 py-0.5 rounded-full font-bold shadow-xs">
+                {consolidatedCustomers.length}
+              </span>
+            </button>
+
+            <button
               onClick={() => setActiveTab('medicines')}
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all cursor-pointer text-left ${
                 activeTab === 'medicines' 
@@ -899,6 +1213,7 @@ export const AdminPortal = () => {
               {activeTab === 'overview' && 'সামগ্রিক ওভারভিউ ও ব্যবসায়িক তথ্য'}
               {activeTab === 'orders' && 'গ্রাহকের অর্ডার ও ডেলিভারি ম্যানেজমেন্ট'}
               {activeTab === 'prescriptions' && 'আপলোডকৃত প্রেসক্রিপশন ও ফার্মাসিস্ট রিভিউ'}
+              {activeTab === 'customers' && 'নিবন্ধিত গ্রাহক প্রোফাইল ও কাস্টমার ম্যানেজমেন্ট'}
               {activeTab === 'medicines' && 'ওষুধ ক্যাটালগ ও স্টক পরিচালনা'}
               {activeTab === 'coupons' && 'ডেলিভারি চার্জ ও কুপন কোড ব্যবস্থাপনা'}
               {activeTab === 'ads' && 'হোমপেজ অফার ও বিজ্ঞাপন পপআপ কন্ট্রোল (Popup Ads)'}
@@ -961,12 +1276,12 @@ export const AdminPortal = () => {
           {/* ================================================= */}
           {activeTab === 'overview' && (
             <div className="space-y-6">
-              {/* 4 Big Metrics Cards */}
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              {/* 5 Big Metrics Cards */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
                 
                 <div className="bg-white p-5 rounded-none border border-slate-200 shadow-xs flex flex-col justify-between space-y-2">
                   <div className="flex justify-between items-center">
-                    <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">মোট বিক্রি (Revenue)</span>
+                    <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">মোট বিক্রি</span>
                     <span className="p-2 rounded-none bg-[#123184]/10 text-[#123184]">
                       <DollarSign className="w-4 h-4" />
                     </span>
@@ -975,7 +1290,24 @@ export const AdminPortal = () => {
                   <span className="text-[11px] text-[#02975E] font-bold">লাইভ ক্যালকুলেশন</span>
                 </div>
 
-                <div className="bg-white p-5 rounded-none border border-slate-200 shadow-xs flex flex-col justify-between space-y-2">
+                <div 
+                  onClick={() => setActiveTab('customers')}
+                  className="bg-white p-5 rounded-none border border-slate-200 shadow-xs flex flex-col justify-between space-y-2 cursor-pointer hover:border-[#123184] hover:shadow-sm transition-all"
+                >
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">নিবন্ধিত গ্রাহক</span>
+                    <span className="p-2 rounded-none bg-emerald-100 text-[#02975E]">
+                      <Users className="w-4 h-4" />
+                    </span>
+                  </div>
+                  <span className="text-2xl font-black text-slate-900">{consolidatedCustomers.length} জন</span>
+                  <span className="text-[11px] text-[#123184] font-bold">ম্যানেজ করুন &rarr;</span>
+                </div>
+
+                <div 
+                  onClick={() => setActiveTab('orders')}
+                  className="bg-white p-5 rounded-none border border-slate-200 shadow-xs flex flex-col justify-between space-y-2 cursor-pointer hover:border-[#02975E] hover:shadow-sm transition-all"
+                >
                   <div className="flex justify-between items-center">
                     <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">মোট অর্ডার</span>
                     <span className="p-2 rounded-none bg-[#02975E]/10 text-[#02975E]">
@@ -986,7 +1318,10 @@ export const AdminPortal = () => {
                   <span className="text-[11px] text-amber-600 font-bold">{pendingOrders} টি নতুন অপেক্ষমান</span>
                 </div>
 
-                <div className="bg-white p-5 rounded-none border border-slate-200 shadow-xs flex flex-col justify-between space-y-2">
+                <div 
+                  onClick={() => setActiveTab('prescriptions')}
+                  className="bg-white p-5 rounded-none border border-slate-200 shadow-xs flex flex-col justify-between space-y-2 cursor-pointer hover:border-amber-400 hover:shadow-sm transition-all"
+                >
                   <div className="flex justify-between items-center">
                     <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">প্রেসক্রিপশন জমা</span>
                     <span className="p-2 rounded-none bg-amber-100 text-amber-800">
@@ -997,7 +1332,10 @@ export const AdminPortal = () => {
                   <span className="text-[11px] text-rose-600 font-bold">{pendingRx} টি রিভিউ বাকি</span>
                 </div>
 
-                <div className="bg-white p-5 rounded-none border border-slate-200 shadow-xs flex flex-col justify-between space-y-2">
+                <div 
+                  onClick={() => setActiveTab('medicines')}
+                  className="bg-white p-5 rounded-none border border-slate-200 shadow-xs flex flex-col justify-between space-y-2 cursor-pointer hover:border-purple-400 hover:shadow-sm transition-all"
+                >
                   <div className="flex justify-between items-center">
                     <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">ওষুধ আইটেম</span>
                     <span className="p-2 rounded-none bg-purple-100 text-purple-800">
@@ -1613,6 +1951,338 @@ export const AdminPortal = () => {
                 ))}
               </div>
             )}
+            </div>
+          )}
+
+          {/* ================================================= */}
+          {/* TAB 3.5: CUSTOMER MANAGEMENT (গ্রাহক ম্যানেজমেন্ট) */}
+          {/* ================================================= */}
+          {activeTab === 'customers' && (
+            <div id="admin-customers-top" className="space-y-6">
+              
+              {/* Top 4 Metrics Cards */}
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                
+                <div className="bg-white p-5 border border-slate-200 shadow-xs flex flex-col justify-between space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">মোট নিবন্ধিত গ্রাহক</span>
+                    <span className="p-2 bg-[#123184]/10 text-[#123184]">
+                      <Users className="w-4 h-4" />
+                    </span>
+                  </div>
+                  <span className="text-2xl font-black text-[#123184]">{consolidatedCustomers.length} জন</span>
+                  <span className="text-[11px] text-[#02975E] font-bold">লাইভ ক্লাউড ডাটাবেজ</span>
+                </div>
+
+                <div className="bg-white p-5 border border-slate-200 shadow-xs flex flex-col justify-between space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">সক্রিয় অর্ডারকারী</span>
+                    <span className="p-2 bg-[#02975E]/10 text-[#02975E]">
+                      <ShoppingBag className="w-4 h-4" />
+                    </span>
+                  </div>
+                  <span className="text-2xl font-black text-slate-900">{totalCustomersWithOrders} জন</span>
+                  <span className="text-[11px] text-emerald-600 font-bold">অর্ডার সম্পন্নকারী গ্রাহক</span>
+                </div>
+
+                <div className="bg-white p-5 border border-slate-200 shadow-xs flex flex-col justify-between space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">গ্রাহকদের মোট কেনাকাটা</span>
+                    <span className="p-2 bg-emerald-100 text-emerald-800">
+                      <DollarSign className="w-4 h-4" />
+                    </span>
+                  </div>
+                  <span className="text-2xl font-black text-slate-900">৳{totalCustomerSpent.toFixed(2)}</span>
+                  <span className="text-[11px] text-slate-500 font-medium">সর্বমোট সংগৃহীত বিক্রয়</span>
+                </div>
+
+                <div className="bg-white p-5 border border-slate-200 shadow-xs flex flex-col justify-between space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">প্রেসক্রিপশন আপলোডকারী</span>
+                    <span className="p-2 bg-amber-100 text-amber-800">
+                      <FileText className="w-4 h-4" />
+                    </span>
+                  </div>
+                  <span className="text-2xl font-black text-slate-900">{totalCustomersWithRx} জন</span>
+                  <span className="text-[11px] text-amber-600 font-bold">প্রেসক্রিপশন ইউজার</span>
+                </div>
+
+              </div>
+
+              {/* Search, Filter & Action Bar */}
+              <div className="bg-white p-4 border border-slate-200 shadow-xs flex flex-wrap justify-between items-center gap-3">
+                <div className="flex items-center gap-3 flex-1 min-w-[260px] max-w-md">
+                  <div className="relative w-full">
+                    <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+                    <input
+                      type="text"
+                      value={customerSearch}
+                      onChange={(e) => setCustomerSearch(e.target.value)}
+                      placeholder="নাম, ফোন নম্বর বা ঠিকানা দিয়ে গ্রাহক খুঁজুন..."
+                      className="w-full pl-9 pr-8 py-2 border border-slate-200 text-xs outline-none focus:border-[#123184] transition-colors"
+                    />
+                    {customerSearch && (
+                      <button 
+                        type="button" 
+                        onClick={() => setCustomerSearch('')}
+                        className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600 text-xs"
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 flex-wrap">
+                  {/* Filter Tabs */}
+                  <div className="flex items-center bg-slate-100 p-1 text-xs font-bold text-slate-600">
+                    <button
+                      type="button"
+                      onClick={() => setCustomerFilter('all')}
+                      className={`px-3 py-1.5 transition-colors cursor-pointer ${
+                        customerFilter === 'all' ? 'bg-white text-[#123184] shadow-xs' : 'hover:text-slate-900'
+                      }`}
+                    >
+                      সকল ({consolidatedCustomers.length})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setCustomerFilter('ordered')}
+                      className={`px-3 py-1.5 transition-colors cursor-pointer ${
+                        customerFilter === 'ordered' ? 'bg-white text-[#123184] shadow-xs' : 'hover:text-slate-900'
+                      }`}
+                    >
+                      অর্ডারকারী ({totalCustomersWithOrders})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setCustomerFilter('prescriptions')}
+                      className={`px-3 py-1.5 transition-colors cursor-pointer ${
+                        customerFilter === 'prescriptions' ? 'bg-white text-[#123184] shadow-xs' : 'hover:text-slate-900'
+                      }`}
+                    >
+                      প্রেসক্রিপশন ({totalCustomersWithRx})
+                    </button>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setShowAddCustomerModal(true)}
+                    className="flex items-center gap-1.5 text-xs bg-[#02975E] hover:bg-[#027e4e] text-white font-extrabold px-4 py-2 cursor-pointer shadow-xs transition-colors"
+                  >
+                    <UserPlus className="w-4 h-4" />
+                    <span>নতুন গ্রাহক যোগ করুন</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Customers Grid */}
+              {paginatedCustomers.length === 0 ? (
+                <div className="bg-white border border-slate-200 p-12 text-center space-y-3">
+                  <div className="w-16 h-16 rounded-full bg-slate-100 mx-auto flex items-center justify-center text-slate-400">
+                    <Users className="w-8 h-8" />
+                  </div>
+                  <h4 className="font-extrabold text-base text-slate-700">কোনো গ্রাহক পাওয়া যায়নি</h4>
+                  <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                    {customerSearch 
+                      ? `"${customerSearch}" এর সাথে মিলে এমন কোনো গ্রাহক নেই। অন্য কি-ওয়ার্ড দিয়ে খুঁজুন।`
+                      : 'নতুন কোনো গ্রাহক এখনও একাউন্ট তৈরি বা অর্ডার করেননি। আপনি ওপরের বোতাম দিয়ে নতুন গ্রাহক যুক্ত করতে পারেন।'}
+                  </p>
+                  {customerSearch && (
+                    <button
+                      type="button"
+                      onClick={() => setCustomerSearch('')}
+                      className="text-xs font-bold text-[#123184] hover:underline cursor-pointer"
+                    >
+                      সার্চ ক্লিয়ার করুন
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {paginatedCustomers.map((cust) => {
+                    const stats = getCustomerStats(cust.phone);
+                    return (
+                      <div 
+                        key={cust.phone} 
+                        className="bg-white border border-slate-200 p-4.5 shadow-xs hover:shadow-md transition-all flex flex-col justify-between space-y-4"
+                      >
+                        {/* Card Header & Avatar */}
+                        <div className="flex items-start gap-3">
+                          <div className="w-12 h-12 rounded-full overflow-hidden bg-slate-100 border-2 border-slate-200 shrink-0 flex items-center justify-center shadow-xs">
+                            {cust.avatar ? (
+                              <img src={cust.avatar} alt={cust.name} className="w-full h-full object-cover" />
+                            ) : (
+                              <div className="w-full h-full bg-[#123184] text-white font-black flex items-center justify-center text-base">
+                                {(cust.name || 'গ').charAt(0)}
+                              </div>
+                            )}
+                          </div>
+                          
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between gap-1">
+                              <h4 className="font-black text-sm text-slate-900 truncate" title={cust.name}>
+                                {cust.name}
+                              </h4>
+                              <span className="text-[10px] text-slate-500 bg-slate-100 px-2 py-0.5 shrink-0 font-medium">
+                                {cust.createdAt || 'নিবন্ধিত'}
+                              </span>
+                            </div>
+
+                            {/* Phone with quick call & copy */}
+                            <div className="flex items-center gap-1.5 mt-1">
+                              <Phone className="w-3.5 h-3.5 text-[#123184] shrink-0" />
+                              <a 
+                                href={`tel:${cust.phone}`} 
+                                className="text-xs font-mono font-bold text-[#123184] hover:underline"
+                              >
+                                {cust.phone}
+                              </a>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  navigator.clipboard?.writeText(cust.phone);
+                                  showToast?.(`ফোন নম্বর (${cust.phone}) কপি হয়েছে`, 'info');
+                                }}
+                                className="text-slate-400 hover:text-slate-700 p-0.5 cursor-pointer"
+                                title="নম্বর কপি করুন"
+                              >
+                                <Copy className="w-3 h-3" />
+                              </button>
+                            </div>
+
+                            {/* Delivery Address */}
+                            <div className="flex items-start gap-1.5 mt-1 text-[11px] text-slate-600">
+                              <MapPin className="w-3.5 h-3.5 text-rose-500 shrink-0 mt-0.5" />
+                              <p className="line-clamp-2 leading-tight">
+                                {cust.address || <span className="text-slate-400 italic">ঠিকানা দেওয়া হয়নি</span>}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Customer Stats Strip */}
+                        <div className="grid grid-cols-3 gap-2 bg-slate-50 p-2.5 text-center border border-slate-100 text-xs">
+                          <div>
+                            <span className="block text-[10px] text-slate-500 font-medium">মোট অর্ডার</span>
+                            <span className="font-black text-slate-900">{stats.orders.length} টি</span>
+                          </div>
+                          <div>
+                            <span className="block text-[10px] text-slate-500 font-medium">মোট ব্যয়</span>
+                            <span className="font-black text-[#02975E]">৳{stats.totalSpent}</span>
+                          </div>
+                          <div>
+                            <span className="block text-[10px] text-slate-500 font-medium">প্রেসক্রিপশন</span>
+                            <span className="font-black text-amber-700">{stats.prescriptions.length} টি</span>
+                          </div>
+                        </div>
+
+                        {/* Action Buttons */}
+                        <div className="flex items-center gap-2 pt-2 border-t border-slate-100">
+                          {/* Edit Details */}
+                          <button
+                            type="button"
+                            onClick={() => handleStartEditCustomer(cust)}
+                            className="flex-1 bg-[#123184] hover:bg-[#0d2463] text-white text-xs font-bold py-2 px-3 flex items-center justify-center gap-1.5 transition-colors cursor-pointer shadow-xs"
+                          >
+                            <Edit3 className="w-3.5 h-3.5" />
+                            <span>তথ্য এডিট</span>
+                          </button>
+
+                          {/* Order History */}
+                          {stats.orders.length > 0 && (
+                            <button
+                              type="button"
+                              onClick={() => setInspectCustomer(cust)}
+                              className="bg-emerald-50 hover:bg-emerald-100 text-[#02975E] border border-emerald-200 text-xs font-bold py-2 px-2.5 flex items-center justify-center gap-1 transition-colors cursor-pointer"
+                              title="অর্ডার হিস্টোরি দেখুন"
+                            >
+                              <Package className="w-3.5 h-3.5" />
+                              <span>অর্ডার ({stats.orders.length})</span>
+                            </button>
+                          )}
+
+                          {/* Direct Call */}
+                          <a
+                            href={`tel:${cust.phone}`}
+                            className="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold py-2 px-2.5 flex items-center justify-center transition-colors"
+                            title="কল করুন"
+                          >
+                            <PhoneCall className="w-3.5 h-3.5 text-[#02975E]" />
+                          </a>
+
+                          {/* Delete Customer */}
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteCustomer(cust.phone, cust.name)}
+                            className="bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 text-xs font-bold py-2 px-2.5 flex items-center justify-center transition-colors cursor-pointer"
+                            title="গ্রাহক প্রোফাইল মুছুন"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Pagination Controls */}
+              {filteredCustomers.length > 0 && totalCustomerPages > 1 && (
+                <div className="bg-white border border-slate-200 p-4 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-3">
+                  <div className="text-xs text-slate-600 font-medium">
+                    পেজ <strong className="text-[#123184] font-black">{customerPage}</strong> এর <strong className="text-slate-900">{totalCustomerPages}</strong> — মোট <strong className="text-emerald-700">{filteredCustomers.length}</strong> জন গ্রাহকের মধ্যে <strong className="text-slate-900">{(customerPage - 1) * customersPerPage + 1} থেকে {Math.min(customerPage * customersPerPage, filteredCustomers.length)}</strong> তম দেখানো হচ্ছে
+                  </div>
+
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <button
+                      type="button"
+                      onClick={() => handleCustomerPageChange(customerPage - 1)}
+                      disabled={customerPage === 1}
+                      className={`px-3.5 py-2 text-xs font-bold flex items-center gap-1.5 border transition-all ${
+                        customerPage === 1
+                          ? 'opacity-40 cursor-not-allowed bg-slate-100 text-slate-400 border-slate-200'
+                          : 'bg-white text-slate-800 border-slate-300 hover:bg-[#123184] hover:text-white hover:border-[#123184] cursor-pointer'
+                      }`}
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                      <span>পূর্ববর্তী</span>
+                    </button>
+
+                    <div className="flex items-center gap-1 flex-wrap">
+                      {Array.from({ length: totalCustomerPages }, (_, i) => i + 1).map((pageNum) => (
+                        <button
+                          key={pageNum}
+                          type="button"
+                          onClick={() => handleCustomerPageChange(pageNum)}
+                          className={`w-9 h-9 text-xs font-black border transition-all cursor-pointer ${
+                            customerPage === pageNum
+                              ? 'bg-[#123184] text-white border-[#123184] shadow-xs'
+                              : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
+                          }`}
+                        >
+                          {pageNum}
+                        </button>
+                      ))}
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => handleCustomerPageChange(customerPage + 1)}
+                      disabled={customerPage === totalCustomerPages}
+                      className={`px-3.5 py-2 text-xs font-bold flex items-center gap-1.5 border transition-all ${
+                        customerPage === totalCustomerPages
+                          ? 'opacity-40 cursor-not-allowed bg-slate-100 text-slate-400 border-slate-200'
+                          : 'bg-white text-slate-800 border-slate-300 hover:bg-[#123184] hover:text-white hover:border-[#123184] cursor-pointer'
+                      }`}
+                    >
+                      <span>পরবর্তী</span>
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              )}
+
             </div>
           )}
 
@@ -3382,6 +4052,482 @@ export const AdminPortal = () => {
 
               </div>
 
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 1. Edit Customer Modal */}
+      {editingCustomer && (
+        <div 
+          className="fixed inset-0 z-60 bg-slate-900/65 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto animate-in fade-in"
+          onClick={() => setEditingCustomer(null)}
+        >
+          <div 
+            className="bg-white rounded-2xl max-w-lg w-full my-6 shadow-2xl border border-slate-100 overflow-hidden flex flex-col max-h-[92vh] animate-in zoom-in-95 duration-150"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="p-4 sm:p-5 border-b border-[#0d2463] flex items-center justify-between bg-gradient-to-r from-[#123184] to-[#02975E] text-white">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-white/15 flex items-center justify-center text-white backdrop-blur-xs shadow-xs">
+                  <Edit3 className="w-5 h-5 text-emerald-300" />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-base sm:text-lg">
+                    গ্রাহকের তথ্য এডিট করুন (Edit Customer)
+                  </h3>
+                  <span className="text-[11px] text-blue-100">
+                    {editingCustomer.name} • {editingCustomer.phone}
+                  </span>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditingCustomer(null)}
+                className="text-white/80 hover:text-white p-1 rounded-lg hover:bg-white/10 text-sm font-bold cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Form Body */}
+            <form onSubmit={handleSaveEditCustomer} className="p-5 overflow-y-auto space-y-4 text-xs">
+              {/* Profile Photo / Avatar */}
+              <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3">
+                <label className="block font-bold text-slate-800">প্রোফাইল ছবি / অবতার:</label>
+                <div className="flex items-center gap-4">
+                  <div className="w-16 h-16 rounded-full overflow-hidden bg-white border-2 border-slate-300 shadow-xs flex items-center justify-center shrink-0">
+                    {editCustomerForm.avatar ? (
+                      <img src={editCustomerForm.avatar} alt="Avatar" className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full bg-[#123184] text-white font-bold flex items-center justify-center text-lg">
+                        {(editCustomerForm.name || 'গ').charAt(0)}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="space-y-2 flex-1">
+                    <input 
+                      type="file" 
+                      ref={editCustomerPhotoRef} 
+                      onChange={handleEditCustomerPhotoUpload} 
+                      accept="image/*" 
+                      className="hidden" 
+                    />
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => editCustomerPhotoRef.current?.click()}
+                        className="bg-[#02975E] hover:bg-[#027e4e] text-white px-3 py-1.5 rounded-lg font-bold flex items-center gap-1 cursor-pointer transition-colors"
+                      >
+                        <Camera className="w-3.5 h-3.5" />
+                        <span>ছবি আপলোড</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setShowEditAvatarPicker(!showEditAvatarPicker)}
+                        className="bg-[#123184] hover:bg-[#0d2463] text-white px-3 py-1.5 rounded-lg font-bold flex items-center gap-1 cursor-pointer transition-colors"
+                      >
+                        <Sparkles className="w-3.5 h-3.5" />
+                        <span>প্রিসেট অবতার</span>
+                      </button>
+                      {editCustomerForm.avatar && (
+                        <button
+                          type="button"
+                          onClick={() => setEditCustomerForm(prev => ({ ...prev, avatar: null }))}
+                          className="bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 px-2.5 py-1.5 rounded-lg font-bold cursor-pointer"
+                        >
+                          ছবি সরান
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Preset Avatar Selection Grid */}
+                {showEditAvatarPicker && (
+                  <div className="pt-3 border-t border-slate-200 grid grid-cols-6 gap-2 animate-in fade-in">
+                    {PRESET_AVATARS.map((av) => (
+                      <button
+                        key={av.id}
+                        type="button"
+                        onClick={() => {
+                          setEditCustomerForm(prev => ({ ...prev, avatar: av.url }));
+                          setShowEditAvatarPicker(false);
+                        }}
+                        className={`w-10 h-10 rounded-full overflow-hidden border-2 p-0.5 transition-all hover:scale-105 cursor-pointer ${
+                          editCustomerForm.avatar === av.url ? 'border-[#02975E] ring-2 ring-[#02975E]/30' : 'border-slate-200'
+                        }`}
+                        title={av.label}
+                      >
+                        <img src={av.url} alt={av.label} className="w-full h-full object-contain rounded-full" />
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Customer Name */}
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">গ্রাহকের পুরো নাম *</label>
+                <div className="relative">
+                  <User className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+                  <input
+                    type="text"
+                    required
+                    value={editCustomerForm.name}
+                    onChange={(e) => setEditCustomerForm(prev => ({ ...prev, name: e.target.value }))}
+                    placeholder="যেমন: তানভীর আহমেদ"
+                    className="w-full pl-9 pr-3 py-2 border border-slate-300 rounded-lg text-xs outline-none focus:border-[#123184]"
+                  />
+                </div>
+              </div>
+
+              {/* Customer Phone */}
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">মোবাইল নম্বর (Phone) *</label>
+                <div className="relative">
+                  <Phone className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+                  <input
+                    type="tel"
+                    required
+                    value={editCustomerForm.phone}
+                    onChange={(e) => setEditCustomerForm(prev => ({ ...prev, phone: e.target.value }))}
+                    placeholder="01711223344"
+                    className="w-full pl-9 pr-3 py-2 border border-slate-300 rounded-lg text-xs outline-none focus:border-[#123184] font-mono font-bold"
+                  />
+                </div>
+                <span className="text-[10px] text-slate-400 mt-0.5 block">
+                  মোবাইল নম্বর পরিবর্তন করলে গ্রাহকের সংশ্লিষ্ট অর্ডার ও প্রেসক্রিপশনেও নম্বরটি আপডেট হবে।
+                </span>
+              </div>
+
+              {/* Delivery Address */}
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">ডেলিভারি ঠিকানা (Full Address)</label>
+                <div className="relative">
+                  <MapPin className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+                  <textarea
+                    rows="3"
+                    value={editCustomerForm.address}
+                    onChange={(e) => setEditCustomerForm(prev => ({ ...prev, address: e.target.value }))}
+                    placeholder="বাড়ি নং, রোড নং, এলাকা, থানা, জেলা..."
+                    className="w-full pl-9 pr-3 py-2 border border-slate-300 rounded-lg text-xs outline-none focus:border-[#123184]"
+                  />
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="pt-3 border-t border-slate-200 flex items-center justify-end gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => setEditingCustomer(null)}
+                  className="px-4 py-2 border border-slate-300 text-slate-700 rounded-lg font-bold hover:bg-slate-100 cursor-pointer"
+                >
+                  বাতিল
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 bg-gradient-to-r from-[#123184] to-[#02975E] text-white rounded-lg font-extrabold flex items-center gap-1.5 shadow-md hover:opacity-95 cursor-pointer"
+                >
+                  <Save className="w-4 h-4" />
+                  <span>সংরক্ষণ করুন (Save)</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* 2. Add New Customer Modal */}
+      {showAddCustomerModal && (
+        <div 
+          className="fixed inset-0 z-60 bg-slate-900/65 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto animate-in fade-in"
+          onClick={() => setShowAddCustomerModal(false)}
+        >
+          <div 
+            className="bg-white rounded-2xl max-w-lg w-full my-6 shadow-2xl border border-slate-100 overflow-hidden flex flex-col max-h-[92vh] animate-in zoom-in-95 duration-150"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="p-4 sm:p-5 border-b border-[#027e4e] flex items-center justify-between bg-gradient-to-r from-[#02975E] to-[#123184] text-white">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-white/15 flex items-center justify-center text-white backdrop-blur-xs shadow-xs">
+                  <UserPlus className="w-5 h-5 text-emerald-200" />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-base sm:text-lg">
+                    নতুন গ্রাহক নিবন্ধন করুন (Add Customer)
+                  </h3>
+                  <span className="text-[11px] text-emerald-100">
+                    ম্যানুয়ালি নতুন গ্রাহকের প্রোফাইল ডাটাবেজে সংরক্ষণ করুন
+                  </span>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowAddCustomerModal(false)}
+                className="text-white/80 hover:text-white p-1 rounded-lg hover:bg-white/10 text-sm font-bold cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Form Body */}
+            <form onSubmit={handleSaveNewCustomer} className="p-5 overflow-y-auto space-y-4 text-xs">
+              {/* Profile Photo / Avatar */}
+              <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3">
+                <label className="block font-bold text-slate-800">প্রোফাইল ছবি / অবতার (ঐচ্ছিক):</label>
+                <div className="flex items-center gap-4">
+                  <div className="w-16 h-16 rounded-full overflow-hidden bg-white border-2 border-slate-300 shadow-xs flex items-center justify-center shrink-0">
+                    {newCustomerForm.avatar ? (
+                      <img src={newCustomerForm.avatar} alt="Avatar" className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full bg-[#02975E] text-white font-bold flex items-center justify-center text-lg">
+                        {(newCustomerForm.name || 'ন').charAt(0)}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="space-y-2 flex-1">
+                    <input 
+                      type="file" 
+                      ref={newCustomerPhotoRef} 
+                      onChange={handleNewCustomerPhotoUpload} 
+                      accept="image/*" 
+                      className="hidden" 
+                    />
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => newCustomerPhotoRef.current?.click()}
+                        className="bg-[#02975E] hover:bg-[#027e4e] text-white px-3 py-1.5 rounded-lg font-bold flex items-center gap-1 cursor-pointer transition-colors"
+                      >
+                        <Camera className="w-3.5 h-3.5" />
+                        <span>ছবি আপলোড</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setShowNewAvatarPicker(!showNewAvatarPicker)}
+                        className="bg-[#123184] hover:bg-[#0d2463] text-white px-3 py-1.5 rounded-lg font-bold flex items-center gap-1 cursor-pointer transition-colors"
+                      >
+                        <Sparkles className="w-3.5 h-3.5" />
+                        <span>প্রিসেট অবতার</span>
+                      </button>
+                      {newCustomerForm.avatar && (
+                        <button
+                          type="button"
+                          onClick={() => setNewCustomerForm(prev => ({ ...prev, avatar: null }))}
+                          className="bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 px-2.5 py-1.5 rounded-lg font-bold cursor-pointer"
+                        >
+                          মুছুন
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Preset Avatar Selection Grid */}
+                {showNewAvatarPicker && (
+                  <div className="pt-3 border-t border-slate-200 grid grid-cols-6 gap-2 animate-in fade-in">
+                    {PRESET_AVATARS.map((av) => (
+                      <button
+                        key={av.id}
+                        type="button"
+                        onClick={() => {
+                          setNewCustomerForm(prev => ({ ...prev, avatar: av.url }));
+                          setShowNewAvatarPicker(false);
+                        }}
+                        className={`w-10 h-10 rounded-full overflow-hidden border-2 p-0.5 transition-all hover:scale-105 cursor-pointer ${
+                          newCustomerForm.avatar === av.url ? 'border-[#02975E] ring-2 ring-[#02975E]/30' : 'border-slate-200'
+                        }`}
+                        title={av.label}
+                      >
+                        <img src={av.url} alt={av.label} className="w-full h-full object-contain rounded-full" />
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Customer Name */}
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">গ্রাহকের নাম (Name)</label>
+                <div className="relative">
+                  <User className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+                  <input
+                    type="text"
+                    value={newCustomerForm.name}
+                    onChange={(e) => setNewCustomerForm(prev => ({ ...prev, name: e.target.value }))}
+                    placeholder="যেমন: মো: রফিকুল ইসলাম"
+                    className="w-full pl-9 pr-3 py-2 border border-slate-300 rounded-lg text-xs outline-none focus:border-[#02975E]"
+                  />
+                </div>
+              </div>
+
+              {/* Customer Phone */}
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">মোবাইল নম্বর (Phone) *</label>
+                <div className="relative">
+                  <Phone className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+                  <input
+                    type="tel"
+                    required
+                    value={newCustomerForm.phone}
+                    onChange={(e) => setNewCustomerForm(prev => ({ ...prev, phone: e.target.value }))}
+                    placeholder="017XXXXXXXX"
+                    className="w-full pl-9 pr-3 py-2 border border-slate-300 rounded-lg text-xs outline-none focus:border-[#02975E] font-mono font-bold"
+                  />
+                </div>
+              </div>
+
+              {/* Delivery Address */}
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">ডেলিভারি ঠিকানা (Address)</label>
+                <div className="relative">
+                  <MapPin className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+                  <textarea
+                    rows="3"
+                    value={newCustomerForm.address}
+                    onChange={(e) => setNewCustomerForm(prev => ({ ...prev, address: e.target.value }))}
+                    placeholder="বাড়ি নং, রোড নং, এলাকা, থানা, জেলা..."
+                    className="w-full pl-9 pr-3 py-2 border border-slate-300 rounded-lg text-xs outline-none focus:border-[#02975E]"
+                  />
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="pt-3 border-t border-slate-200 flex items-center justify-end gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => setShowAddCustomerModal(false)}
+                  className="px-4 py-2 border border-slate-300 text-slate-700 rounded-lg font-bold hover:bg-slate-100 cursor-pointer"
+                >
+                  বাতিল
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 bg-[#02975E] hover:bg-[#027e4e] text-white rounded-lg font-extrabold flex items-center gap-1.5 shadow-md cursor-pointer transition-colors"
+                >
+                  <UserPlus className="w-4 h-4" />
+                  <span>গ্রাহক তৈরি করুন</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* 3. Inspect Customer Orders Modal */}
+      {inspectCustomer && (
+        <div 
+          className="fixed inset-0 z-60 bg-slate-900/65 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto animate-in fade-in"
+          onClick={() => setInspectCustomer(null)}
+        >
+          <div 
+            className="bg-white rounded-2xl max-w-2xl w-full my-6 shadow-2xl border border-slate-100 overflow-hidden flex flex-col max-h-[92vh] animate-in zoom-in-95 duration-150"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="p-4 sm:p-5 border-b border-[#0d2463] flex items-center justify-between bg-gradient-to-r from-[#123184] to-[#02975E] text-white">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-white/15 flex items-center justify-center text-white backdrop-blur-xs shadow-xs">
+                  <Package className="w-5 h-5 text-emerald-300" />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-base sm:text-lg">
+                    গ্রাহকের অর্ডার ও প্রেসক্রিপশন হিস্টোরি
+                  </h3>
+                  <span className="text-[11px] text-blue-100">
+                    {inspectCustomer.name} • {inspectCustomer.phone}
+                  </span>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setInspectCustomer(null)}
+                className="text-white/80 hover:text-white p-1 rounded-lg hover:bg-white/10 text-sm font-bold cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="p-5 overflow-y-auto space-y-4 text-xs">
+              {/* Customer Profile Summary Strip */}
+              <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <span className="text-[10px] text-slate-500 font-bold uppercase block">ঠিকানা:</span>
+                  <span className="font-semibold text-slate-800">{inspectCustomer.address || 'ঠিকানা দেওয়া হয়নি'}</span>
+                </div>
+                <div>
+                  <span className="text-[10px] text-slate-500 font-bold uppercase block">মোট কেনাকাটা:</span>
+                  <span className="font-black text-sm text-[#02975E]">
+                    ৳{getCustomerStats(inspectCustomer.phone).totalSpent}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleStartEditCustomer(inspectCustomer);
+                    setInspectCustomer(null);
+                  }}
+                  className="bg-[#123184] hover:bg-[#0d2463] text-white px-3 py-1.5 rounded-lg font-bold flex items-center gap-1 cursor-pointer"
+                >
+                  <Edit3 className="w-3.5 h-3.5" />
+                  <span>তথ্য এডিট</span>
+                </button>
+              </div>
+
+              {/* Orders List */}
+              <div className="space-y-3">
+                <h4 className="font-black text-sm text-slate-900 flex items-center gap-2">
+                  <Package className="w-4 h-4 text-[#123184]" />
+                  <span>অর্ডার সমূহ ({getCustomerStats(inspectCustomer.phone).orders.length} টি):</span>
+                </h4>
+
+                {getCustomerStats(inspectCustomer.phone).orders.length === 0 ? (
+                  <p className="text-slate-400 italic p-4 text-center bg-slate-50 rounded-xl">কোনো অর্ডার পাওয়া যায়নি</p>
+                ) : (
+                  <div className="space-y-2.5">
+                    {getCustomerStats(inspectCustomer.phone).orders.map((o) => (
+                      <div key={o.id} className="p-3.5 border border-slate-200 rounded-xl bg-white space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="font-bold text-[#123184] font-mono">{o.id}</span>
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                            o.status === 'Delivered' ? 'bg-emerald-100 text-emerald-800' :
+                            o.status === 'Cancelled' ? 'bg-rose-100 text-rose-800' :
+                            'bg-amber-100 text-amber-800'
+                          }`}>
+                            {o.status}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between text-[11px] text-slate-600">
+                          <span>{o.createdAt}</span>
+                          <span className="font-black text-slate-900">৳{Number(o.grandTotal || 0).toFixed(2)}</span>
+                        </div>
+                        <div className="flex items-center justify-between pt-1 border-t border-slate-100">
+                          <span className="text-[10px] text-slate-400">
+                            আইটেম: {Array.isArray(o.items) ? o.items.map(i => `${i.name} (x${i.quantity})`).join(', ') : 'তথ্য নেই'}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setActiveInvoiceOrder(o);
+                              setInspectCustomer(null);
+                            }}
+                            className="text-[#123184] font-bold text-[11px] hover:underline flex items-center gap-1 cursor-pointer"
+                          >
+                            <Printer className="w-3 h-3" />
+                            <span>চালান</span>
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
