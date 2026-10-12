@@ -3,6 +3,7 @@
  * Supports bilingual search: Bengali (বাংলা) & English
  * Searches Brand Names, Generics, Companies, Indications, Symptoms & Dosage Forms
  */
+import { BANGLADESH_50K_MEDICINES, expandCompactMedicine } from '../data/bangladeshMedicines50k.js';
 
 // Bengali phonetic & synonym mapping for Bangladesh pharmaceuticals and medical terms
 export const BANGLA_SYNONYM_MAP = {
@@ -309,7 +310,7 @@ export function scoreMedicine(med, query, expandedTokens = []) {
 export function searchMedicines(medicinesList = [], query = '', options = {}) {
   if (!Array.isArray(medicinesList)) return [];
 
-  const { category = 'all', filterRx = 'all' } = options;
+  const { category = 'all', filterRx = 'all', limit = 300 } = options;
   const cleanQ = (query || '').trim();
 
   // If no query, apply standard filters only
@@ -324,20 +325,72 @@ export function searchMedicines(medicinesList = [], query = '', options = {}) {
   }
 
   const expandedTokens = expandQueryTokens(cleanQ);
+  const rawQLower = cleanQ.toLowerCase();
+  const hasBn = hasBengaliChars(cleanQ);
 
-  // Score each medicine
   const scored = [];
-  for (const med of medicinesList) {
-    // Category check
-    if (category !== 'all' && med.category !== category) continue;
+  const seenIds = new Set();
 
-    // Rx filter check
+  // 1. Search first in curated store catalog (receives priority boost)
+  for (const med of medicinesList) {
+    if (category !== 'all' && med.category !== category) continue;
     if (filterRx === 'otc' && med.requiresPrescription) continue;
     if (filterRx === 'rx' && !med.requiresPrescription) continue;
 
     const s = scoreMedicine(med, cleanQ, expandedTokens);
     if (s > 0) {
-      scored.push({ med, score: s });
+      scored.push({ med, score: s + 40 }); // curated boost
+      seenIds.add(med.id);
+    }
+  }
+
+  // 2. Search in the 50,000+ Bangladesh registered medicines database
+  if (Array.isArray(BANGLADESH_50K_MEDICINES)) {
+    for (let i = 0; i < BANGLADESH_50K_MEDICINES.length; i++) {
+      const t = BANGLADESH_50K_MEDICINES[i];
+      const id = t[0];
+      if (seenIds.has(id)) continue;
+
+      // Category filter check
+      if (category !== 'all' && t[5] !== category) continue;
+
+      // Rx filter check
+      if (filterRx === 'otc' && t[10] === 1) continue;
+      if (filterRx === 'rx' && t[10] === 0) continue;
+
+      const nameLower = t[1].toLowerCase();
+      const genericLower = t[3].toLowerCase();
+      const nameBn = t[2] || '';
+      const compLower = t[4].toLowerCase();
+
+      let matches = false;
+      if (nameLower.includes(rawQLower) || genericLower.includes(rawQLower)) {
+        matches = true;
+      } else if (hasBn && nameBn.includes(cleanQ)) {
+        matches = true;
+      } else if (compLower.includes(rawQLower)) {
+        matches = true;
+      } else {
+        for (const tok of expandedTokens) {
+          if (tok && tok.length > 2 && (nameLower.includes(tok) || genericLower.includes(tok))) {
+            matches = true;
+            break;
+          }
+        }
+      }
+
+      if (matches) {
+        const fullMed = expandCompactMedicine(t);
+        const s = scoreMedicine(fullMed, cleanQ, expandedTokens);
+        if (s > 0) {
+          scored.push({ med: fullMed, score: s });
+          seenIds.add(id);
+        }
+      }
+
+      if (scored.length >= limit) {
+        break;
+      }
     }
   }
 
