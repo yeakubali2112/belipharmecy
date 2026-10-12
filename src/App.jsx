@@ -106,6 +106,19 @@ const MainApp = () => {
     }
   };
 
+  const getPaginationItems = useMemo(() => {
+    if (totalPages <= 7) {
+      return Array.from({ length: totalPages }, (_, i) => i + 1);
+    }
+    if (currentPage <= 4) {
+      return [1, 2, 3, 4, 5, '...', totalPages];
+    }
+    if (currentPage >= totalPages - 3) {
+      return [1, '...', totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1, totalPages];
+    }
+    return [1, '...', currentPage - 1, currentPage, currentPage + 1, '...', totalPages];
+  }, [currentPage, totalPages]);
+
   const totalCartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
 
   // If in dedicated Admin Portal view
@@ -198,65 +211,63 @@ const MainApp = () => {
 
             {/* Pagination Bar: Previous, Page Numbers, Next */}
             {totalPages > 1 && (
-              <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-white border border-slate-200 p-4 shadow-xs rounded-none">
-                <div className="text-xs sm:text-sm font-semibold text-slate-700">
-                  {lang === 'bn' ? (
-                    <span>
-                      পেজ <strong className="text-[#123184] font-black">{currentPage}</strong> / <strong>{totalPages}</strong> — মোট {filteredMedicines.length} টির মধ্যে <strong>{(currentPage - 1) * itemsPerPage + 1} থেকে {Math.min(currentPage * itemsPerPage, filteredMedicines.length)}</strong> টি পণ্য দেখানো হচ্ছে
-                    </span>
-                  ) : (
-                    <span>
-                      Page <strong className="text-[#123184] font-black">{currentPage}</strong> of <strong>{totalPages}</strong> — Showing <strong>{(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, filteredMedicines.length)}</strong> of {filteredMedicines.length} products
-                    </span>
-                  )}
-                </div>
+              <div className="flex items-center justify-center gap-2 bg-white border border-slate-200 p-4 shadow-xs rounded-none flex-wrap">
+                {/* Previous Button */}
+                <button
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  disabled={currentPage === 1}
+                  className={`px-3.5 py-2 text-xs font-bold flex items-center gap-1.5 border transition-all rounded-none ${
+                    currentPage === 1
+                      ? 'opacity-40 cursor-not-allowed bg-slate-100 text-slate-400 border-slate-200'
+                      : 'bg-white text-slate-800 border-slate-300 hover:bg-[#123184] hover:text-white hover:border-[#123184] cursor-pointer'
+                  }`}
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                  <span>{lang === 'bn' ? 'পূর্ববর্তী পেজ' : 'Previous'}</span>
+                </button>
 
-                <div className="flex items-center gap-2 flex-wrap">
-                  {/* Previous Button */}
-                  <button
-                    onClick={() => handlePageChange(currentPage - 1)}
-                    disabled={currentPage === 1}
-                    className={`px-3.5 py-2 text-xs font-bold flex items-center gap-1.5 border transition-all rounded-none ${
-                      currentPage === 1
-                        ? 'opacity-40 cursor-not-allowed bg-slate-100 text-slate-400 border-slate-200'
-                        : 'bg-white text-slate-800 border-slate-300 hover:bg-[#123184] hover:text-white hover:border-[#123184] cursor-pointer'
-                    }`}
-                  >
-                    <ChevronLeft className="w-4 h-4" />
-                    <span>{lang === 'bn' ? 'পূর্ববর্তী পেজ' : 'Previous'}</span>
-                  </button>
-
-                  {/* Page Numbers */}
-                  <div className="flex items-center gap-1">
-                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNum) => (
+                {/* Page Numbers */}
+                <div className="flex items-center gap-1">
+                  {getPaginationItems.map((item, index) => {
+                    if (item === '...') {
+                      return (
+                        <span
+                          key={`ellipsis-${index}`}
+                          className="w-8 text-center text-slate-400 font-bold select-none text-xs"
+                        >
+                          ...
+                        </span>
+                      );
+                    }
+                    return (
                       <button
-                        key={pageNum}
-                        onClick={() => handlePageChange(pageNum)}
+                        key={item}
+                        onClick={() => handlePageChange(item)}
                         className={`w-9 h-9 text-xs font-black border transition-all rounded-none cursor-pointer ${
-                          currentPage === pageNum
+                          currentPage === item
                             ? 'bg-[#123184] text-white border-[#123184] shadow-xs'
                             : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
                         }`}
                       >
-                        {pageNum}
+                        {item}
                       </button>
-                    ))}
-                  </div>
-
-                  {/* Next Button */}
-                  <button
-                    onClick={() => handlePageChange(currentPage + 1)}
-                    disabled={currentPage === totalPages}
-                    className={`px-4 py-2 text-xs font-bold flex items-center gap-1.5 border transition-all rounded-none ${
-                      currentPage === totalPages
-                        ? 'opacity-40 cursor-not-allowed bg-slate-100 text-slate-400 border-slate-200'
-                        : 'bg-[#02975E] text-white border-[#02975E] hover:bg-[#027e4e] shadow-xs cursor-pointer'
-                    }`}
-                  >
-                    <span>{lang === 'bn' ? 'পরবর্তী পেজ (Next)' : 'Next Page'}</span>
-                    <ChevronRight className="w-4 h-4" />
-                  </button>
+                    );
+                  })}
                 </div>
+
+                {/* Next Button */}
+                <button
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  disabled={currentPage === totalPages}
+                  className={`px-4 py-2 text-xs font-bold flex items-center gap-1.5 border transition-all rounded-none ${
+                    currentPage === totalPages
+                      ? 'opacity-40 cursor-not-allowed bg-slate-100 text-slate-400 border-slate-200'
+                      : 'bg-[#02975E] text-white border-[#02975E] hover:bg-[#027e4e] shadow-xs cursor-pointer'
+                  }`}
+                >
+                  <span>{lang === 'bn' ? 'পরবর্তী পেজ (Next)' : 'Next Page'}</span>
+                  <ChevronRight className="w-4 h-4" />
+                </button>
               </div>
             )}
           </div>
