@@ -56,6 +56,44 @@ export const ShopProvider = ({ children }) => {
     }
   });
 
+  // Ad Banner / Offer Popup Settings (Synced with LocalStorage and Firebase Cloud)
+  const DEFAULT_AD_BANNER = {
+    isActive: true,
+    title: 'বেলী ফার্মেসির বিশেষ অফার!',
+    subtitle: 'ঘরে বসেই আসল ওষুধ অর্ডার করুন দ্রুততম ডেলিভারিতে। বিশেষ কুপন কোড ব্যবহারে আকর্ষণীয় ছাড় লুফে নিন!',
+    imageUrl: 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?auto=format&fit=crop&w=900&q=80',
+    badgeText: '🔥 বিশেষ অফার (Limited Offer)',
+    buttonText: 'অর্ডার করতে ক্লিক করুন',
+    buttonAction: 'catalog', // 'catalog', 'prescription'
+    couponCode: 'BELI10',
+    updatedAt: new Date().toISOString()
+  };
+
+  const [adBanner, setAdBanner] = useState(() => {
+    const saved = localStorage.getItem('beli_ad_banner');
+    if (!saved) return DEFAULT_AD_BANNER;
+    try {
+      const parsed = JSON.parse(saved);
+      return { ...DEFAULT_AD_BANNER, ...parsed };
+    } catch {
+      return DEFAULT_AD_BANNER;
+    }
+  });
+
+  const [isAdModalOpen, setIsAdModalOpen] = useState(false);
+
+  const updateAdBanner = (newAdData) => {
+    const updated = {
+      ...adBanner,
+      ...newAdData,
+      updatedAt: new Date().toISOString()
+    };
+    setAdBanner(updated);
+    safeSetItem('beli_ad_banner', JSON.stringify(updated));
+    saveCloudSettings({ deliverySettings, coupons, adBanner: updated });
+    showToast(lang === 'bn' ? 'অফার বিজ্ঞাপন সফলভাবে আপডেট ও সেভ হয়েছে!' : 'Ad banner updated successfully!', 'success');
+  };
+
   const updateDeliverySettings = (newSettings) => {
     const updated = {
       deliveryFee: Number(newSettings.deliveryFee ?? deliverySettings.deliveryFee),
@@ -64,7 +102,7 @@ export const ShopProvider = ({ children }) => {
     };
     setDeliverySettings(updated);
     safeSetItem('beli_delivery_settings', JSON.stringify(updated));
-    saveCloudSettings({ deliverySettings: updated, coupons });
+    saveCloudSettings({ deliverySettings: updated, coupons, adBanner });
     showToast(lang === 'bn' ? 'ডেলিভারি চার্জ সেটিংস সফলভাবে আপডেট হয়েছে!' : 'Delivery settings updated successfully!', 'success');
   };
 
@@ -630,6 +668,10 @@ export const ShopProvider = ({ children }) => {
             setCoupons(cloudSettings.coupons);
             safeSetItem('beli_coupons', JSON.stringify(cloudSettings.coupons));
           }
+          if (cloudSettings.adBanner) {
+            setAdBanner(prev => ({ ...prev, ...cloudSettings.adBanner }));
+            safeSetItem('beli_ad_banner', JSON.stringify(cloudSettings.adBanner));
+          }
         }
       } catch (err) {
         // Fallback silently
@@ -959,6 +1001,13 @@ export const ShopProvider = ({ children }) => {
       updateMedicine,
       deleteMedicine,
       resetToDefaultMedicines,
+
+      // Ad Banner & Popup
+      adBanner,
+      setAdBanner,
+      updateAdBanner,
+      isAdModalOpen,
+      setIsAdModalOpen,
 
       // Toast
       toast,

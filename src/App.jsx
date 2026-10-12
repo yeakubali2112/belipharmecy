@@ -13,6 +13,7 @@ import { HealthToolsModal } from './components/HealthToolsModal';
 import { InvoiceModal } from './components/InvoiceModal';
 import { AdminPortal } from './components/AdminPortal';
 import { CustomerProfileModal } from './components/CustomerProfileModal';
+import { AdPopupModal } from './components/AdPopupModal';
 import { Footer } from './components/Footer';
 import { 
   Phone, 
@@ -353,6 +354,7 @@ const MainApp = () => {
       <InvoiceModal />
       <HealthToolsModal />
       <CustomerProfileModal />
+      <AdPopupModal />
 
       {/* Footer */}
       <Footer />
