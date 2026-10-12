@@ -1264,12 +1264,6 @@ export const AdminPortal = () => {
           </div>
 
           <div className="flex items-center gap-2.5 flex-wrap">
-            {/* Live Cloud Database Connection Badge */}
-            <div className="flex items-center gap-1.5 bg-emerald-50 text-emerald-800 border border-emerald-300 px-3 py-1.5 text-xs font-bold shadow-2xs select-none">
-              <span className="w-2 h-2 rounded-full bg-[#02975E] animate-pulse"></span>
-              <span>ক্লাউড লাইভ সিঙ্ক সক্রিয়</span>
-            </div>
-
             {/* User Profile Badge */}
             <div className="flex items-center gap-2.5 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-none shadow-2xs">
               <div className="w-8 h-8 rounded-none bg-[#02975E] text-white font-black flex items-center justify-center text-xs shrink-0 shadow-xs">
@@ -1284,16 +1278,6 @@ export const AdminPortal = () => {
                 </span>
               </div>
             </div>
-
-            {/* Website Button */}
-            <button
-              onClick={() => navigateTo('store')}
-              className="flex items-center gap-1.5 bg-[#123184] hover:bg-[#0d2463] text-white font-bold px-3.5 py-2 rounded-none text-xs transition-colors cursor-pointer shadow-xs"
-              title="গ্রাহক ওয়েবসাইট দেখুন"
-            >
-              <ExternalLink className="w-3.5 h-3.5 text-emerald-300" />
-              <span>ওয়েবসাইট</span>
-            </button>
 
             {/* Logout Button */}
             <button
@@ -2344,17 +2328,14 @@ export const AdminPortal = () => {
                       className="pl-9 pr-3 py-1.5 rounded-none border border-slate-200 text-xs outline-none focus:border-[#123184]"
                     />
                   </div>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-xs text-slate-500 font-semibold">
-                      {filteredMedicines.length} টি ওষুধ {totalMedPages > 1 && `• দেখাচ্ছে ${(medPage - 1) * medItemsPerPage + 1}-${Math.min(medPage * medItemsPerPage, filteredMedicines.length)} (পেজ ${medPage}/${totalMedPages})`}
-                    </span>
-                    {isAdminMedexLoading && (
+                  {isAdminMedexLoading && (
+                    <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-[11px] text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded flex items-center gap-1 font-bold animate-pulse">
                         <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-ping"></span>
                         লাইভ ডাটাবেজ খুঁজছে...
                       </span>
-                    )}
-                  </div>
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex gap-2">
