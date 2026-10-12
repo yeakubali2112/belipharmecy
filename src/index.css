@@ -1,0 +1,222 @@
+@import "tailwindcss";
+
+@theme {
+  --color-brand-blue: #123184;
+  --color-brand-blue-hover: #0d2566;
+  --color-brand-blue-50: #f0f3fa;
+  --color-brand-blue-100: #e0e7f6;
+  --color-brand-green: #02975E;
+  --color-brand-green-hover: #027e4e;
+  --color-brand-green-50: #eaf8f2;
+  --color-brand-green-100: #d0f0e2;
+}
+
+:root {
+  --brand-blue: #123184;
+  --brand-green: #02975E;
+}
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+  
+  body {
+    margin: 0;
+    padding: 0;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Hind Siliguri', 'Kalpurush', sans-serif;
+    background-color: #f8fafc;
+    color: #1e293b;
+    -webkit-font-smoothing: antialiased;
+  }
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Print Invoice Styling */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  #printable-invoice, #printable-invoice * {
+    visibility: visible;
+  }
+  #printable-invoice {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    margin: 0;
+    padding: 20px;
+    background: white;
+  }
+}
+
+/* Delivery Boy Bicycle Animation */
+@keyframes bikeRideAcross {
+  0% {
+    left: -90px;
+    opacity: 0.95;
+  }
+  10% {
+    opacity: 1;
+  }
+  85% {
+    opacity: 1;
+  }
+  100% {
+    left: calc(100% + 40px);
+    opacity: 0.95;
+  }
+}
+
+@keyframes wheelRotate {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes roadMove {
+  0% {
+    background-position: 0 0;
+  }
+  100% {
+    background-position: -32px 0;
+  }
+}
+
+@keyframes bikePedal {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-2px);
+  }
+}
+
+/* ===================================== */
+/* Hero Headline Text Animation         */
+/* ===================================== */
+@keyframes textShimmerFlow {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+@keyframes headlinePulseGlow {
+  0%, 100% {
+    filter: drop-shadow(0 2px 10px rgba(110, 231, 183, 0.25));
+  }
+  50% {
+    filter: drop-shadow(0 4px 20px rgba(110, 231, 183, 0.65)) drop-shadow(0 0 30px rgba(2, 151, 94, 0.35));
+  }
+}
+
+@keyframes heroFadeUp {
+  0% {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.hero-animated-title-line1 {
+  display: inline-block;
+  background: linear-gradient(
+    110deg,
+    #ffffff 0%,
+    #f0fdf4 35%,
+    #ffffff 50%,
+    #dcfce7 70%,
+    #ffffff 100%
+  );
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: 
+    heroFadeUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) both,
+    textShimmerFlow 5s ease-in-out infinite;
+}
+
+.hero-animated-title-line2 {
+  display: inline-block;
+  background: linear-gradient(
+    90deg,
+    #6ee7b7 0%,
+    #a7f3d0 25%,
+    #ffffff 50%,
+    #38bdf8 75%,
+    #6ee7b7 100%
+  );
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: 
+    heroFadeUp 1s cubic-bezier(0.16, 1, 0.3, 1) 0.15s both,
+    textShimmerFlow 3.5s ease infinite,
+    headlinePulseGlow 3s ease-in-out infinite;
+}
+
+/* ===================================== */
+/* New Order BP Number Lighting Alert    */
+/* ===================================== */
+@keyframes bpLightingGlow {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(225, 29, 72, 0.7), 0 0 14px rgba(225, 29, 72, 0.5);
+    background-color: #fff1f2;
+    color: #e11d48;
+    border-color: #f43f5e;
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(225, 29, 72, 0), 0 0 25px rgba(225, 29, 72, 0.9);
+    background-color: #e11d48;
+    color: #ffffff;
+    border-color: #be123c;
+  }
+}
+
+.bp-number-lighting {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 9px;
+  font-family: ui-monospace, monospace;
+  font-weight: 900;
+  border-width: 1.5px;
+  border-style: solid;
+  border-radius: 6px;
+  animation: bpLightingGlow 1.2s ease-in-out infinite;
+  letter-spacing: 0.04em;
+  transition: all 0.3s ease;
+}
+
+
+

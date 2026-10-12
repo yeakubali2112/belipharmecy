@@ -1,0 +1,3007 @@
+import React, { useState, useRef } from 'react';
+import { 
+  Lock, 
+  Unlock, 
+  BarChart3, 
+  Package, 
+  FileText, 
+  Plus, 
+  Trash2, 
+  Edit3, 
+  Check, 
+  Clock, 
+  Eye, 
+  EyeOff, 
+  RotateCcw,
+  AlertCircle,
+  Printer,
+  ArrowLeft,
+  LogOut,
+  ExternalLink,
+  ShieldCheck,
+  User,
+  Settings,
+  DollarSign,
+  Phone,
+  Search,
+  SlidersHorizontal,
+  Pill,
+  Sparkles,
+  ShoppingBag,
+  Save,
+  X,
+  Camera,
+  Upload,
+  Image as ImageIcon,
+  ChevronLeft,
+  ChevronRight,
+  Tag,
+  Truck,
+  Percent,
+  Gift,
+  CheckCircle2,
+  Copy
+} from 'lucide-react';
+import { useShop } from '../context/ShopContext';
+import { CATEGORIES } from '../data/medicines';
+
+export const AdminPortal = () => {
+  const { 
+    config, 
+    deliverySettings,
+    updateDeliverySettings,
+    coupons,
+    addCoupon,
+    updateCoupon,
+    deleteCoupon,
+    toggleCouponStatus,
+    orders, 
+    prescriptions, 
+    medicines, 
+    customerProfiles,
+    updateOrderStatus, 
+    updateOrderPaymentMethod,
+    updatePrescriptionStatus,
+    updatePrescriptionMedicines,
+    addMedicine,
+    updateMedicine,
+    deleteMedicine,
+    resetToDefaultMedicines,
+    setActiveInvoiceOrder,
+    navigateTo,
+    isAdminAuthenticated,
+    adminLogin,
+    adminLogout,
+    lang 
+  } = useShop();
+
+  // Login form state
+  const [username, setUsername] = useState('yeakub007');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [loginError, setLoginError] = useState('');
+
+  // Dashboard active tab: 'overview', 'orders', 'prescriptions', 'medicines', 'coupons', 'settings'
+  const [activeTab, setActiveTab] = useState('overview');
+
+  // Delivery Settings Form State
+  const [deliveryForm, setDeliveryForm] = useState({
+    deliveryFee: config.deliveryFee || 40,
+    freeDeliveryThreshold: config.freeDeliveryThreshold || 500,
+    expressDeliveryFee: config.expressDeliveryFee || 80
+  });
+
+  React.useEffect(() => {
+    setDeliveryForm({
+      deliveryFee: config.deliveryFee || 40,
+      freeDeliveryThreshold: config.freeDeliveryThreshold || 500,
+      expressDeliveryFee: config.expressDeliveryFee || 80
+    });
+  }, [config.deliveryFee, config.freeDeliveryThreshold, config.expressDeliveryFee]);
+
+  const handleSaveDelivery = (e) => {
+    e.preventDefault();
+    updateDeliverySettings({
+      deliveryFee: Number(deliveryForm.deliveryFee),
+      freeDeliveryThreshold: Number(deliveryForm.freeDeliveryThreshold),
+      expressDeliveryFee: Number(deliveryForm.expressDeliveryFee)
+    });
+  };
+
+  // Coupon Manager Form State
+  const [showCouponModal, setShowCouponModal] = useState(false);
+  const [editingCouponId, setEditingCouponId] = useState(null);
+  const [couponForm, setCouponForm] = useState({
+    code: '',
+    description: '',
+    type: 'percent',
+    value: 10,
+    minOrder: 0,
+    maxDiscount: 500,
+    isActive: true
+  });
+
+  const handleOpenAddCoupon = () => {
+    setEditingCouponId(null);
+    setCouponForm({
+      code: '',
+      description: '',
+      type: 'percent',
+      value: 10,
+      minOrder: 0,
+      maxDiscount: 500,
+      isActive: true
+    });
+    setShowCouponModal(true);
+  };
+
+  const handleOpenEditCoupon = (coupon) => {
+    setEditingCouponId(coupon.id);
+    setCouponForm({
+      code: coupon.code,
+      description: coupon.description || '',
+      type: coupon.type || 'percent',
+      value: coupon.value || 0,
+      minOrder: coupon.minOrder || 0,
+      maxDiscount: coupon.maxDiscount || 0,
+      isActive: coupon.isActive !== false
+    });
+    setShowCouponModal(true);
+  };
+
+  const handleSaveCoupon = (e) => {
+    e.preventDefault();
+    if (!couponForm.code.trim()) return;
+
+    if (editingCouponId) {
+      updateCoupon(editingCouponId, {
+        code: couponForm.code,
+        description: couponForm.description,
+        type: couponForm.type,
+        value: Number(couponForm.value),
+        minOrder: Number(couponForm.minOrder),
+        maxDiscount: Number(couponForm.maxDiscount),
+        isActive: couponForm.isActive
+      });
+      setShowCouponModal(false);
+    } else {
+      const res = addCoupon({
+        code: couponForm.code,
+        description: couponForm.description,
+        type: couponForm.type,
+        value: Number(couponForm.value),
+        minOrder: Number(couponForm.minOrder),
+        maxDiscount: Number(couponForm.maxDiscount),
+        isActive: couponForm.isActive
+      });
+      if (res?.success) {
+        setShowCouponModal(false);
+      }
+    }
+  };
+
+  // Order filter, search & pagination (10 orders per page)
+  const [orderFilter, setOrderFilter] = useState('all');
+  const [orderSearch, setOrderSearch] = useState('');
+  const [orderPage, setOrderPage] = useState(1);
+  const ordersPerPage = 10;
+
+  React.useEffect(() => {
+    setOrderPage(1);
+  }, [orderFilter, orderSearch]);
+
+  // Prescription preview modal
+  const [previewRxImage, setPreviewRxImage] = useState(null);
+
+  // Prescription Medicine Entry Modal State
+  const [activeRxForMedicines, setActiveRxForMedicines] = useState(null);
+  const [rxMedicinesList, setRxMedicinesList] = useState([]);
+  const [rxPharmacistNotes, setRxPharmacistNotes] = useState('');
+  const [rxMedSearch, setRxMedSearch] = useState('');
+  const [selectedMedToAdd, setSelectedMedToAdd] = useState(null);
+  const [rxAddUnitType, setRxAddUnitType] = useState('strip');
+  const [rxAddQuantity, setRxAddQuantity] = useState(1);
+
+  const handleOpenRxMedicinesModal = (rx) => {
+    setActiveRxForMedicines(rx);
+    setRxMedicinesList(rx.prescribedMedicines ? [...rx.prescribedMedicines] : []);
+    setRxPharmacistNotes(rx.pharmacistNotes || '');
+    setRxMedSearch('');
+    setSelectedMedToAdd(null);
+    setRxAddUnitType('strip');
+    setRxAddQuantity(1);
+  };
+
+  const handleAddMedicineToRx = () => {
+    if (!selectedMedToAdd) return;
+    
+    // Exact website pricing calculation
+    const rawPrice = rxAddUnitType === 'strip' ? selectedMedToAdd.pricePerStrip : selectedMedToAdd.pricePerUnit;
+    const discount = selectedMedToAdd.discountPercent || 0;
+    const unitPrice = discount > 0 ? (rawPrice * (1 - discount / 100)) : rawPrice;
+    const lineTotal = Number((unitPrice * rxAddQuantity).toFixed(2));
+
+    const newItem = {
+      medicineId: selectedMedToAdd.id,
+      name: selectedMedToAdd.name,
+      generic: selectedMedToAdd.generic,
+      company: selectedMedToAdd.company,
+      image: selectedMedToAdd.image,
+      unitType: rxAddUnitType,
+      unitLabel: rxAddUnitType === 'strip' ? (lang === 'bn' ? `পাতা (${selectedMedToAdd.stripSize}টি)` : 'Strip') : (lang === 'bn' ? '১ পিস' : '1 Piece'),
+      quantity: Number(rxAddQuantity),
+      unitPrice: Number(unitPrice.toFixed(2)),
+      rawPrice: Number(rawPrice.toFixed(2)),
+      discountPercent: discount,
+      total: lineTotal
+    };
+
+    setRxMedicinesList(prev => [...prev, newItem]);
+    setSelectedMedToAdd(null);
+    setRxMedSearch('');
+    setRxAddQuantity(1);
+  };
+
+  const handleRemoveMedicineFromRx = (index) => {
+    setRxMedicinesList(prev => prev.filter((_, idx) => idx !== index));
+  };
+
+  const handleUpdateRxItemQuantity = (index, newQty) => {
+    if (newQty <= 0) {
+      handleRemoveMedicineFromRx(index);
+      return;
+    }
+    setRxMedicinesList(prev => prev.map((item, idx) => {
+      if (idx === index) {
+        return {
+          ...item,
+          quantity: newQty,
+          total: Number((item.unitPrice * newQty).toFixed(2))
+        };
+      }
+      return item;
+    }));
+  };
+
+  const handleSavePrescriptionMedicines = () => {
+    if (!activeRxForMedicines) return;
+    updatePrescriptionMedicines(
+      activeRxForMedicines.id,
+      rxMedicinesList,
+      rxPharmacistNotes,
+      'Order Created'
+    );
+    setActiveRxForMedicines(null);
+  };
+
+  // Medicine catalog state
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [medSearch, setMedSearch] = useState('');
+  const [medPage, setMedPage] = useState(1);
+  const medItemsPerPage = 20;
+
+  React.useEffect(() => {
+    setMedPage(1);
+  }, [medSearch]);
+
+  const [newMed, setNewMed] = useState({
+    name: '',
+    generic: '',
+    company: 'Square Pharmaceuticals Ltd',
+    category: 'otc',
+    type: 'Tablet',
+    stripSize: 10,
+    pricePerUnit: 5,
+    pricePerStrip: 50,
+    discountPercent: 5,
+    requiresPrescription: false,
+    stock: 100,
+    image: 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=500&auto=format&fit=crop&q=60',
+    description: '',
+    indications: '',
+    dosage: '',
+    sideEffects: ''
+  });
+
+  const handleLoginSubmit = (e) => {
+    e.preventDefault();
+    setLoginError('');
+    const res = adminLogin(username, password);
+    if (!res.success) {
+      setLoginError(res.error);
+    }
+  };
+
+  const handleAddMedicineSubmit = (e) => {
+    e.preventDefault();
+    if (!newMed.name || !newMed.generic) return;
+    addMedicine(newMed);
+    setShowAddForm(false);
+    setNewMed({
+      name: '',
+      generic: '',
+      company: 'Square Pharmaceuticals Ltd',
+      category: 'otc',
+      type: 'Tablet',
+      stripSize: 10,
+      pricePerUnit: 5,
+      pricePerStrip: 50,
+      discountPercent: 5,
+      requiresPrescription: false,
+      stock: 100,
+      image: 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=500&auto=format&fit=crop&q=60',
+      description: '',
+      indications: '',
+      dosage: '',
+      sideEffects: ''
+    });
+  };
+
+  // Edit medicine modal state & handlers
+  const [editingMed, setEditingMed] = useState(null);
+
+  // Product photo upload refs & handlers
+  const editImageInputRef = useRef(null);
+  const newImageInputRef = useRef(null);
+
+  const compressProductImage = (file, callback) => {
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      alert(lang === 'bn' ? 'অনুগ্রহ করে শুধুমাত্র ছবি ফাইল (JPG, PNG, WEBP) নির্বাচন করুন।' : 'Please choose an image file (JPG, PNG, WEBP).');
+      return;
+    }
+    if (file.size > 8 * 1024 * 1024) {
+      alert(lang === 'bn' ? 'ছবির সাইজ ৮ মেগাবাইটের কম হতে হবে।' : 'Image size must be under 8MB.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const maxDim = 600; // Optimal 600px resolution for high-res medicine presentation
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > maxDim) {
+            height = Math.round((height * maxDim) / width);
+            width = maxDim;
+          }
+        } else {
+          if (height > maxDim) {
+            width = Math.round((width * maxDim) / height);
+            height = maxDim;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+        const compressedBase64 = canvas.toDataURL('image/jpeg', 0.85);
+        callback(compressedBase64);
+      };
+      img.src = event.target.result;
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleEditPhotoUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    compressProductImage(file, (base64) => {
+      setEditingMed(prev => prev ? ({ ...prev, image: base64 }) : null);
+    });
+    e.target.value = '';
+  };
+
+  const handleNewPhotoUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    compressProductImage(file, (base64) => {
+      setNewMed(prev => ({ ...prev, image: base64 }));
+    });
+    e.target.value = '';
+  };
+
+  const handleStartEdit = (med) => {
+    setEditingMed({ ...med });
+  };
+
+  const handleSaveEdit = (e) => {
+    e.preventDefault();
+    if (!editingMed || !editingMed.name || !editingMed.generic) return;
+    updateMedicine(editingMed);
+    setEditingMed(null);
+  };
+
+  const totalSales = orders.reduce((sum, o) => sum + (o.grandTotal || 0), 0);
+  const pendingOrders = orders.filter(o => o.status === 'Pending').length;
+  const pendingRx = prescriptions.filter(p => p.status === 'Pending Review').length;
+
+  const getOrderTimestamp = (order) => {
+    if (!order) return 0;
+    if (order.timestamp && typeof order.timestamp === 'number') {
+      return order.timestamp;
+    }
+    if (order.createdAt) {
+      const parts = String(order.createdAt).split(',');
+      if (parts.length === 2) {
+        const dateParts = parts[0].trim().split('/');
+        if (dateParts.length === 3) {
+          const [d, m, y] = dateParts.map(Number);
+          const timePart = parts[1].trim();
+          const parsedDate = new Date(`${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}T${timePart}`);
+          if (!isNaN(parsedDate.getTime())) {
+            return parsedDate.getTime();
+          }
+        }
+      }
+      const t = Date.parse(order.createdAt);
+      if (!isNaN(t)) return t;
+    }
+    return 0;
+  };
+
+  const filteredOrders = orders
+    .filter(o => {
+      const matchStatus = orderFilter === 'all' || o.status === orderFilter;
+      const q = orderSearch.toLowerCase().trim();
+      const matchQuery = !q || (
+        (o.id && o.id.toLowerCase().includes(q)) ||
+        (o.customerName && o.customerName.toLowerCase().includes(q)) ||
+        (o.customerPhone && o.customerPhone.includes(q))
+      );
+      return matchStatus && matchQuery;
+    })
+    .sort((a, b) => {
+      const timeA = getOrderTimestamp(a);
+      const timeB = getOrderTimestamp(b);
+      if (timeA !== timeB) return timeB - timeA;
+      return (b.id || '').localeCompare(a.id || '');
+    });
+
+  const totalOrderPages = Math.ceil(filteredOrders.length / ordersPerPage) || 1;
+  const paginatedOrders = filteredOrders.slice(
+    (orderPage - 1) * ordersPerPage,
+    (orderPage - 1) * ordersPerPage + ordersPerPage
+  );
+
+  const handleOrderPageChange = (newPage) => {
+    if (newPage < 1 || newPage > totalOrderPages) return;
+    setOrderPage(newPage);
+    const topElem = document.getElementById('admin-orders-list-top');
+    if (topElem) {
+      topElem.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
+
+  const filteredMedicines = medicines.filter(m => {
+    const q = medSearch.toLowerCase().trim();
+    return !q || (
+      m.name.toLowerCase().includes(q) ||
+      m.generic.toLowerCase().includes(q) ||
+      m.company.toLowerCase().includes(q) ||
+      (m.indications && m.indications.toLowerCase().includes(q)) ||
+      (m.description && m.description.toLowerCase().includes(q))
+    );
+  }).sort((a, b) => (a.generic || '').localeCompare(b.generic || '') || (a.name || '').localeCompare(b.name || ''));
+
+  const totalMedPages = Math.ceil(filteredMedicines.length / medItemsPerPage) || 1;
+  const paginatedAdminMedicines = filteredMedicines.slice(
+    (medPage - 1) * medItemsPerPage,
+    (medPage - 1) * medItemsPerPage + medItemsPerPage
+  );
+
+  const handleAdminMedPageChange = (newPage) => {
+    if (newPage < 1 || newPage > totalMedPages) return;
+    setMedPage(newPage);
+    const tableTop = document.getElementById('admin-med-table-top');
+    if (tableTop) {
+      tableTop.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
+
+  // ==========================================
+  // VIEW 1: DEDICATED ADMIN LOGIN SCREEN
+  // ==========================================
+  if (!isAdminAuthenticated) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-[#0b1b44] via-[#123184] to-[#02975E] flex flex-col justify-between p-4 sm:p-6 text-white selection:bg-[#02975E] selection:text-white">
+        
+        {/* Top bar */}
+        <div className="max-w-6xl w-full mx-auto flex justify-between items-center py-2">
+          <button
+            onClick={() => navigateTo('store')}
+            className="flex items-center gap-2 bg-white/10 hover:bg-white/20 border border-white/20 px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer backdrop-blur-xs"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            <span>গ্রাহক ওয়েবসাইটে ফিরে যান</span>
+          </button>
+
+          <span className="text-xs text-blue-200 hidden sm:inline">
+            🔒 সুরক্ষিত অ্যাডমিন গেটওয়ে
+          </span>
+        </div>
+
+        {/* Center Login Box */}
+        <div className="max-w-md w-full mx-auto my-auto bg-white/95 text-slate-900 rounded-3xl shadow-2xl p-6 sm:p-8 backdrop-blur-md border border-white/40 space-y-6">
+          
+          {/* Logo & Header */}
+          <div className="text-center space-y-2">
+            <div className="flex justify-center mb-1">
+              <img 
+                src="/logo.png" 
+                alt="বেলী ফার্মেসি" 
+                className="h-12 w-auto object-contain"
+              />
+            </div>
+            <h2 className="text-xl sm:text-2xl font-black text-[#123184] tracking-tight">
+              অ্যাডমিন কন্ট্রোল প্যানেল
+            </h2>
+            <p className="text-xs text-slate-500 font-medium">
+              ফার্মেসি ইনভেন্টরি, অর্ডার ও প্রেসক্রিপশন পরিচালনা পোর্টাল
+            </p>
+          </div>
+
+          {/* Login Form */}
+          <form onSubmit={handleLoginSubmit} className="space-y-4">
+            
+            {/* Username input */}
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                ব্যবহারকারী নাম (Admin ID)
+              </label>
+              <div className="relative">
+                <User className="w-4 h-4 text-[#123184] absolute left-3.5 top-3.5" />
+                <input
+                  type="text"
+                  required
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  placeholder="yeakub007"
+                  className="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-slate-300 focus:border-[#123184] focus:ring-4 focus:ring-[#123184]/10 text-sm font-semibold outline-none transition-all"
+                />
+              </div>
+            </div>
+
+            {/* Password input */}
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                পাসওয়ার্ড (Password)
+              </label>
+              <div className="relative">
+                <Lock className="w-4 h-4 text-[#123184] absolute left-3.5 top-3.5" />
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="পাসওয়ার্ড লিখুন..."
+                  className="w-full pl-10 pr-10 py-2.5 rounded-xl border border-slate-300 focus:border-[#123184] focus:ring-4 focus:ring-[#123184]/10 text-sm font-semibold outline-none transition-all"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-3 text-slate-400 hover:text-slate-600 cursor-pointer"
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+            </div>
+
+            {/* Error Message */}
+            {loginError && (
+              <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>{loginError}</span>
+              </div>
+            )}
+
+            {/* Credentials Info Box */}
+            <div 
+              onClick={() => {
+                setUsername('yeakub007');
+                setPassword('1234');
+                setLoginError('');
+              }}
+              className="bg-[#123184]/5 hover:bg-[#123184]/10 border border-[#123184]/15 rounded-2xl p-3 text-xs text-slate-600 space-y-1 cursor-pointer transition-colors"
+              title="ক্লিক করে তথ্য পূরণ করুন"
+            >
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-[#123184] flex items-center gap-1">
+                  <ShieldCheck className="w-3.5 h-3.5 text-[#02975E]" />
+                  নির্ধারিত লগইন তথ্য:
+                </span>
+                <span className="text-[10px] text-[#02975E] font-bold bg-[#02975E]/10 px-2 py-0.5 rounded-full">
+                  ক্লিক করে অটো-ফিল ⚡
+                </span>
+              </div>
+              <p>ইউজারনেম: <code className="font-mono font-bold text-[#123184] bg-white px-1.5 py-0.5 rounded border border-slate-200">yeakub007</code></p>
+              <p>পাসওয়ার্ড: <code className="font-mono font-bold text-[#02975E] bg-white px-1.5 py-0.5 rounded border border-slate-200">1234</code></p>
+            </div>
+
+            {/* Submit Button in Brand Navy Blue */}
+            <button
+              type="submit"
+              className="w-full bg-[#123184] hover:bg-[#0d2463] text-white font-extrabold py-3.5 rounded-2xl shadow-xl shadow-[#123184]/30 text-sm transition-all cursor-pointer transform hover:-translate-y-0.5 flex items-center justify-center gap-2"
+            >
+              <Unlock className="w-4 h-4" />
+              <span>লগইন করুন</span>
+            </button>
+          </form>
+
+        </div>
+
+        {/* Footer info */}
+        <div className="text-center text-xs text-blue-200/80 py-2">
+          © {new Date().getFullYear()} {config.name} ({config.nameBn}) • ফার্মেসি ম্যানেজমেন্ট সিস্টেম
+        </div>
+
+      </div>
+    );
+  }
+
+  // ==========================================
+  // VIEW 2: DEDICATED FULL ADMIN DASHBOARD
+  // ==========================================
+  return (
+    <div className="min-h-screen bg-slate-100 flex flex-col md:flex-row text-slate-800">
+      
+      {/* Sidebar Navigation */}
+      <aside className="w-full md:w-64 bg-gradient-to-b from-[#0b1b44] via-[#123184] to-[#02975E] text-white flex flex-col justify-between border-r border-white/10 shrink-0 shadow-2xl">
+        
+        {/* Sidebar Header & Nav */}
+        <div>
+          {/* Logo container */}
+          <div className="p-4 border-b border-white/10 flex items-center justify-between">
+            <div className="bg-white p-2 rounded-xl shadow-xs">
+              <img 
+                src="/logo.png" 
+                alt="বেলী ফার্মেসি" 
+                className="h-8 w-auto object-contain"
+              />
+            </div>
+            <span className="bg-gradient-to-r from-[#02975E] to-emerald-400 text-white text-[9px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider shadow-xs">
+              Admin
+            </span>
+          </div>
+
+          {/* Navigation Links */}
+          <nav className="p-3 space-y-1.5 text-xs font-bold">
+            <button
+              onClick={() => setActiveTab('overview')}
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all cursor-pointer text-left ${
+                activeTab === 'overview' 
+                  ? 'bg-white/20 text-white shadow-md backdrop-blur-xs border border-white/20' 
+                  : 'text-blue-100/80 hover:bg-white/10'
+              }`}
+            >
+              <BarChart3 className="w-4 h-4 text-emerald-300" />
+              <span>সামগ্রিক পরিসংখ্যান</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('orders')}
+              className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-all cursor-pointer text-left ${
+                activeTab === 'orders' 
+                  ? 'bg-white/20 text-white shadow-md backdrop-blur-xs border border-white/20' 
+                  : 'text-blue-100/80 hover:bg-white/10'
+              }`}
+            >
+              <span className="flex items-center gap-3">
+                <Package className="w-4 h-4 text-emerald-300" />
+                <span>গ্রাহকের অর্ডার</span>
+              </span>
+              {pendingOrders > 0 && (
+                <span className="bg-rose-500 text-white text-[10px] px-1.5 py-0.2 rounded-full font-bold shadow-xs">
+                  {pendingOrders}
+                </span>
+              )}
+            </button>
+
+            <button
+              onClick={() => setActiveTab('prescriptions')}
+              className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-all cursor-pointer text-left ${
+                activeTab === 'prescriptions' 
+                  ? 'bg-white/20 text-white shadow-md backdrop-blur-xs border border-white/20' 
+                  : 'text-blue-100/80 hover:bg-white/10'
+              }`}
+            >
+              <span className="flex items-center gap-3">
+                <FileText className="w-4 h-4 text-emerald-300" />
+                <span>প্রেসক্রিপশন সমূহ</span>
+              </span>
+              {pendingRx > 0 && (
+                <span className="bg-amber-400 text-slate-900 text-[10px] px-1.5 py-0.2 rounded-full font-bold shadow-xs">
+                  {pendingRx}
+                </span>
+              )}
+            </button>
+
+            <button
+              onClick={() => setActiveTab('medicines')}
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all cursor-pointer text-left ${
+                activeTab === 'medicines' 
+                  ? 'bg-white/20 text-white shadow-md backdrop-blur-xs border border-white/20' 
+                  : 'text-blue-100/80 hover:bg-white/10'
+              }`}
+            >
+              <Pill className="w-4 h-4 text-emerald-300" />
+              <span>ওষুধ ক্যাটালগ ও স্টক ({medicines.length})</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('coupons')}
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all cursor-pointer text-left ${
+                activeTab === 'coupons' 
+                  ? 'bg-white/20 text-white shadow-md backdrop-blur-xs border border-white/20' 
+                  : 'text-blue-100/80 hover:bg-white/10'
+              }`}
+            >
+              <Tag className="w-4 h-4 text-emerald-300" />
+              <span>ডেলিভারি চার্জ ও কুপন কোড</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('settings')}
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all cursor-pointer text-left ${
+                activeTab === 'settings' 
+                  ? 'bg-white/20 text-white shadow-md backdrop-blur-xs border border-white/20' 
+                  : 'text-blue-100/80 hover:bg-white/10'
+              }`}
+            >
+              <Settings className="w-4 h-4 text-emerald-300" />
+              <span>ফার্মেসি সেটিংস ও প্রোফাইল</span>
+            </button>
+          </nav>
+        </div>
+      </aside>
+
+      {/* Main Admin Workspace Area */}
+      <main className="flex-1 flex flex-col min-w-0 overflow-y-auto">
+        
+        {/* Top Header Bar */}
+        <header className="bg-white border-b border-slate-200 px-6 py-3.5 flex flex-wrap justify-between items-center gap-4 sticky top-0 z-20">
+          <div>
+            <h1 className="text-xl font-black text-[#123184]">
+              {activeTab === 'overview' && 'সামগ্রিক ওভারভিউ ও ব্যবসায়িক তথ্য'}
+              {activeTab === 'orders' && 'গ্রাহকের অর্ডার ও ডেলিভারি ম্যানেজমেন্ট'}
+              {activeTab === 'prescriptions' && 'আপলোডকৃত প্রেসক্রিপশন ও ফার্মাসিস্ট রিভিউ'}
+              {activeTab === 'medicines' && 'ওষুধ ক্যাটালগ ও স্টক পরিচালনা'}
+              {activeTab === 'coupons' && 'ডেলিভারি চার্জ ও কুপন কোড ব্যবস্থাপনা'}
+              {activeTab === 'settings' && 'ফার্মেসি প্রোফাইল ও কনফিগারেশন'}
+            </h1>
+            <span className="text-xs text-slate-500">
+              বেলী ফার্মেসি ম্যানেজমেন্ট সিস্টেম • রিয়েল-টাইম লাইভ ডাটা
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2.5 flex-wrap">
+            {/* Live Cloud Database Connection Badge */}
+            <div className="flex items-center gap-1.5 bg-emerald-50 text-emerald-800 border border-emerald-300 px-3 py-1.5 text-xs font-bold shadow-2xs select-none">
+              <span className="w-2 h-2 rounded-full bg-[#02975E] animate-pulse"></span>
+              <span>ক্লাউড লাইভ সিঙ্ক সক্রিয়</span>
+            </div>
+
+            {/* User Profile Badge */}
+            <div className="flex items-center gap-2.5 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-none shadow-2xs">
+              <div className="w-8 h-8 rounded-none bg-[#02975E] text-white font-black flex items-center justify-center text-xs shrink-0 shadow-xs">
+                Y
+              </div>
+              <div className="text-left leading-tight">
+                <span className="text-xs font-black text-slate-900 block">
+                  Yeakub Ahmed
+                </span>
+                <span className="text-[10px] text-[#02975E] font-bold font-mono block">
+                  @yeakub007 (Admin)
+                </span>
+              </div>
+            </div>
+
+            {/* Website Button */}
+            <button
+              onClick={() => navigateTo('store')}
+              className="flex items-center gap-1.5 bg-[#123184] hover:bg-[#0d2463] text-white font-bold px-3.5 py-2 rounded-none text-xs transition-colors cursor-pointer shadow-xs"
+              title="গ্রাহক ওয়েবসাইট দেখুন"
+            >
+              <ExternalLink className="w-3.5 h-3.5 text-emerald-300" />
+              <span>ওয়েবসাইট</span>
+            </button>
+
+            {/* Logout Button */}
+            <button
+              onClick={adminLogout}
+              className="flex items-center gap-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 hover:border-rose-300 font-bold px-3.5 py-2 rounded-none text-xs transition-colors cursor-pointer shadow-xs"
+              title="অ্যাডমিন প্যানেল থেকে লগআউট করুন"
+            >
+              <LogOut className="w-3.5 h-3.5 text-rose-600" />
+              <span>লগআউট</span>
+            </button>
+          </div>
+        </header>
+
+        {/* Content Body */}
+        <div className="p-4 sm:p-6 space-y-6 flex-1">
+          
+          {/* ================================================= */}
+          {/* TAB 1: OVERVIEW & ANALYTICS */}
+          {/* ================================================= */}
+          {activeTab === 'overview' && (
+            <div className="space-y-6">
+              {/* 4 Big Metrics Cards */}
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                
+                <div className="bg-white p-5 rounded-none border border-slate-200 shadow-xs flex flex-col justify-between space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">মোট বিক্রি (Revenue)</span>
+                    <span className="p-2 rounded-none bg-[#123184]/10 text-[#123184]">
+                      <DollarSign className="w-4 h-4" />
+                    </span>
+                  </div>
+                  <span className="text-2xl font-black text-[#123184]">৳{Number(totalSales || 0).toFixed(2)}</span>
+                  <span className="text-[11px] text-[#02975E] font-bold">লাইভ ক্যালকুলেশন</span>
+                </div>
+
+                <div className="bg-white p-5 rounded-none border border-slate-200 shadow-xs flex flex-col justify-between space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">মোট অর্ডার</span>
+                    <span className="p-2 rounded-none bg-[#02975E]/10 text-[#02975E]">
+                      <Package className="w-4 h-4" />
+                    </span>
+                  </div>
+                  <span className="text-2xl font-black text-slate-900">{orders.length}</span>
+                  <span className="text-[11px] text-amber-600 font-bold">{pendingOrders} টি নতুন অপেক্ষমান</span>
+                </div>
+
+                <div className="bg-white p-5 rounded-none border border-slate-200 shadow-xs flex flex-col justify-between space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">প্রেসক্রিপশন জমা</span>
+                    <span className="p-2 rounded-none bg-amber-100 text-amber-800">
+                      <FileText className="w-4 h-4" />
+                    </span>
+                  </div>
+                  <span className="text-2xl font-black text-slate-900">{prescriptions.length}</span>
+                  <span className="text-[11px] text-rose-600 font-bold">{pendingRx} টি রিভিউ বাকি</span>
+                </div>
+
+                <div className="bg-white p-5 rounded-none border border-slate-200 shadow-xs flex flex-col justify-between space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">ওষুধ আইটেম</span>
+                    <span className="p-2 rounded-none bg-purple-100 text-purple-800">
+                      <Pill className="w-4 h-4" />
+                    </span>
+                  </div>
+                  <span className="text-2xl font-black text-slate-900">{medicines.length} প্রকার</span>
+                  <span className="text-[11px] text-slate-500 font-medium">ইন-স্টক ক্যাটালগ</span>
+                </div>
+
+              </div>
+
+              {/* Quick Actions & Recent Orders Table */}
+              <div className="bg-white rounded-none border border-slate-200 p-5 shadow-xs space-y-4">
+                <div className="flex justify-between items-center">
+                  <h3 className="font-extrabold text-sm sm:text-base text-slate-900">
+                    সাম্প্রতিক গ্রাহকের অর্ডারসমূহ
+                  </h3>
+                  <button
+                    onClick={() => setActiveTab('orders')}
+                    className="text-xs font-bold text-[#123184] hover:underline cursor-pointer"
+                  >
+                    সকল অর্ডার দেখুন &rarr;
+                  </button>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead>
+                      <tr className="border-b border-slate-200 bg-slate-50 text-slate-600 font-bold">
+                        <th className="py-2.5 px-3">অর্ডার আইডি</th>
+                        <th className="py-2.5 px-3">তারিখ</th>
+                        <th className="py-2.5 px-3">গ্রাহকের নাম ও ফোন</th>
+                        <th className="py-2.5 px-3">পেমেন্ট মেথড</th>
+                        <th className="py-2.5 px-3">মোট মূল্য</th>
+                        <th className="py-2.5 px-3">স্ট্যাটাস</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {[...orders].sort((a, b) => getOrderTimestamp(b) - getOrderTimestamp(a)).slice(0, 5).map(o => (
+                        <tr key={o.id} className="hover:bg-slate-50">
+                          <td className="py-2.5 px-3">
+                            {o.status === 'Pending' ? (
+                              <span className="bp-number-lighting text-xs">
+                                <span className="w-1.5 h-1.5 rounded-full bg-current animate-ping"></span>
+                                <span>{o.id}</span>
+                              </span>
+                            ) : (
+                              <span className="font-bold text-[#123184]">{o.id}</span>
+                            )}
+                          </td>
+                          <td className="py-2.5 px-3 text-slate-500">{o.createdAt}</td>
+                          <td className="py-2.5 px-3 font-semibold text-slate-800">
+                            {(() => {
+                              const avatarSrc = o.customerAvatar || customerProfiles?.find(p => p.phone === o.customerPhone)?.avatar || null;
+                              return (
+                                <div className="flex items-center gap-2">
+                                  <div className="w-6 h-6 rounded-full ring-1 ring-slate-200 bg-white p-0.5 shrink-0 overflow-hidden flex items-center justify-center">
+                                    {avatarSrc ? (
+                                      <img src={avatarSrc} alt={o.customerName} className="w-full h-full object-cover rounded-full" />
+                                    ) : (
+                                      <div className="w-full h-full rounded-full bg-gradient-to-tr from-[#123184] to-[#02975E] text-white flex items-center justify-center text-[9px] font-black uppercase">
+                                        {o.customerName ? o.customerName.slice(0, 1) : <User className="w-3 h-3" />}
+                                      </div>
+                                    )}
+                                  </div>
+                                  <span>{o.customerName} <span className="text-slate-400 font-normal">({o.customerPhone})</span></span>
+                                </div>
+                              );
+                            })()}
+                          </td>
+                          <td className="py-2.5 px-3 uppercase font-medium">{o.paymentMethod}</td>
+                          <td className="py-2.5 px-3 font-black text-[#123184]">৳{o.grandTotal}</td>
+                          <td className="py-2.5 px-3">
+                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                              o.status === 'Delivered' 
+                                ? 'bg-[#02975E]/15 text-[#02975E]' 
+                                : (o.status === 'Pending' ? 'bg-rose-100 text-rose-800' : 'bg-blue-100 text-blue-800')
+                            }`}>
+                              {o.status}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ================================================= */}
+          {/* TAB 2: ORDERS MANAGEMENT */}
+          {/* ================================================= */}
+          {activeTab === 'orders' && (
+            <div className="space-y-4">
+              
+              {/* Filter pills & search */}
+              <div id="admin-orders-list-top" className="bg-white p-4 rounded-none border border-slate-200 shadow-xs flex flex-wrap justify-between items-center gap-3">
+                
+                {/* Filter buttons */}
+                <div className="flex flex-wrap gap-1.5 text-xs font-semibold">
+                  {['all', 'Pending', 'Processing', 'Dispatched', 'Out for Delivery', 'Delivered', 'Cancelled'].map(st => (
+                    <button
+                      key={st}
+                      onClick={() => setOrderFilter(st)}
+                      className={`px-3 py-1.5 rounded-none cursor-pointer transition-all ${
+                        orderFilter === st 
+                          ? 'bg-[#123184] text-white shadow-xs font-bold' 
+                          : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                      }`}
+                    >
+                      {st === 'all' ? `সবগুলো (${orders.length})` : st}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Search in orders */}
+                <div className="flex items-center gap-3">
+                  <span className="text-[11px] font-bold text-slate-500 hidden sm:inline-block">
+                    মোট {filteredOrders.length}টি অর্ডার (১০টি প্রতি পেজে)
+                  </span>
+                  <div className="relative">
+                    <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+                    <input
+                      type="text"
+                      value={orderSearch}
+                      onChange={(e) => setOrderSearch(e.target.value)}
+                      placeholder="অর্ডার আইডি বা ফোন..."
+                      className="pl-9 pr-3 py-1.5 rounded-none border border-slate-200 text-xs outline-none focus:border-[#123184]"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Order Cards List */}
+              <div className="space-y-3">
+                {paginatedOrders.length === 0 ? (
+                  <div className="p-12 text-center bg-white rounded-none border border-slate-200 text-slate-400">
+                    কোনো অর্ডার পাওয়া যায়নি।
+                  </div>
+                ) : (
+                  paginatedOrders.map(order => {
+                    const avatarSrc = order.customerAvatar || customerProfiles?.find(p => p.phone === order.customerPhone)?.avatar || null;
+                    return (
+                      <div key={order.id} className="bg-white rounded-none border border-slate-200 p-5 space-y-3 shadow-xs">
+                        <div className="flex flex-wrap justify-between items-start gap-3 border-b border-slate-100 pb-3">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              {order.status === 'Pending' ? (
+                                <span className="bp-number-lighting text-sm cursor-help" title="নতুন অর্ডার (New Order) - স্ট্যাটাস পরিবর্তন করুন">
+                                  <span className="relative flex h-2 w-2">
+                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-current opacity-75"></span>
+                                    <span className="relative inline-flex rounded-full h-2 w-2 bg-current"></span>
+                                  </span>
+                                  <span>{order.id}</span>
+                                  <span className="text-[9px] uppercase font-black px-1.5 py-0.2 rounded bg-rose-200/50 text-rose-900 border border-rose-300">
+                                    NEW
+                                  </span>
+                                </span>
+                              ) : (
+                                <span className="text-base font-black text-[#123184]">{order.id}</span>
+                              )}
+                              <span className="text-xs text-slate-400">• {order.createdAt}</span>
+                            </div>
+
+                            {/* Customer Profile Photo & Info */}
+                            <div className="flex items-center gap-2.5 mt-2.5">
+                              <div className="w-9 h-9 rounded-full ring-2 ring-emerald-500/30 p-0.5 bg-white shrink-0 shadow-xs flex items-center justify-center overflow-hidden">
+                                {avatarSrc ? (
+                                  <img 
+                                    src={avatarSrc} 
+                                    alt={order.customerName} 
+                                    className="w-full h-full object-cover rounded-full" 
+                                  />
+                                ) : (
+                                  <div className="w-full h-full rounded-full bg-gradient-to-tr from-[#123184] to-[#02975E] text-white flex items-center justify-center text-xs font-black uppercase">
+                                    {order.customerName ? order.customerName.slice(0, 1) : <User className="w-4 h-4" />}
+                                  </div>
+                                )}
+                              </div>
+                              <div className="text-xs text-slate-800 leading-tight">
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-slate-500 font-medium">গ্রাহক:</span>
+                                  <span className="font-extrabold text-slate-900 text-sm">{order.customerName}</span>
+                                </div>
+                                <div className="text-slate-500 text-[11px] mt-0.5 flex items-center gap-1">
+                                  <span>📞</span>
+                                  <a href={`tel:${order.customerPhone}`} className="text-[#02975E] hover:underline font-bold">{order.customerPhone}</a>
+                                </div>
+                              </div>
+                            </div>
+
+                            <p className="text-xs text-slate-500 mt-2">
+                              ঠিকানা: {order.deliveryAddress}
+                            </p>
+                          {order.patientNote && (
+                            <p className="text-xs text-amber-800 bg-amber-50 p-1.5 rounded-lg mt-1">
+                              নোট: "{order.patientNote}"
+                            </p>
+                          )}
+                        </div>
+
+                        {/* Status selector & invoice button */}
+                        <div className="flex items-center gap-2">
+                          <select
+                            value={order.status}
+                            onChange={(e) => updateOrderStatus(order.id, e.target.value)}
+                            className="text-xs font-bold border border-slate-300 rounded-none px-3 py-2 bg-slate-50 outline-none focus:border-[#123184] cursor-pointer"
+                          >
+                            <option value="Pending">Pending (অপেক্ষমান)</option>
+                            <option value="Processing">Processing (প্রক্রিয়াধীন)</option>
+                            <option value="Dispatched">Dispatched (প্যাকড)</option>
+                            <option value="Out for Delivery">Out for Delivery (পথে)</option>
+                            <option value="Delivered">Delivered (সম্পন্ন)</option>
+                            <option value="Cancelled">Cancelled (বাতিল)</option>
+                          </select>
+
+                          <button
+                            onClick={() => setActiveInvoiceOrder(order)}
+                            className="flex items-center gap-1.5 bg-[#123184] hover:bg-[#0d2463] text-white font-bold text-xs px-3 py-2 rounded-none cursor-pointer transition-colors shadow-xs"
+                          >
+                            <Printer className="w-3.5 h-3.5" />
+                            <span>ইনভয়েস</span>
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Items Ordered List */}
+                      <div className="text-xs space-y-1">
+                        <span className="font-bold text-slate-500">ওষুধের তালিকা:</span>
+                        <div className="flex flex-wrap gap-2">
+                          {order.items?.map((it, idx) => (
+                            <span key={idx} className="bg-slate-100 border border-slate-200 px-2.5 py-1 rounded-none font-medium text-slate-800">
+                              {it.name} ({it.unitLabel} × {it.quantity})
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Payment Options (Cash on Hand, bKash, Nagad) when Delivered */}
+                      {order.status === 'Delivered' && (
+                        order.paymentConfirmed ? (
+                          /* Customer Confirmed Payment View */
+                          <div className="bg-emerald-50 border border-emerald-200 p-2 sm:p-2.5 rounded-none flex flex-wrap items-center justify-between gap-2 shadow-2xs">
+                            <div className="flex items-center gap-2">
+                              <span className="w-5 h-5 rounded-none bg-[#02975E] text-white flex items-center justify-center text-xs font-black">
+                                ✓
+                              </span>
+                              <div className="text-xs">
+                                <span className="font-bold text-slate-700">গ্রাহকের সংরক্ষিত পেমেন্ট:</span>
+                                <span className="ml-1.5 font-black">
+                                  {(order.paymentMethod === 'bKash' || order.paymentMethod === 'bkash') ? (
+                                    <span className="text-[#D12053] inline-flex items-center gap-1">
+                                      <img src="/bkash-logo.png" alt="bKash" className="h-3.5 object-contain" /> bKash
+                                    </span>
+                                  ) : (order.paymentMethod === 'Nagad' || order.paymentMethod === 'nagad') ? (
+                                    <span className="text-[#E31B23] inline-flex items-center gap-1">
+                                      <img src="/nagad-logo.png" alt="Nagad" className="h-3.5 object-contain" /> Nagad
+                                    </span>
+                                  ) : (
+                                    <span className="text-slate-900">💵 Cash on Hand</span>
+                                  )}
+                                </span>
+                                {order.trxId && order.trxId !== 'N/A' && (
+                                  <span className="ml-1.5 font-mono text-slate-800 bg-white px-1.5 py-0.5 border border-emerald-300 font-bold">
+                                    TrxID: {order.trxId}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 border border-emerald-300 px-2 py-0.5">
+                                🔒 গ্রাহক কর্তৃক সংরক্ষিত
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => updateOrderPaymentMethod(order.id, order.paymentMethod, order.trxId, false)}
+                                className="text-[10px] font-bold text-slate-500 hover:text-slate-800 underline cursor-pointer"
+                                title="এডমিন এডিট মোড"
+                              >
+                                পরিবর্তন
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          /* Admin can set/update payment if customer hasn't yet */
+                          <div className="bg-slate-50 border border-slate-200 p-2 sm:p-2.5 rounded-none space-y-1.5 w-fit max-w-2xl shadow-2xs">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="text-[11px] font-black text-slate-800 flex items-center gap-1 shrink-0">
+                                💳 পেমেন্ট পদ্ধতি:
+                              </span>
+
+                              {/* Compact Buttons */}
+                              <div className="flex flex-wrap items-center gap-1.5">
+                                {/* Cash on Hand */}
+                                <button
+                                  type="button"
+                                  onClick={() => updateOrderPaymentMethod(order.id, 'Cash on Hand', 'N/A', true)}
+                                  className={`px-2.5 py-1 border rounded-none flex items-center gap-1 text-[11px] font-bold transition-all cursor-pointer ${
+                                    order.paymentMethod === 'Cash on Hand' || order.paymentMethod === 'cod'
+                                      ? 'border-[#02975E] bg-white text-[#02975E] shadow-2xs font-black ring-1 ring-[#02975E]'
+                                      : 'border-slate-300 bg-white text-slate-600 hover:bg-slate-100'
+                                  }`}
+                                >
+                                  <span>💵</span>
+                                  <span>Cash on Hand</span>
+                                  {(order.paymentMethod === 'Cash on Hand' || order.paymentMethod === 'cod') && (
+                                    <span className="text-[10px] text-[#02975E] font-black">✓</span>
+                                  )}
+                                </button>
+
+                                {/* bKash */}
+                                <button
+                                  type="button"
+                                  onClick={() => updateOrderPaymentMethod(order.id, 'bKash', order.trxId, false)}
+                                  className={`px-2.5 py-1 border rounded-none flex items-center gap-1 text-[11px] font-bold transition-all cursor-pointer ${
+                                    order.paymentMethod === 'bKash' || order.paymentMethod === 'bkash'
+                                      ? 'border-[#D12053] bg-white text-[#D12053] shadow-2xs font-black ring-1 ring-[#D12053]'
+                                      : 'border-slate-300 bg-white text-slate-600 hover:bg-slate-100'
+                                  }`}
+                                >
+                                  <img src="/bkash-logo.png" alt="bKash" className="h-3 object-contain" />
+                                  <span>bKash</span>
+                                  {(order.paymentMethod === 'bKash' || order.paymentMethod === 'bkash') && (
+                                    <span className="text-[10px] text-[#D12053] font-black">✓</span>
+                                  )}
+                                </button>
+
+                                {/* Nagad */}
+                                <button
+                                  type="button"
+                                  onClick={() => updateOrderPaymentMethod(order.id, 'Nagad', order.trxId, false)}
+                                  className={`px-2.5 py-1 border rounded-none flex items-center gap-1 text-[11px] font-bold transition-all cursor-pointer ${
+                                    order.paymentMethod === 'Nagad' || order.paymentMethod === 'nagad'
+                                      ? 'border-[#E31B23] bg-white text-[#E31B23] shadow-2xs font-black ring-1 ring-[#E31B23]'
+                                      : 'border-slate-300 bg-white text-slate-600 hover:bg-slate-100'
+                                  }`}
+                                >
+                                  <img src="/nagad-logo.png" alt="Nagad" className="h-3 object-contain" />
+                                  <span>Nagad</span>
+                                  {(order.paymentMethod === 'Nagad' || order.paymentMethod === 'nagad') && (
+                                    <span className="text-[10px] text-[#E31B23] font-black">✓</span>
+                                  )}
+                                </button>
+                              </div>
+
+                              <span className="text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 shrink-0">
+                                অপেক্ষমান
+                              </span>
+                            </div>
+
+                            {/* Compact TrxID input when bKash or Nagad is chosen */}
+                            {(order.paymentMethod === 'bKash' || order.paymentMethod === 'bkash' || order.paymentMethod === 'Nagad' || order.paymentMethod === 'nagad') && (
+                              <div className="flex items-center gap-1.5 pt-0.5 text-[11px]">
+                                <span className="text-[10px] font-bold text-slate-600 shrink-0">
+                                  {(order.paymentMethod === 'bKash' || order.paymentMethod === 'bkash') ? 'bKash TrxID:' : 'Nagad TrxID:'}
+                                </span>
+                                <input
+                                  type="text"
+                                  id={`admin-trx-${order.id}`}
+                                  defaultValue={order.trxId !== 'N/A' ? order.trxId : ''}
+                                  placeholder="ট্রানজেকশন আইডি"
+                                  className="w-36 sm:w-44 px-2 py-0.5 text-[11px] border border-slate-300 rounded-none bg-white font-mono uppercase font-bold outline-none focus:border-[#123184]"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const val = document.getElementById(`admin-trx-${order.id}`)?.value;
+                                    if (val !== undefined) {
+                                      updateOrderPaymentMethod(order.id, order.paymentMethod || 'Cash on Hand', val, true);
+                                    }
+                                  }}
+                                  className="bg-[#123184] hover:bg-[#0d2463] text-white px-2.5 py-0.5 rounded-none text-[10px] font-bold cursor-pointer"
+                                >
+                                  সংরক্ষণ
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        )
+                      )}
+
+                      {/* Payment & Grand Total strip */}
+                      <div className="flex justify-between items-center text-xs pt-2 border-t border-slate-100">
+                        <span className="text-slate-600 font-medium">
+                          বর্তমান পদ্ধতি: <b className="uppercase text-slate-900">{order.paymentMethod}</b> {order.trxId && order.trxId !== 'N/A' && `(TrxID: ${order.trxId})`}
+                        </span>
+                        <span className="font-black text-base text-[#123184]">
+                          মোট প্রদেয়: ৳{Number(order.grandTotal || 0).toFixed(2)}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+              </div>
+
+              {/* Order Pagination Controls (10 orders per page) */}
+              {filteredOrders.length > 0 && totalOrderPages > 1 && (
+                <div className="bg-white border border-slate-200 p-4 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-3">
+                  <div className="text-xs text-slate-600 font-medium">
+                    {lang === 'bn' ? (
+                      <span>
+                        পেজ <strong className="text-[#123184] font-black">{orderPage}</strong> এর <strong className="text-slate-900">{totalOrderPages}</strong> — মোট <strong className="text-emerald-700">{filteredOrders.length}</strong>টি অর্ডারের মধ্যে <strong className="text-slate-900">{(orderPage - 1) * ordersPerPage + 1} থেকে {Math.min(orderPage * ordersPerPage, filteredOrders.length)}</strong> তম দেখানো হচ্ছে (সর্বশেষ অর্ডার উপরে)
+                      </span>
+                    ) : (
+                      <span>
+                        Page <strong className="text-[#123184] font-black">{orderPage}</strong> of <strong className="text-slate-900">{totalOrderPages}</strong> — Showing <strong className="text-slate-900">{(orderPage - 1) * ordersPerPage + 1} to {Math.min(orderPage * ordersPerPage, filteredOrders.length)}</strong> of {filteredOrders.length} orders
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {/* Previous Button */}
+                    <button
+                      type="button"
+                      onClick={() => handleOrderPageChange(orderPage - 1)}
+                      disabled={orderPage === 1}
+                      className={`px-3.5 py-2 text-xs font-bold flex items-center gap-1.5 border transition-all rounded-none ${
+                        orderPage === 1
+                          ? 'opacity-40 cursor-not-allowed bg-slate-100 text-slate-400 border-slate-200'
+                          : 'bg-white text-slate-800 border-slate-300 hover:bg-[#123184] hover:text-white hover:border-[#123184] cursor-pointer'
+                      }`}
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                      <span>{lang === 'bn' ? 'পূর্ববর্তী পেজ' : 'Previous'}</span>
+                    </button>
+
+                    {/* Page Numbers */}
+                    <div className="flex items-center gap-1 flex-wrap">
+                      {Array.from({ length: totalOrderPages }, (_, i) => i + 1).map((pageNum) => (
+                        <button
+                          key={pageNum}
+                          type="button"
+                          onClick={() => handleOrderPageChange(pageNum)}
+                          className={`w-9 h-9 text-xs font-black border transition-all rounded-none cursor-pointer ${
+                            orderPage === pageNum
+                              ? 'bg-[#123184] text-white border-[#123184] shadow-xs'
+                              : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
+                          }`}
+                        >
+                          {pageNum}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Next Button */}
+                    <button
+                      type="button"
+                      onClick={() => handleOrderPageChange(orderPage + 1)}
+                      disabled={orderPage === totalOrderPages}
+                      className={`px-4 py-2 text-xs font-bold flex items-center gap-1.5 border transition-all rounded-none ${
+                        orderPage === totalOrderPages
+                          ? 'opacity-40 cursor-not-allowed bg-slate-100 text-slate-400 border-slate-200'
+                          : 'bg-[#02975E] text-white border-[#02975E] hover:bg-[#027e4e] shadow-xs cursor-pointer'
+                      }`}
+                    >
+                      <span>{lang === 'bn' ? 'পরবর্তী পেজ (Next)' : 'Next Page'}</span>
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              )}
+
+            </div>
+          )}
+
+          {/* ================================================= */}
+          {/* TAB 3: PRESCRIPTIONS REVIEW */}
+          {/* ================================================= */}
+          {activeTab === 'prescriptions' && (
+            <div className="space-y-4">
+              <div className="bg-white p-4 rounded-none border border-slate-200 shadow-xs flex justify-between items-center">
+                <div>
+                  <h3 className="font-extrabold text-sm sm:text-base text-slate-900">
+                    আপলোডকৃত প্রেসক্রিপশন সমূহ ({prescriptions.length}টি)
+                  </h3>
+                  <span className="text-xs text-slate-500">রোগীর প্রেসক্রিপশন দেখে ওষুধ কনফার্ম করুন</span>
+                </div>
+              </div>
+
+              {prescriptions.length === 0 ? (
+                <div className="p-12 text-center bg-white rounded-none border border-slate-200 text-slate-400">
+                  কোনো প্রেসক্রিপশন পাওয়া যায়নি।
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 gap-3.5">
+                  {[...prescriptions].sort((a, b) => {
+                    const parseRxTime = (item) => (item.timestamp && typeof item.timestamp === 'number') ? item.timestamp : (item.createdAt ? Date.parse(item.createdAt) : 0) || 0;
+                    return parseRxTime(b) - parseRxTime(a);
+                  }).map(rx => (
+                  <div key={rx.id} className="bg-white rounded-none border border-slate-200 p-3 space-y-2.5 shadow-xs flex flex-col justify-between hover:border-slate-300 transition-colors">
+                    <div className="space-y-2">
+                      <div className="flex justify-between items-start gap-1">
+                        <div className="min-w-0">
+                          <span className="font-black text-xs sm:text-sm text-[#123184] block truncate">{rx.id}</span>
+                          <span className="text-[10px] text-slate-400 block">{rx.createdAt}</span>
+                        </div>
+                        <span className={`px-1.5 py-0.5 rounded-none text-[9px] font-bold shrink-0 ${
+                          rx.status === 'Reviewed' ? 'bg-[#02975E]/15 text-[#02975E]' : 'bg-amber-100 text-amber-800'
+                        }`}>
+                          {rx.status}
+                        </span>
+                      </div>
+
+                      <div className="text-[11px] leading-snug space-y-1">
+                        {(() => {
+                          const rxAvatar = rx.customerAvatar || customerProfiles?.find(p => p.phone === rx.customerPhone)?.avatar || null;
+                          return (
+                            <div className="flex items-center gap-2">
+                              <div className="w-7 h-7 rounded-full ring-1 ring-emerald-500/30 p-0.5 bg-white shrink-0 shadow-2xs flex items-center justify-center overflow-hidden">
+                                {rxAvatar ? (
+                                  <img src={rxAvatar} alt={rx.customerName} className="w-full h-full object-cover rounded-full" />
+                                ) : (
+                                  <div className="w-full h-full rounded-full bg-gradient-to-tr from-[#123184] to-[#02975E] text-white flex items-center justify-center text-[10px] font-black uppercase">
+                                    {rx.customerName ? rx.customerName.slice(0, 1) : <User className="w-3.5 h-3.5" />}
+                                  </div>
+                                )}
+                              </div>
+                              <div className="min-w-0">
+                                <p className="font-bold text-slate-900 truncate text-xs">{rx.customerName}</p>
+                                <p className="text-slate-500 text-[10px]">📞 <a href={`tel:${rx.customerPhone}`} className="text-[#02975E] font-bold hover:underline">{rx.customerPhone}</a></p>
+                              </div>
+                            </div>
+                          );
+                        })()}
+                        <p className="text-slate-500 line-clamp-1" title={rx.deliveryAddress}>ঠিকানা: {rx.deliveryAddress}</p>
+                        {rx.notes && <p className="text-slate-600 italic bg-slate-50 p-1 rounded-none text-[10px] line-clamp-2">নোট: "{rx.notes}"</p>}
+                      </div>
+
+                      {/* Image Thumbnail */}
+                      {rx.image && (
+                        <div 
+                          onClick={() => setPreviewRxImage(rx.image)}
+                          className="relative h-32 bg-slate-100 rounded-none overflow-hidden cursor-pointer group border border-slate-200"
+                        >
+                          <img
+                            src={rx.image}
+                            alt="Prescription"
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                          />
+                          <div className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-[11px] font-bold gap-1">
+                            <Eye className="w-3.5 h-3.5" />
+                            <span>বড় করে দেখুন</span>
+                          </div>
+                        </div>
+                      )}
+                      {/* Prescribed Medicines Summary or Entry Button */}
+                      <div className="pt-2 border-t border-slate-100 space-y-1.5">
+                        {rx.prescribedMedicines && rx.prescribedMedicines.length > 0 ? (
+                          <div className="bg-emerald-50 border border-emerald-200 p-2 text-xs space-y-1">
+                            <div className="flex justify-between items-center">
+                              <span className="font-extrabold text-[#02975E] text-[11px] flex items-center gap-1">
+                                <CheckCircle2 className="w-3.5 h-3.5 text-[#02975E]" />
+                                <span>{rx.prescribedMedicines.length}টি ওষুধ এন্ট্রি সম্পন্ন</span>
+                              </span>
+                              <span className="font-black text-slate-900 text-xs">
+                                ৳{rx.totalPrice}
+                              </span>
+                            </div>
+                            {rx.isAddedToCart && (
+                              <div className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded inline-flex items-center gap-1">
+                                ✓ গ্রাহক ইতোমধ্যে কার্টে নিয়েছেন
+                              </div>
+                            )}
+                            <div className="text-[10px] text-slate-600 truncate">
+                              {rx.prescribedMedicines.map(m => m.name).join(', ')}
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handleOpenRxMedicinesModal(rx)}
+                              className="w-full text-center bg-white hover:bg-emerald-100 text-[#02975E] border border-emerald-300 font-bold py-1 text-[11px] cursor-pointer transition-colors shadow-2xs"
+                            >
+                              ওষুধ তালিকা ও পরিবর্তন
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => handleOpenRxMedicinesModal(rx)}
+                            className="w-full flex items-center justify-center gap-1.5 bg-[#123184] hover:bg-[#0d2463] text-white font-bold py-1.5 px-2 text-[11px] transition-colors cursor-pointer shadow-2xs"
+                          >
+                            <Pill className="w-3.5 h-3.5 text-emerald-300" />
+                            <span>ওষুধ এন্ট্রি ও মূল্য নির্ধারণ</span>
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Status & Call Buttons */}
+                    <div className="flex items-center gap-1.5 pt-2 border-t border-slate-100">
+                      <select
+                        value={rx.status}
+                        onChange={(e) => updatePrescriptionStatus(rx.id, e.target.value)}
+                        className="text-[11px] font-semibold border border-slate-200 rounded-lg px-2 py-1 flex-1 bg-slate-50 text-slate-800 outline-none hover:bg-white focus:border-[#02975E] transition-colors"
+                      >
+                        <option value="Pending Review">Pending Review</option>
+                        <option value="Reviewed">Reviewed (পর্যালোচনা সম্পন্ন)</option>
+                        <option value="Customer Called">Customer Called (কল দেওয়া হয়েছে)</option>
+                        <option value="Order Created">Order Created (অর্ডার প্রস্তুত)</option>
+                        <option value="Added to Cart">Added to Cart (গ্রাহক কার্টে যোগ করেছেন)</option>
+                      </select>
+
+                      <a
+                        href={`tel:${rx.customerPhone}`}
+                        className="bg-[#02975E] hover:bg-[#027e4e] text-white text-[11px] font-bold px-2.5 py-1 rounded-lg transition-colors shrink-0"
+                      >
+                        কল দিন
+                      </a>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            </div>
+          )}
+
+          {/* ================================================= */}
+          {/* TAB 4: MEDICINE INVENTORY CRUD */}
+          {/* ================================================= */}
+          {activeTab === 'medicines' && (
+            <div id="admin-med-table-top" className="space-y-4">
+              
+              {/* Top Action Bar */}
+              <div className="bg-white p-4 rounded-none border border-slate-200 shadow-xs flex flex-wrap justify-between items-center gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="relative">
+                    <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+                    <input
+                      type="text"
+                      value={medSearch}
+                      onChange={(e) => setMedSearch(e.target.value)}
+                      placeholder="ওষুধ বা কোম্পানির নাম..."
+                      className="pl-9 pr-3 py-1.5 rounded-none border border-slate-200 text-xs outline-none focus:border-[#123184]"
+                    />
+                  </div>
+                  <span className="text-xs text-slate-500 font-semibold">
+                    {filteredMedicines.length} টি ওষুধ {totalMedPages > 1 && `• দেখাচ্ছে ${(medPage - 1) * medItemsPerPage + 1}-${Math.min(medPage * medItemsPerPage, filteredMedicines.length)} (পেজ ${medPage}/${totalMedPages})`}
+                  </span>
+                </div>
+
+                <div className="flex gap-2">
+                  <button
+                    onClick={resetToDefaultMedicines}
+                    className="flex items-center gap-1.5 text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold px-3 py-2 rounded-none cursor-pointer"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    <span>ডিফল্ট ক্যাটালগ</span>
+                  </button>
+
+                  <button
+                    onClick={() => setShowAddForm(!showAddForm)}
+                    className="flex items-center gap-1.5 text-xs bg-[#02975E] hover:bg-[#027e4e] text-white font-extrabold px-3.5 py-2 rounded-none cursor-pointer shadow-md shadow-[#02975E]/30"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>নতুন ওষুধ যোগ করুন</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Add Medicine Form Modal */}
+              {showAddForm && (
+                <form onSubmit={handleAddMedicineSubmit} className="bg-white rounded-none border-2 border-[#02975E] p-6 space-y-4 animate-in fade-in shadow-xl">
+                  <div className="flex justify-between items-center">
+                    <h4 className="font-extrabold text-sm text-[#123184]">নতুন ওষুধ সংযুক্তকরণ</h4>
+                    <button onClick={() => setShowAddForm(false)} className="text-slate-400 hover:text-slate-600 text-xs">✕ বন্ধ করুন</button>
+                  </div>
+
+                  <div className="grid sm:grid-cols-3 gap-3 text-xs">
+                    <div>
+                      <label className="block font-bold mb-1">ওষুধের নাম (Brand Name) *</label>
+                      <input
+                        type="text"
+                        required
+                        value={newMed.name}
+                        onChange={(e) => setNewMed({ ...newMed, name: e.target.value })}
+                        placeholder="যেমন: Napa Extra"
+                        className="w-full px-3 py-2 border rounded-xl"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block font-bold mb-1">জেনেরিক নাম (Generic) *</label>
+                      <input
+                        type="text"
+                        required
+                        value={newMed.generic}
+                        onChange={(e) => setNewMed({ ...newMed, generic: e.target.value })}
+                        placeholder="Paracetamol 500mg"
+                        className="w-full px-3 py-2 border rounded-xl"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block font-bold mb-1">কোম্পানি / প্রস্তুতকারক *</label>
+                      <input
+                        type="text"
+                        required
+                        value={newMed.company}
+                        onChange={(e) => setNewMed({ ...newMed, company: e.target.value })}
+                        placeholder="Square / Beximco"
+                        className="w-full px-3 py-2 border rounded-xl"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block font-bold mb-1">ক্যাটাগরি</label>
+                      <select
+                        value={newMed.category}
+                        onChange={(e) => setNewMed({ ...newMed, category: e.target.value })}
+                        className="w-full px-3 py-2 border rounded-xl bg-white"
+                      >
+                        {CATEGORIES.filter(c => c.id !== 'all').map(c => (
+                          <option key={c.id} value={c.id}>{c.nameBn}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block font-bold mb-1">ধরণ (Type)</label>
+                      <select
+                        value={newMed.type}
+                        onChange={(e) => setNewMed({ ...newMed, type: e.target.value })}
+                        className="w-full px-3 py-2 border rounded-xl bg-white"
+                      >
+                        <option value="Tablet">Tablet</option>
+                        <option value="Capsule">Capsule</option>
+                        <option value="Syrup">Syrup</option>
+                        <option value="Drop">Drop</option>
+                        <option value="Cream">Cream</option>
+                        <option value="Device">Device</option>
+                        <option value="Pack">Pack</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block font-bold mb-1">পাতা প্রতি মূল্য (৳) *</label>
+                      <input
+                        type="number"
+                        step="0.5"
+                        required
+                        value={newMed.pricePerStrip}
+                        onChange={(e) => setNewMed({ ...newMed, pricePerStrip: parseFloat(e.target.value) || 0 })}
+                        className="w-full px-3 py-2 border rounded-xl"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block font-bold mb-1">পিস প্রতি মূল্য (৳)</label>
+                      <input
+                        type="number"
+                        step="0.5"
+                        value={newMed.pricePerUnit}
+                        onChange={(e) => setNewMed({ ...newMed, pricePerUnit: parseFloat(e.target.value) || 0 })}
+                        className="w-full px-3 py-2 border rounded-xl"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block font-bold mb-1">ডিসকাউন্ট %</label>
+                      <input
+                        type="number"
+                        value={newMed.discountPercent}
+                        onChange={(e) => setNewMed({ ...newMed, discountPercent: parseInt(e.target.value) || 0 })}
+                        className="w-full px-3 py-2 border rounded-xl"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block font-bold mb-1">স্টক সংখ্যা</label>
+                      <input
+                        type="number"
+                        value={newMed.stock}
+                        onChange={(e) => setNewMed({ ...newMed, stock: parseInt(e.target.value) || 0 })}
+                        className="w-full px-3 py-2 border rounded-xl"
+                      />
+                    </div>
+
+                    {/* New Medicine Photo Upload */}
+                    <div className="sm:col-span-3 bg-gradient-to-r from-emerald-50/70 to-blue-50/40 p-4 rounded-2xl border border-emerald-200/80 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <label className="block font-extrabold text-slate-800 text-xs flex items-center gap-1.5">
+                          <Camera className="w-4 h-4 text-[#02975E]" />
+                          <span>প্রোডাক্টের ছবি আপলোড (Product Photo)</span>
+                        </label>
+                        <span className="text-[11px] text-emerald-800 font-bold bg-emerald-100/70 px-2 py-0.5 rounded-full">
+                          গ্রাহকরা এই ছবিটি দেখতে পাবেন
+                        </span>
+                      </div>
+
+                      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                        <div className="w-20 h-20 rounded-2xl bg-white border-2 border-slate-200 overflow-hidden shadow-sm flex items-center justify-center p-1.5 shrink-0">
+                          {newMed.image ? (
+                            <img 
+                              src={newMed.image} 
+                              alt="New Product" 
+                              className="w-full h-full object-contain rounded-xl"
+                            />
+                          ) : (
+                            <div className="text-center text-slate-400">
+                              <ImageIcon className="w-6 h-6 mx-auto stroke-1" />
+                              <span className="text-[9px] block">ছবি নেই</span>
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="flex-1 space-y-2 w-full">
+                          <input 
+                            type="file" 
+                            ref={newImageInputRef} 
+                            onChange={handleNewPhotoUpload} 
+                            accept="image/*" 
+                            className="hidden" 
+                          />
+
+                          <div className="flex flex-wrap items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => newImageInputRef.current?.click()}
+                              className="px-3.5 py-2 rounded-xl bg-[#02975E] hover:bg-[#027e4e] text-white font-bold text-xs flex items-center gap-1.5 shadow-xs cursor-pointer transition-all hover:shadow"
+                            >
+                              <Upload className="w-3.5 h-3.5" />
+                              <span>ছবি আপলোড করুন</span>
+                            </button>
+
+                            {newMed.image && (
+                              <button
+                                type="button"
+                                onClick={() => setNewMed({ ...newMed, image: '' })}
+                                className="px-3 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-semibold cursor-pointer"
+                              >
+                                মুছুন
+                              </button>
+                            )}
+                          </div>
+
+                          <div className="flex items-center gap-2 pt-1">
+                            <span className="text-[11px] text-slate-500 whitespace-nowrap">অথবা লিংক:</span>
+                            <input
+                              type="url"
+                              value={newMed.image?.startsWith('data:') ? '' : (newMed.image || '')}
+                              onChange={(e) => setNewMed({ ...newMed, image: e.target.value })}
+                              placeholder={newMed.image?.startsWith('data:') ? '✓ ডিভাইস থেকে ছবি আপলোড করা হয়েছে' : 'https://...'}
+                              className="flex-1 px-3 py-1.5 border border-slate-300 rounded-xl text-[11px] font-mono outline-none bg-white"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end gap-2 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowAddForm(false)}
+                      className="px-4 py-2 text-xs font-semibold rounded-xl bg-slate-100 hover:bg-slate-200 cursor-pointer"
+                    >
+                      বাতিল
+                    </button>
+                    <button
+                      type="submit"
+                      className="px-5 py-2 text-xs font-bold rounded-xl bg-[#02975E] hover:bg-[#027e4e] text-white cursor-pointer shadow-md"
+                    >
+                      সংরক্ষণ করুন
+                    </button>
+                  </div>
+                </form>
+              )}
+
+              {/* Medicines Table */}
+              <div className="bg-white rounded-none border border-slate-200 overflow-hidden shadow-xs">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead>
+                      <tr className="bg-slate-50 text-slate-700 font-bold border-b border-slate-200">
+                        <th className="p-3">ওষুধের নাম ও কোম্পানি</th>
+                        <th className="p-3">জেনেরিক</th>
+                        <th className="p-3">মূল্য (পাতা/পিস)</th>
+                        <th className="p-3">ডিসকাউন্ট</th>
+                        <th className="p-3">স্টক সংখ্যা</th>
+                        <th className="p-3 text-right">অ্যাকশন</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {paginatedAdminMedicines.map(med => (
+                        <tr key={med.id} className="hover:bg-slate-50">
+                          <td className="p-3">
+                            <span className="font-bold text-slate-900 block">{med.name}</span>
+                            <span className="text-[11px] text-slate-500">{med.company} ({med.type})</span>
+                          </td>
+                          <td className="p-3 text-slate-600 max-w-xs truncate">{med.generic}</td>
+                          <td className="p-3 font-bold text-[#123184]">
+                            ৳{med.pricePerStrip} <span className="text-slate-400 font-normal">/ ৳{med.pricePerUnit}</span>
+                          </td>
+                          <td className="p-3">
+                            {med.discountPercent > 0 ? (
+                              <span className="bg-rose-100 text-rose-800 px-2 py-0.5 rounded-none font-bold text-[10px]">
+                                {med.discountPercent}%
+                              </span>
+                            ) : (
+                              <span className="text-slate-400">০%</span>
+                            )}
+                          </td>
+                          <td className="p-3 font-semibold text-slate-700">{med.stock} pcs</td>
+                          <td className="p-3 text-right">
+                            <div className="flex items-center justify-end gap-1">
+                              <button
+                                onClick={() => handleStartEdit(med)}
+                                className="text-[#123184] hover:text-[#02975E] hover:bg-[#123184]/10 p-1.5 rounded-none transition-colors cursor-pointer"
+                                title="এডিট করুন (Edit)"
+                              >
+                                <Edit3 className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => {
+                                  if (window.confirm(`আপনি কি নিশ্চিত যে "${med.name}" মুছে ফেলতে চান?`)) {
+                                    deleteMedicine(med.id);
+                                  }
+                                }}
+                                className="text-slate-400 hover:text-rose-600 hover:bg-rose-50 p-1.5 rounded-none transition-colors cursor-pointer"
+                                title="মুছে ফেলুন (Delete)"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Pagination Controls with Next / Previous */}
+              {totalMedPages > 1 && (
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-white border border-slate-200 p-4 shadow-xs rounded-none">
+                  <div className="text-xs sm:text-sm font-semibold text-slate-700">
+                    {lang === 'bn' ? (
+                      <span>
+                        পেজ <strong className="text-[#123184] font-black">{medPage}</strong> / <strong>{totalMedPages}</strong> — মোট {filteredMedicines.length} টির মধ্যে <strong>{(medPage - 1) * medItemsPerPage + 1} থেকে {Math.min(medPage * medItemsPerPage, filteredMedicines.length)}</strong> টি ওষুধ প্রদর্শিত হচ্ছে
+                      </span>
+                    ) : (
+                      <span>
+                        Page <strong className="text-[#123184] font-black">{medPage}</strong> of <strong>{totalMedPages}</strong> — Showing <strong>{(medPage - 1) * medItemsPerPage + 1} to {Math.min(medPage * medItemsPerPage, filteredMedicines.length)}</strong> of {filteredMedicines.length} medicines
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {/* Previous Button */}
+                    <button
+                      type="button"
+                      onClick={() => handleAdminMedPageChange(medPage - 1)}
+                      disabled={medPage === 1}
+                      className={`px-3.5 py-2 text-xs font-bold flex items-center gap-1.5 border transition-all rounded-none ${
+                        medPage === 1
+                          ? 'opacity-40 cursor-not-allowed bg-slate-100 text-slate-400 border-slate-200'
+                          : 'bg-white text-slate-800 border-slate-300 hover:bg-[#123184] hover:text-white hover:border-[#123184] cursor-pointer'
+                      }`}
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                      <span>{lang === 'bn' ? 'পূর্ববর্তী পেজ' : 'Previous'}</span>
+                    </button>
+
+                    {/* Page Numbers */}
+                    <div className="flex items-center gap-1 flex-wrap">
+                      {Array.from({ length: totalMedPages }, (_, i) => i + 1).map((pageNum) => (
+                        <button
+                          key={pageNum}
+                          type="button"
+                          onClick={() => handleAdminMedPageChange(pageNum)}
+                          className={`w-9 h-9 text-xs font-black border transition-all rounded-none cursor-pointer ${
+                            medPage === pageNum
+                              ? 'bg-[#123184] text-white border-[#123184] shadow-xs'
+                              : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
+                          }`}
+                        >
+                          {pageNum}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Next Button */}
+                    <button
+                      type="button"
+                      onClick={() => handleAdminMedPageChange(medPage + 1)}
+                      disabled={medPage === totalMedPages}
+                      className={`px-4 py-2 text-xs font-bold flex items-center gap-1.5 border transition-all rounded-none ${
+                        medPage === totalMedPages
+                          ? 'opacity-40 cursor-not-allowed bg-slate-100 text-slate-400 border-slate-200'
+                          : 'bg-[#02975E] text-white border-[#02975E] hover:bg-[#027e4e] shadow-xs cursor-pointer'
+                      }`}
+                    >
+                      <span>{lang === 'bn' ? 'পরবর্তী পেজ (Next)' : 'Next Page'}</span>
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              )}
+
+            </div>
+          )}
+
+          {/* ================================================= */}
+          {/* TAB: DELIVERY & COUPON SETTINGS */}
+          {/* ================================================= */}
+          {activeTab === 'coupons' && (
+            <div className="space-y-6 max-w-5xl">
+              
+              {/* Top Quick Status Metric Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="bg-white border border-slate-200 p-4 shadow-xs flex items-center justify-between">
+                  <div>
+                    <span className="text-xs text-slate-500 font-bold block">নিয়মিত ডেলিভারি চার্জ</span>
+                    <span className="text-2xl font-black text-[#123184]">৳{config.deliveryFee}</span>
+                  </div>
+                  <div className="w-10 h-10 rounded-xl bg-blue-50 text-[#123184] flex items-center justify-center">
+                    <Truck className="w-5 h-5" />
+                  </div>
+                </div>
+
+                <div className="bg-white border border-slate-200 p-4 shadow-xs flex items-center justify-between">
+                  <div>
+                    <span className="text-xs text-slate-500 font-bold block">ফ্রি ডেলিভারি ন্যূনতম অর্ডার</span>
+                    <span className="text-2xl font-black text-[#02975E]">৳{config.freeDeliveryThreshold}</span>
+                  </div>
+                  <div className="w-10 h-10 rounded-xl bg-emerald-50 text-[#02975E] flex items-center justify-center">
+                    <Gift className="w-5 h-5" />
+                  </div>
+                </div>
+
+                <div className="bg-white border border-slate-200 p-4 shadow-xs flex items-center justify-between">
+                  <div>
+                    <span className="text-xs text-slate-500 font-bold block">মোট কুপন কোড</span>
+                    <span className="text-2xl font-black text-amber-600">
+                      {coupons.length} <span className="text-xs font-normal text-slate-400">({coupons.filter(c => c.isActive).length}টি সক্রিয়)</span>
+                    </span>
+                  </div>
+                  <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
+                    <Tag className="w-5 h-5" />
+                  </div>
+                </div>
+              </div>
+
+              {/* CARD 1: DELIVERY CHARGE SETTINGS */}
+              <div className="bg-white border border-slate-200 p-6 shadow-xs space-y-5">
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-[#123184]/10 text-[#123184] flex items-center justify-center">
+                      <Truck className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h3 className="font-extrabold text-base text-[#123184]">
+                        ডেলিভারি চার্জ কনফিগারেশন
+                      </h3>
+                      <p className="text-xs text-slate-500">
+                        এখানে পরিবর্তিত চার্জ সাথে সাথে গ্রাহকের শপিং কার্ট ও চেকআউটে প্রযোজ্য হবে।
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <form onSubmit={handleSaveDelivery} className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {/* Regular Delivery Fee */}
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-bold text-slate-700 block">
+                        নিয়মিত ডেলিভারি চার্জ (টাকা)
+                      </label>
+                      <div className="relative">
+                        <span className="absolute left-3 top-2.5 text-slate-400 font-bold text-xs">৳</span>
+                        <input
+                          type="number"
+                          min="0"
+                          value={deliveryForm.deliveryFee}
+                          onChange={(e) => setDeliveryForm({ ...deliveryForm, deliveryFee: e.target.value })}
+                          className="w-full pl-7 pr-3 py-2 bg-slate-50 border border-slate-200 focus:bg-white focus:border-[#123184] outline-none text-sm font-bold text-slate-900 rounded-none transition-colors"
+                          required
+                        />
+                      </div>
+                      <span className="text-[11px] text-slate-400">সাধারণ হোম ডেলিভারির জন্য প্রযোজ্য</span>
+                    </div>
+
+                    {/* Free Delivery Threshold */}
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-bold text-slate-700 block">
+                        ফ্রি ডেলিভারি পাওয়ার ন্যূনতম অর্ডার (টাকা)
+                      </label>
+                      <div className="relative">
+                        <span className="absolute left-3 top-2.5 text-slate-400 font-bold text-xs">৳</span>
+                        <input
+                          type="number"
+                          min="0"
+                          value={deliveryForm.freeDeliveryThreshold}
+                          onChange={(e) => setDeliveryForm({ ...deliveryForm, freeDeliveryThreshold: e.target.value })}
+                          className="w-full pl-7 pr-3 py-2 bg-slate-50 border border-slate-200 focus:bg-white focus:border-[#02975E] outline-none text-sm font-bold text-slate-900 rounded-none transition-colors"
+                          required
+                        />
+                      </div>
+                      <span className="text-[11px] text-slate-400">এই পরিমাণের সমান বা বেশি অর্ডারে চার্জ ৳০ হবে</span>
+                    </div>
+
+                    {/* Express Delivery Fee */}
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-bold text-slate-700 block">
+                        জরুরি / এক্সপ্রেস ডেলিভারি চার্জ (টাকা)
+                      </label>
+                      <div className="relative">
+                        <span className="absolute left-3 top-2.5 text-slate-400 font-bold text-xs">৳</span>
+                        <input
+                          type="number"
+                          min="0"
+                          value={deliveryForm.expressDeliveryFee}
+                          onChange={(e) => setDeliveryForm({ ...deliveryForm, expressDeliveryFee: e.target.value })}
+                          className="w-full pl-7 pr-3 py-2 bg-slate-50 border border-slate-200 focus:bg-white focus:border-[#123184] outline-none text-sm font-bold text-slate-900 rounded-none transition-colors"
+                          required
+                        />
+                      </div>
+                      <span className="text-[11px] text-slate-400">চেকআউটে জরুরি অপশন বেছে নিলে প্রযোজ্য</span>
+                    </div>
+                  </div>
+
+                  {/* Live Simulation Note */}
+                  <div className="p-3.5 bg-blue-50/60 border border-blue-100 rounded-none text-xs text-slate-700 flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-[#02975E] shrink-0" />
+                      <span>
+                        <b>ওয়েবসাইটে বর্তমান নিয়ম:</b> ৳{deliveryForm.freeDeliveryThreshold} টাকার কম অর্ডারে ডেলিভারি ফি <b>৳{deliveryForm.deliveryFee}</b>, এবং ৳{deliveryForm.freeDeliveryThreshold} বা তার বেশি অর্ডারে <b>সম্পূর্ণ ফ্রি</b>।
+                      </span>
+                    </div>
+                    <button
+                      type="submit"
+                      className="bg-gradient-to-r from-[#123184] to-[#02975E] hover:from-[#0d2463] hover:to-[#027e4e] text-white px-5 py-2 font-bold text-xs flex items-center gap-2 shadow-xs transition-all cursor-pointer active:scale-95"
+                    >
+                      <Save className="w-4 h-4" />
+                      <span>ডেলিভারি চার্জ সেভ করুন</span>
+                    </button>
+                  </div>
+                </form>
+              </div>
+
+              {/* CARD 2: COUPON CODES MANAGEMENT */}
+              <div className="bg-white border border-slate-200 p-6 shadow-xs space-y-5">
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-[#02975E]/10 text-[#02975E] flex items-center justify-center">
+                      <Tag className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h3 className="font-extrabold text-base text-[#123184]">
+                        কুপন কোড ও ডিসকাউন্ট অফার
+                      </h3>
+                      <p className="text-xs text-slate-500">
+                        নতুন কুপন কোড তৈরি করুন অথবা বিদ্যমান কোডের ছাড় ও সক্রিয়তা নিয়ন্ত্রণ করুন।
+                      </p>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={handleOpenAddCoupon}
+                    className="bg-[#02975E] hover:bg-[#027e4e] text-white px-4 py-2 text-xs font-bold flex items-center gap-2 shadow-xs transition-colors cursor-pointer"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>নতুন কুপন যোগ করুন</span>
+                  </button>
+                </div>
+
+                {/* Coupons Table */}
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead>
+                      <tr className="bg-slate-100 text-slate-600 font-bold border-b border-slate-200">
+                        <th className="p-3">কুপন কোড</th>
+                        <th className="p-3">ছাড়ের পরিমাণ</th>
+                        <th className="p-3">বিবরণ</th>
+                        <th className="p-3">ন্যূনতম অর্ডার</th>
+                        <th className="p-3">সর্বোচ্চ ছাড়</th>
+                        <th className="p-3 text-center">স্ট্যাটাস</th>
+                        <th className="p-3 text-right">অ্যাকশন</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {coupons.map((coupon) => (
+                        <tr key={coupon.id} className="hover:bg-slate-50 transition-colors">
+                          <td className="p-3">
+                            <span className="font-mono font-black text-sm bg-blue-50 text-[#123184] px-2.5 py-1 border border-blue-200 inline-block tracking-wider">
+                              {coupon.code}
+                            </span>
+                          </td>
+                          <td className="p-3 font-bold text-slate-900">
+                            {coupon.type === 'percent' ? (
+                              <span className="text-[#02975E] font-black">{coupon.value}% ছাড়</span>
+                            ) : (
+                              <span className="text-blue-700 font-black">৳{coupon.value} ফ্ল্যাট ছাড়</span>
+                            )}
+                          </td>
+                          <td className="p-3 text-slate-600 max-w-xs truncate font-medium">
+                            {coupon.description || '—'}
+                          </td>
+                          <td className="p-3 text-slate-700 font-semibold">
+                            {coupon.minOrder > 0 ? `৳${coupon.minOrder}` : 'যেকোনো অর্ডার'}
+                          </td>
+                          <td className="p-3 text-slate-700 font-semibold">
+                            {coupon.type === 'percent' && coupon.maxDiscount > 0 ? `৳${coupon.maxDiscount}` : 'সীমাহীন'}
+                          </td>
+                          <td className="p-3 text-center">
+                            <button
+                              onClick={() => toggleCouponStatus(coupon.id)}
+                              className={`px-2.5 py-1 text-[11px] font-bold rounded-full cursor-pointer transition-all ${
+                                coupon.isActive
+                                  ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200'
+                                  : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+                              }`}
+                              title="ক্লিক করে স্ট্যাটাস পরিবর্তন করুন"
+                            >
+                              {coupon.isActive ? '● সক্রিয়' : '○ নিষ্ক্রিয়'}
+                            </button>
+                          </td>
+                          <td className="p-3 text-right">
+                            <div className="flex items-center justify-end gap-1.5">
+                              <button
+                                onClick={() => handleOpenEditCoupon(coupon)}
+                                className="p-1.5 hover:bg-blue-50 text-[#123184] rounded-sm transition-colors cursor-pointer"
+                                title="এডিট করুন"
+                              >
+                                <Edit3 className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => {
+                                  if (window.confirm(`কুপন '${coupon.code}' ডিলিট করতে চান?`)) {
+                                    deleteCoupon(coupon.id);
+                                  }
+                                }}
+                                className="p-1.5 hover:bg-rose-50 text-rose-600 rounded-sm transition-colors cursor-pointer"
+                                title="মুছে ফেলুন"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+              </div>
+
+            </div>
+          )}
+
+          {/* ================================================= */}
+          {/* TAB 5: PHARMACY SETTINGS & INFO */}
+          {/* ================================================= */}
+          {activeTab === 'settings' && (
+            <div className="space-y-4 max-w-3xl">
+              <div className="bg-white rounded-none border border-slate-200 p-6 shadow-xs space-y-4">
+                <h3 className="font-extrabold text-base text-[#123184]">ফার্মেসি প্রোফাইল ও লগইন বিবরণ</h3>
+
+                <div className="grid sm:grid-cols-2 gap-4 text-xs">
+                  <div className="p-3 rounded-none bg-slate-50 border border-slate-200">
+                    <span className="font-bold text-slate-500 block">ফার্মেসির নাম:</span>
+                    <span className="text-sm font-black text-slate-900">{config.name} ({config.nameBn})</span>
+                  </div>
+
+                  <div className="p-3 rounded-none bg-slate-50 border border-slate-200">
+                    <span className="font-bold text-slate-500 block">অফিসিয়াল স্লোগান:</span>
+                    <span className="text-sm font-black text-[#02975E]">{config.slogan}</span>
+                  </div>
+
+                  <div className="p-3 rounded-none bg-slate-50 border border-slate-200">
+                    <span className="font-bold text-slate-500 block">অ্যাডমিন আইডি (Username):</span>
+                    <code className="text-sm font-mono font-black text-[#123184]">{config.adminUsername}</code>
+                  </div>
+
+                  <div className="p-3 rounded-none bg-slate-50 border border-slate-200">
+                    <span className="font-bold text-slate-500 block">অ্যাডমিন পাসওয়ার্ড:</span>
+                    <code className="text-sm font-mono font-black text-[#02975E]">{config.adminPassword}</code>
+                  </div>
+
+                  <div className="p-3 rounded-none bg-slate-50 border border-slate-200">
+                    <span className="font-bold text-slate-500 block">হটলাইন ও ফোন:</span>
+                    <span className="text-sm font-black text-slate-900">{config.phone}</span>
+                  </div>
+
+                  <div className="p-3 rounded-none bg-slate-50 border border-slate-200">
+                    <span className="font-bold text-slate-500 block">বিকাশ ও নগদ পেমেন্ট নম্বর:</span>
+                    <span className="text-sm font-black text-slate-900">{config.bkashNumber}</span>
+                  </div>
+                </div>
+
+                <div className="pt-2 text-xs text-slate-500 border-t border-slate-100 flex items-center gap-2">
+                  <ShieldCheck className="w-4 h-4 text-[#02975E]" />
+                  <span>লাইসেন্স নং: DA-DH-2024-9182 • ড্রাগ কন্ট্রোল অ্যাডমিনিস্ট্রেশন</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+        </div>
+
+      </main>
+
+      {/* Full Image Preview Modal */}
+      {previewRxImage && (
+        <div 
+          className="fixed inset-0 z-60 bg-black/85 flex items-center justify-center p-4 backdrop-blur-xs"
+          onClick={() => setPreviewRxImage(null)}
+        >
+          <div className="relative max-w-4xl max-h-[90vh] bg-white rounded-3xl p-3 shadow-2xl">
+            <button
+              onClick={() => setPreviewRxImage(null)}
+              className="absolute top-4 right-4 bg-black/70 hover:bg-black text-white rounded-full p-2 cursor-pointer"
+            >
+              ✕
+            </button>
+            <img
+              src={previewRxImage}
+              alt="Prescription Large"
+              className="max-h-[85vh] max-w-full object-contain rounded-2xl"
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Edit Medicine Modal */}
+      {editingMed && (
+        <div 
+          className="fixed inset-0 z-60 bg-slate-900/65 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto animate-in fade-in"
+          onClick={() => setEditingMed(null)}
+        >
+          <div 
+            className="bg-white rounded-none max-w-2xl w-full my-6 shadow-2xl border border-slate-100 overflow-hidden flex flex-col max-h-[92vh] animate-in zoom-in-95 duration-150"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="p-4 sm:p-5 border-b border-[#0d2463] flex items-center justify-between bg-gradient-to-r from-[#123184] to-[#02975E] text-white">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-white/15 flex items-center justify-center text-white backdrop-blur-xs shadow-xs">
+                  <Edit3 className="w-5 h-5 text-emerald-300" />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-base sm:text-lg">
+                    ওষুধের তথ্য পরিবর্তন (Edit Medicine)
+                  </h3>
+                  <p className="text-xs text-blue-100">
+                    আইডি: #{editingMed.id} • {editingMed.name} ({editingMed.company})
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setEditingMed(null)}
+                className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center cursor-pointer transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Edit Form */}
+            <form onSubmit={handleSaveEdit} className="p-5 sm:p-6 space-y-4 overflow-y-auto flex-1 text-xs">
+              <div className="grid sm:grid-cols-2 gap-3.5">
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">
+                    ওষুধের নাম (Brand Name) *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={editingMed.name || ''}
+                    onChange={(e) => setEditingMed({ ...editingMed, name: e.target.value })}
+                    className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl focus:border-[#02975E] focus:ring-2 focus:ring-[#02975E]/10 outline-none text-slate-900 font-semibold"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">
+                    জেনেরিক নাম (Generic) *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={editingMed.generic || ''}
+                    onChange={(e) => setEditingMed({ ...editingMed, generic: e.target.value })}
+                    className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl focus:border-[#02975E] focus:ring-2 focus:ring-[#02975E]/10 outline-none text-slate-900"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">
+                    কোম্পানি / প্রস্তুতকারক *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={editingMed.company || ''}
+                    onChange={(e) => setEditingMed({ ...editingMed, company: e.target.value })}
+                    className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl focus:border-[#02975E] focus:ring-2 focus:ring-[#02975E]/10 outline-none text-slate-900"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">
+                    ক্যাটাগরি (Category)
+                  </label>
+                  <select
+                    value={editingMed.category || 'otc'}
+                    onChange={(e) => setEditingMed({ ...editingMed, category: e.target.value })}
+                    className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl bg-white focus:border-[#02975E] outline-none text-slate-900 font-medium"
+                  >
+                    {CATEGORIES.filter(c => c.id !== 'all').map(c => (
+                      <option key={c.id} value={c.id}>{c.nameBn} ({c.name})</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">
+                    ধরণ (Form / Type)
+                  </label>
+                  <select
+                    value={editingMed.type || 'Tablet'}
+                    onChange={(e) => setEditingMed({ ...editingMed, type: e.target.value })}
+                    className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl bg-white focus:border-[#02975E] outline-none text-slate-900 font-medium"
+                  >
+                    <option value="Tablet">Tablet (ট্যাবলেট)</option>
+                    <option value="Capsule">Capsule (ক্যাপসুল)</option>
+                    <option value="Syrup">Syrup (সিরাপ)</option>
+                    <option value="Drop">Drop (ড্রপ)</option>
+                    <option value="Cream">Cream / Ointment (মলম)</option>
+                    <option value="Device">Device (ডিভাইস/যন্ত্র)</option>
+                    <option value="Pack">Pack / Box (প্যাক)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">
+                    পাতায় পিস সংখ্যা (Strip Size)
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={editingMed.stripSize || 10}
+                    onChange={(e) => setEditingMed({ ...editingMed, stripSize: parseInt(e.target.value) || 1 })}
+                    className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl focus:border-[#02975E] outline-none text-slate-900"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">
+                    পাতা প্রতি মূল্য (৳) *
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    required
+                    value={editingMed.pricePerStrip}
+                    onChange={(e) => {
+                      const val = parseFloat(e.target.value) || 0;
+                      const size = editingMed.stripSize || 10;
+                      const unitVal = Number((val / size).toFixed(2));
+                      setEditingMed({ ...editingMed, pricePerStrip: val, pricePerUnit: unitVal });
+                    }}
+                    className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl focus:border-[#02975E] outline-none font-bold text-[#123184]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">
+                    পিস প্রতি মূল্য (৳)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={editingMed.pricePerUnit}
+                    onChange={(e) => setEditingMed({ ...editingMed, pricePerUnit: parseFloat(e.target.value) || 0 })}
+                    className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl focus:border-[#02975E] outline-none text-slate-900"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">
+                    ডিসকাউন্ট (% ছাড়)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="100"
+                    value={editingMed.discountPercent}
+                    onChange={(e) => setEditingMed({ ...editingMed, discountPercent: parseInt(e.target.value) || 0 })}
+                    className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl focus:border-[#02975E] outline-none text-slate-900 font-semibold"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">
+                    স্টক সংখ্যা (Stock in pcs)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={editingMed.stock}
+                    onChange={(e) => setEditingMed({ ...editingMed, stock: parseInt(e.target.value) || 0 })}
+                    className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl focus:border-[#02975E] outline-none font-bold text-emerald-700"
+                  />
+                </div>
+
+                <div className="sm:col-span-2 bg-gradient-to-r from-emerald-50/70 via-blue-50/40 to-slate-50 p-4 rounded-2xl border border-emerald-200/80 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <label className="block font-extrabold text-slate-800 text-xs flex items-center gap-1.5">
+                      <Camera className="w-4 h-4 text-[#02975E]" />
+                      <span>প্রোডাক্টের ছবি আপলোড (Product Photo) *</span>
+                    </label>
+                    <span className="text-[11px] text-emerald-800 font-bold bg-emerald-100/70 px-2.5 py-0.5 rounded-full">
+                      ✓ গ্রাহকরা এই ছবিটিই দেখতে পাবেন
+                    </span>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                    {/* Live Image Preview Thumbnail */}
+                    <div className="relative group shrink-0">
+                      <div className="w-24 h-24 rounded-2xl bg-white border-2 border-slate-200 overflow-hidden shadow-sm flex items-center justify-center p-1.5">
+                        {editingMed.image ? (
+                          <img 
+                            src={editingMed.image} 
+                            alt={editingMed.name || 'Product'} 
+                            className="w-full h-full object-contain rounded-xl"
+                            onError={(e) => {
+                              e.target.onerror = null;
+                              e.target.src = 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=300&auto=format&fit=crop&q=60';
+                            }}
+                          />
+                        ) : (
+                          <div className="text-center text-slate-400">
+                            <ImageIcon className="w-8 h-8 mx-auto stroke-1 text-slate-400" />
+                            <span className="text-[10px] block mt-0.5">ছবি নেই</span>
+                          </div>
+                        )}
+                      </div>
+
+                      {editingMed.image && (
+                        <button
+                          type="button"
+                          onClick={() => setEditingMed({ ...editingMed, image: '' })}
+                          title="ছবি রিমুভ করুন"
+                          className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-rose-500 text-white flex items-center justify-center shadow-md hover:bg-rose-600 cursor-pointer"
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Upload Controls */}
+                    <div className="flex-1 space-y-2 w-full">
+                      <input 
+                        type="file" 
+                        ref={editImageInputRef} 
+                        onChange={handleEditPhotoUpload} 
+                        accept="image/*" 
+                        className="hidden" 
+                      />
+
+                      <div className="flex flex-wrap items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => editImageInputRef.current?.click()}
+                          className="px-4 py-2.5 rounded-xl bg-[#02975E] hover:bg-[#027e4e] text-white font-bold text-xs flex items-center gap-2 shadow-xs cursor-pointer transition-all hover:shadow"
+                        >
+                          <Upload className="w-4 h-4" />
+                          <span>ডিভাইস থেকে ছবি আপলোড করুন</span>
+                        </button>
+
+                        {editingMed.image && (
+                          <button
+                            type="button"
+                            onClick={() => setEditingMed({ ...editingMed, image: '' })}
+                            className="px-3 py-2.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-semibold cursor-pointer transition-colors"
+                          >
+                            ছবি মুছুন
+                          </button>
+                        )}
+                      </div>
+
+                      <p className="text-[11px] text-slate-500">
+                        মোবাইল ক্যামেরা বা গ্যালারি থেকে যেকোনো JPG, PNG, WEBP ছবি দিন। ছবি অপটিমাইজ হয়ে সেভ হবে।
+                      </p>
+
+                      {/* Optional URL input fallback */}
+                      <div className="pt-1">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[11px] text-slate-500 whitespace-nowrap">অথবা অনলাইন লিংক:</span>
+                          <input
+                            type="url"
+                            value={editingMed.image?.startsWith('data:') ? '' : (editingMed.image || '')}
+                            onChange={(e) => setEditingMed({ ...editingMed, image: e.target.value })}
+                            placeholder={editingMed.image?.startsWith('data:') ? '✓ ডিভাইস থেকে ছবি আপলোড করা হয়েছে' : 'https://example.com/photo.jpg'}
+                            className="flex-1 px-3 py-1.5 border border-slate-300 rounded-xl focus:border-[#02975E] outline-none text-[11px] font-mono text-slate-700 bg-white"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="sm:col-span-2">
+                  <label className="block font-bold text-slate-700 mb-1">
+                    কার্যকারিতা ও বিবরণ (Description)
+                  </label>
+                  <textarea
+                    rows="2"
+                    value={editingMed.description || ''}
+                    onChange={(e) => setEditingMed({ ...editingMed, description: e.target.value })}
+                    placeholder="ওষুধের কার্যকারিতা ও নির্দেশিকা..."
+                    className="w-full px-3.5 py-2 border border-slate-300 rounded-xl focus:border-[#02975E] outline-none text-slate-900"
+                  ></textarea>
+                </div>
+
+                <div className="sm:col-span-2">
+                  <label className="flex items-center gap-2 cursor-pointer font-bold text-slate-700 bg-slate-50 p-2.5 rounded-xl border border-slate-200">
+                    <input
+                      type="checkbox"
+                      checked={editingMed.requiresPrescription || false}
+                      onChange={(e) => setEditingMed({ ...editingMed, requiresPrescription: e.target.checked })}
+                      className="w-4 h-4 rounded text-[#02975E] focus:ring-[#02975E] cursor-pointer"
+                    />
+                    <span>প্রেসক্রিপশন আবশ্যক (Prescription Required - Rx Only)</span>
+                  </label>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex justify-end gap-2.5 pt-3 border-t border-slate-200">
+                <button
+                  type="button"
+                  onClick={() => setEditingMed(null)}
+                  className="px-4 py-2.5 text-xs font-semibold rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 cursor-pointer transition-colors"
+                >
+                  বাতিল
+                </button>
+                <button
+                  type="submit"
+                  className="px-6 py-2.5 text-xs font-bold rounded-xl bg-[#02975E] hover:bg-[#027e4e] text-white cursor-pointer shadow-md flex items-center gap-2 transition-all hover:shadow-lg"
+                >
+                  <Save className="w-4 h-4" />
+                  <span>পরিবর্তন সংরক্ষণ করুন</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Add / Edit Coupon Modal */}
+      {showCouponModal && (
+        <div 
+          className="fixed inset-0 z-60 bg-slate-900/65 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto animate-in fade-in"
+          onClick={() => setShowCouponModal(false)}
+        >
+          <div 
+            className="bg-white rounded-none max-w-md w-full my-6 shadow-2xl border border-slate-100 overflow-hidden flex flex-col animate-in zoom-in-95 duration-150"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="p-4 border-b border-[#0d2463] flex items-center justify-between bg-gradient-to-r from-[#123184] to-[#02975E] text-white">
+              <div className="flex items-center gap-2.5">
+                <Tag className="w-5 h-5 text-emerald-300" />
+                <h3 className="font-extrabold text-base">
+                  {editingCouponId ? 'কুপন কোড পরিবর্তন (Edit Coupon)' : 'নতুন কুপন কোড তৈরি (Add Coupon)'}
+                </h3>
+              </div>
+              <button
+                onClick={() => setShowCouponModal(false)}
+                className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Modal Form */}
+            <form onSubmit={handleSaveCoupon} className="p-5 space-y-4 text-xs">
+              <div>
+                <label className="font-bold text-slate-700 block mb-1">
+                  কুপন কোড (যেমন: EID20, DISCOUNT50) *
+                </label>
+                <input
+                  type="text"
+                  value={couponForm.code}
+                  onChange={(e) => setCouponForm({ ...couponForm, code: e.target.value.toUpperCase() })}
+                  placeholder="যেমন: BELI15"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 font-mono font-bold uppercase text-slate-900 outline-none focus:border-[#123184]"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="font-bold text-slate-700 block mb-1">
+                  বিবরণ / অফারের নাম
+                </label>
+                <input
+                  type="text"
+                  value={couponForm.description}
+                  onChange={(e) => setCouponForm({ ...couponForm, description: e.target.value })}
+                  placeholder="যেমন: ঈদ উপলক্ষে বিশেষ ১৫% ছাড়"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 text-slate-900 outline-none focus:border-[#123184]"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="font-bold text-slate-700 block mb-1">
+                    ডিসকাউন্ট ধরন
+                  </label>
+                  <select
+                    value={couponForm.type}
+                    onChange={(e) => setCouponForm({ ...couponForm, type: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 font-bold text-slate-900 outline-none"
+                  >
+                    <option value="percent">শতাংশ ছাড় (%)</option>
+                    <option value="flat">নির্দিষ্ট টাকা ছাড় (৳)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="font-bold text-slate-700 block mb-1">
+                    ছাড়ের পরিমাণ ({couponForm.type === 'percent' ? '%' : '৳'}) *
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={couponForm.value}
+                    onChange={(e) => setCouponForm({ ...couponForm, value: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 font-bold text-slate-900 outline-none"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="font-bold text-slate-700 block mb-1">
+                    ন্যূনতম অর্ডার মূল্য (৳)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={couponForm.minOrder}
+                    onChange={(e) => setCouponForm({ ...couponForm, minOrder: e.target.value })}
+                    placeholder="0 = যেকোনো অর্ডার"
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 text-slate-900 outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="font-bold text-slate-700 block mb-1">
+                    সর্বোচ্চ ছাড় সীমা (৳)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={couponForm.maxDiscount}
+                    onChange={(e) => setCouponForm({ ...couponForm, maxDiscount: e.target.value })}
+                    placeholder="0 = সীমাহীন"
+                    disabled={couponForm.type === 'flat'}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 text-slate-900 outline-none disabled:bg-slate-200"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 pt-1">
+                <input
+                  type="checkbox"
+                  id="coupon_active_check"
+                  checked={couponForm.isActive}
+                  onChange={(e) => setCouponForm({ ...couponForm, isActive: e.target.checked })}
+                  className="w-4 h-4 text-[#02975E] rounded-none cursor-pointer"
+                />
+                <label htmlFor="coupon_active_check" className="font-bold text-slate-800 cursor-pointer">
+                  কুপনটি সক্রিয় (Active) রাখুন
+                </label>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-200">
+                <button
+                  type="button"
+                  onClick={() => setShowCouponModal(false)}
+                  className="px-4 py-2 border border-slate-300 text-slate-600 font-bold hover:bg-slate-50 cursor-pointer"
+                >
+                  বাতিল
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 bg-[#02975E] hover:bg-[#027e4e] text-white font-bold flex items-center gap-1.5 shadow-xs cursor-pointer"
+                >
+                  <Save className="w-4 h-4" />
+                  <span>{editingCouponId ? 'আপডেট করুন' : 'তৈরি করুন'}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ================================================= */}
+      {/* MODAL: PRESCRIPTION MEDICINES ENTRY & PRICING */}
+      {/* ================================================= */}
+      {activeRxForMedicines && (
+        <div 
+          className="fixed inset-0 z-60 bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto animate-in fade-in"
+          onClick={() => setActiveRxForMedicines(null)}
+        >
+          <div 
+            className="bg-white rounded-none max-w-5xl w-full my-6 shadow-2xl border border-slate-100 overflow-hidden flex flex-col max-h-[92vh] animate-in zoom-in-95 duration-150"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="p-4 sm:p-5 border-b border-[#0d2463] flex items-center justify-between bg-gradient-to-r from-[#123184] to-[#02975E] text-white">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center text-white backdrop-blur-xs shadow-xs">
+                  <Pill className="w-5 h-5 text-emerald-200" />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-base sm:text-lg flex items-center gap-2">
+                    <span>প্রেসক্রিপশন অনুযায়ী ওষুধ এন্ট্রি ও মূল্য নির্ধারণ</span>
+                    <span className="text-xs bg-white/20 px-2 py-0.5 rounded-full font-mono">#{activeRxForMedicines.id}</span>
+                  </h3>
+                  <p className="text-xs text-blue-100">
+                    রোগী: <b className="text-white">{activeRxForMedicines.customerName}</b> ({activeRxForMedicines.customerPhone}) • ঠিকানা: {activeRxForMedicines.deliveryAddress}
+                  </p>
+                </div>
+              </div>
+
+              <button
+                onClick={() => setActiveRxForMedicines(null)}
+                className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Body: Two column layout (Left: Prescription Image, Right: Medicine Selector & List) */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 flex-1 overflow-y-auto divide-y lg:divide-y-0 lg:divide-x divide-slate-200">
+              
+              {/* Left Column: Prescription Image */}
+              <div className="lg:col-span-5 p-4 bg-slate-50 flex flex-col items-center justify-between space-y-3">
+                <div className="w-full">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                      <FileText className="w-4 h-4 text-[#123184]" />
+                      <span>প্রেসক্রিপশন কপি</span>
+                    </span>
+                    {activeRxForMedicines.image && (
+                      <button
+                        type="button"
+                        onClick={() => setPreviewRxImage(activeRxForMedicines.image)}
+                        className="text-[11px] text-[#123184] hover:underline font-bold flex items-center gap-1 cursor-pointer"
+                      >
+                        <Eye className="w-3.5 h-3.5" />
+                        <span>বড় করে দেখুন</span>
+                      </button>
+                    )}
+                  </div>
+
+                  {activeRxForMedicines.image ? (
+                    <div className="w-full bg-white border border-slate-200 rounded-none overflow-hidden max-h-[380px] flex items-center justify-center p-2 shadow-inner">
+                      <img
+                        src={activeRxForMedicines.image}
+                        alt="Prescription Large"
+                        className="max-h-[360px] w-full object-contain cursor-zoom-in hover:scale-105 transition-transform"
+                        onClick={() => setPreviewRxImage(activeRxForMedicines.image)}
+                      />
+                    </div>
+                  ) : (
+                    <div className="h-48 w-full bg-slate-200 flex items-center justify-center text-slate-400 text-xs">
+                      ছবি পাওয়া যায়নি
+                    </div>
+                  )}
+
+                  {activeRxForMedicines.notes && (
+                    <div className="mt-3 p-2.5 bg-amber-50 border border-amber-200 text-xs text-amber-900 rounded-none">
+                      <span className="font-bold block">রোগীর নোট:</span>
+                      <span>"{activeRxForMedicines.notes}"</span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="w-full text-xs text-slate-500 bg-white p-3 border border-slate-200">
+                  <span className="font-bold block text-slate-700 mb-1">💡 ফার্মাসিস্ট নির্দেশিকা:</span>
+                  প্রেসক্রিপশন দেখে ডানপাশে ওষুধ সার্চ করে যোগ করুন। ওষুধের দাম অটোমেটিক ওয়েবসাইট মূল্যের সাথে মিলে হিসাব হবে।
+                </div>
+              </div>
+
+              {/* Right Column: Search Medicines & Prescribed List */}
+              <div className="lg:col-span-7 p-4 sm:p-5 flex flex-col justify-between space-y-4">
+                
+                {/* 1. Add Medicine Box */}
+                <div className="bg-slate-50 border border-slate-200 p-3.5 rounded-none space-y-3">
+                  <h4 className="font-bold text-xs text-[#123184] flex items-center gap-1.5">
+                    <Plus className="w-4 h-4 text-[#02975E]" />
+                    <span>ক্যাটালগ থেকে ওষুধ সার্চ ও নির্বাচন করুন</span>
+                  </h4>
+
+                  {/* Search Input */}
+                  <div className="relative">
+                    <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+                    <input
+                      type="text"
+                      value={rxMedSearch}
+                      onChange={(e) => {
+                        setRxMedSearch(e.target.value);
+                        if (selectedMedToAdd) setSelectedMedToAdd(null);
+                      }}
+                      placeholder="ওষুধের নাম বা জেনেরিক দিয়ে খুঁজুন (যেমন: Napa, Seclo, Monas)..."
+                      className="w-full pl-9 pr-3 py-2 bg-white border border-slate-300 text-xs font-semibold rounded-none outline-none focus:border-[#123184]"
+                    />
+                  </div>
+
+                  {/* Live Search Suggestions Dropdown */}
+                  {rxMedSearch.trim() !== '' && !selectedMedToAdd && (
+                    <div className="max-h-48 overflow-y-auto bg-white border border-slate-300 shadow-md divide-y divide-slate-100 text-xs">
+                      {medicines
+                        .filter(m => {
+                          const q = rxMedSearch.toLowerCase().trim();
+                          return m.name.toLowerCase().includes(q) || m.generic.toLowerCase().includes(q) || m.company.toLowerCase().includes(q);
+                        })
+                        .slice(0, 8)
+                        .map(med => (
+                          <div
+                            key={med.id}
+                            onClick={() => {
+                              setSelectedMedToAdd(med);
+                              setRxMedSearch(med.name);
+                            }}
+                            className="p-2.5 hover:bg-emerald-50 cursor-pointer flex justify-between items-center transition-colors"
+                          >
+                            <div>
+                              <span className="font-bold text-slate-900 block">{med.name}</span>
+                              <span className="text-[11px] text-slate-500">{med.generic} • {med.company}</span>
+                            </div>
+                            <div className="text-right">
+                              <span className="font-black text-[#123184] block">৳{med.pricePerStrip}/পাতা</span>
+                              <span className="text-[10px] text-slate-400">৳{med.pricePerUnit}/পিস</span>
+                            </div>
+                          </div>
+                        ))}
+                    </div>
+                  )}
+
+                  {/* Selected Medicine Quantity & Unit selector */}
+                  {selectedMedToAdd && (
+                    <div className="bg-white border border-emerald-300 p-3 space-y-2.5 animate-in fade-in">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <span className="font-extrabold text-slate-900 text-sm">{selectedMedToAdd.name}</span>
+                          <span className="text-xs text-slate-500 block">{selectedMedToAdd.generic} • {selectedMedToAdd.company}</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedMedToAdd(null);
+                            setRxMedSearch('');
+                          }}
+                          className="text-xs text-rose-500 hover:underline cursor-pointer"
+                        >
+                          পরিবর্তন
+                        </button>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 items-end text-xs pt-1">
+                        <div>
+                          <label className="font-bold text-slate-600 block mb-1">প্যাক নির্বাচন:</label>
+                          <select
+                            value={rxAddUnitType}
+                            onChange={(e) => setRxAddUnitType(e.target.value)}
+                            className="w-full px-2.5 py-1.5 border border-slate-300 font-bold bg-slate-50 rounded-none outline-none"
+                          >
+                            <option value="strip">পাতা ({selectedMedToAdd.stripSize}টি) - ৳{(selectedMedToAdd.pricePerStrip * (1 - (selectedMedToAdd.discountPercent || 0) / 100)).toFixed(2)}</option>
+                            <option value="unit">১ পিস - ৳{(selectedMedToAdd.pricePerUnit * (1 - (selectedMedToAdd.discountPercent || 0) / 100)).toFixed(2)}</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="font-bold text-slate-600 block mb-1">পরিমাণ:</label>
+                          <div className="flex items-center border border-slate-300 bg-slate-50">
+                            <button
+                              type="button"
+                              onClick={() => setRxAddQuantity(Math.max(1, rxAddQuantity - 1))}
+                              className="px-2.5 py-1 text-slate-600 hover:bg-slate-200 font-bold cursor-pointer"
+                            >
+                              -
+                            </button>
+                            <span className="px-3 text-xs font-black text-slate-900">{rxAddQuantity}</span>
+                            <button
+                              type="button"
+                              onClick={() => setRxAddQuantity(rxAddQuantity + 1)}
+                              className="px-2.5 py-1 text-slate-600 hover:bg-slate-200 font-bold cursor-pointer"
+                            >
+                              +
+                            </button>
+                          </div>
+                        </div>
+
+                        <div>
+                          <button
+                            type="button"
+                            onClick={handleAddMedicineToRx}
+                            className="w-full bg-[#02975E] hover:bg-[#027e4e] text-white font-bold py-1.5 px-3 rounded-none text-xs flex items-center justify-center gap-1 shadow-xs cursor-pointer transition-colors"
+                          >
+                            <Plus className="w-4 h-4" />
+                            <span>তালিকায় যোগ করুন</span>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* 2. Added Medicines List Table */}
+                <div className="flex-1 space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="font-bold text-xs text-slate-700">
+                      প্রেসক্রিপশনের ওষুধের তালিকা ({rxMedicinesList.length}টি)
+                    </span>
+                    <span className="text-xs text-slate-500">
+                      মোট হিসাব: <b className="text-[#123184] text-sm">৳{rxMedicinesList.reduce((sum, i) => sum + i.total, 0).toFixed(2)}</b>
+                    </span>
+                  </div>
+
+                  <div className="max-h-56 overflow-y-auto border border-slate-200 divide-y divide-slate-100 text-xs">
+                    {rxMedicinesList.length === 0 ? (
+                      <div className="p-8 text-center text-slate-400 italic">
+                        এখনও কোনো ওষুধ যোগ করা হয়নি। উপরের বক্স থেকে ওষুধ নির্বাচন করুন।
+                      </div>
+                    ) : (
+                      rxMedicinesList.map((item, idx) => (
+                        <div key={idx} className="p-2.5 hover:bg-slate-50 flex items-center justify-between gap-3">
+                          <div className="min-w-0 flex-1">
+                            <span className="font-extrabold text-slate-900 block truncate">{item.name}</span>
+                            <span className="text-[11px] text-slate-500">{item.unitLabel} • একক মূল্য: ৳{item.unitPrice}</span>
+                          </div>
+
+                          <div className="flex items-center gap-3 shrink-0">
+                            <div className="flex items-center border border-slate-200 bg-white">
+                              <button
+                                type="button"
+                                onClick={() => handleUpdateRxItemQuantity(idx, item.quantity - 1)}
+                                className="px-2 py-0.5 text-slate-500 hover:bg-slate-100 cursor-pointer"
+                              >
+                                -
+                              </button>
+                              <span className="px-2 font-bold text-slate-800">{item.quantity}</span>
+                              <button
+                                type="button"
+                                onClick={() => handleUpdateRxItemQuantity(idx, item.quantity + 1)}
+                                className="px-2 py-0.5 text-slate-500 hover:bg-slate-100 cursor-pointer"
+                              >
+                                +
+                              </button>
+                            </div>
+
+                            <span className="font-black text-slate-900 w-16 text-right">
+                              ৳{item.total.toFixed(2)}
+                            </span>
+
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveMedicineFromRx(idx)}
+                              className="text-rose-500 hover:text-rose-700 p-1 cursor-pointer"
+                              title="মুছে ফেলুন"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+
+                {/* 3. Pharmacist Notes / Directions */}
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-700 block">
+                    ফার্মাসিস্ট পরামর্শ ও খাবার নিয়মাবলী (ঐচ্ছিক):
+                  </label>
+                  <input
+                    type="text"
+                    value={rxPharmacistNotes}
+                    onChange={(e) => setRxPharmacistNotes(e.target.value)}
+                    placeholder="যেমন: সকালে ১টি রাতে ১টি খাবার পর। ভরা পেটে সেব্য..."
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 text-xs text-slate-800 rounded-none outline-none focus:border-[#123184]"
+                  />
+                </div>
+
+                {/* 4. Action Strip */}
+                <div className="p-3 bg-slate-100 border border-slate-200 flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <span className="text-xs text-slate-500 block">সর্বমোট প্রদেয় মূল্য:</span>
+                    <span className="text-xl font-black text-[#123184]">
+                      ৳{rxMedicinesList.reduce((sum, i) => sum + i.total, 0).toFixed(2)}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setActiveRxForMedicines(null)}
+                      className="px-4 py-2 border border-slate-300 text-slate-700 font-bold text-xs hover:bg-white cursor-pointer"
+                    >
+                      বাতিল
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleSavePrescriptionMedicines}
+                      disabled={rxMedicinesList.length === 0}
+                      className="px-5 py-2 bg-[#02975E] hover:bg-[#027e4e] disabled:bg-slate-300 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm cursor-pointer disabled:cursor-not-allowed transition-colors"
+                    >
+                      <Save className="w-4 h-4" />
+                      <span>সংরক্ষণ ও প্রোফাইলে পাঠান</span>
+                    </button>
+                  </div>
+                </div>
+
+              </div>
+
+            </div>
+          </div>
+        </div>
+      )}
+
+    </div>
+  );
+};

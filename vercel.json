@@ -1,0 +1,9 @@
+{
+  "name": "belipharmecy",
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/"
+    }
+  ]
+}
