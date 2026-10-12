@@ -2239,10 +2239,10 @@ export const AdminPortal = () => {
             <div className="space-y-6 max-w-5xl">
               
               {/* Quick Status Bar */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="bg-white border border-slate-200 p-4 shadow-xs flex items-center justify-between">
                   <div>
-                    <span className="text-xs text-slate-500 font-bold block">পপআপ বিজ্ঞাপন স্ট্যাটাস</span>
+                    <span className="text-xs text-slate-500 font-bold block">পপআপ ফটো বিজ্ঞাপন স্ট্যাটাস</span>
                     <span className={`text-xl font-black ${adForm.isActive ? 'text-[#02975E]' : 'text-slate-400'}`}>
                       {adForm.isActive ? '✅ চালু রয়েছে (Active)' : '❌ বন্ধ রয়েছে (Disabled)'}
                     </span>
@@ -2254,42 +2254,30 @@ export const AdminPortal = () => {
                       setAdForm(prev => ({ ...prev, isActive: next }));
                       updateAdBanner({ ...adForm, isActive: next });
                     }}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                    className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                       adForm.isActive 
                         ? 'bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200' 
                         : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200'
                     }`}
                   >
-                    {adForm.isActive ? 'বন্ধ করুন' : 'চালু করুন'}
+                    {adForm.isActive ? 'বিজ্ঞাপন বন্ধ করুন' : 'বিজ্ঞাপন চালু করুন'}
                   </button>
                 </div>
 
                 <div className="bg-white border border-slate-200 p-4 shadow-xs flex items-center justify-between">
                   <div>
-                    <span className="text-xs text-slate-500 font-bold block">বর্তমান কুপন কোড</span>
-                    <span className="text-xl font-black text-[#123184] font-mono">
-                      {adForm.couponCode || 'প্রযোজ্য নয়'}
-                    </span>
-                  </div>
-                  <div className="w-10 h-10 rounded-xl bg-blue-50 text-[#123184] flex items-center justify-center">
-                    <Tag className="w-5 h-5" />
-                  </div>
-                </div>
-
-                <div className="bg-white border border-slate-200 p-4 shadow-xs flex items-center justify-between">
-                  <div>
                     <span className="text-xs text-slate-500 font-bold block">লাইভ পপআপ টেস্ট</span>
-                    <span className="text-xs text-slate-400">স্ক্রিনে কেমন দেখাবে</span>
+                    <span className="text-xs text-slate-400">ওয়েবসাইটে ছবি কেমন দেখাবে দেখুন</span>
                   </div>
                   <button
                     type="button"
                     onClick={() => {
                       setIsAdModalOpen(true);
                     }}
-                    className="bg-[#123184] hover:bg-[#0d2463] text-white px-3.5 py-2 rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer"
+                    className="bg-[#123184] hover:bg-[#0d2463] text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer"
                   >
                     <Eye className="w-4 h-4" />
-                    <span>পপআপ দেখুন</span>
+                    <span>পপআপ টেস্ট করুন</span>
                   </button>
                 </div>
               </div>
@@ -2297,29 +2285,29 @@ export const AdminPortal = () => {
               {/* Main Form & Live Preview Grid */}
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
                 
-                {/* Left Column: Configuration Form (7 cols) */}
-                <div className="lg:col-span-7 bg-white border border-slate-200 p-6 shadow-xs space-y-5">
+                {/* Left Column: Photo Upload Form (6 cols) */}
+                <div className="lg:col-span-6 bg-white border border-slate-200 p-6 shadow-xs space-y-5">
                   <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
                     <div className="w-9 h-9 rounded-xl bg-[#02975E]/10 text-[#02975E] flex items-center justify-center">
                       <Sparkles className="w-5 h-5" />
                     </div>
                     <div>
                       <h3 className="font-extrabold text-base text-[#123184]">
-                        বিজ্ঞাপন ও অফার ব্যানার এডিটর
+                        অফার / অ্যাডস ফটো আপলোড
                       </h3>
                       <p className="text-xs text-slate-500">
-                        এখানে ছবি ও তথ্য আপডেট করলে সমস্ত গ্রাহক পেইজ ওপেন করার সাথে সাথে দেখতে পাবেন।
+                        এখানে আপনার যেকোনো অফারের ফটো/ব্যানার আপলোড করুন। গ্রাহক ওয়েবসাইটে ঢুকলে শুধু এই ছবিটিই পপআপ আকারে দেখতে পাবেন।
                       </p>
                     </div>
                   </div>
 
-                  <form onSubmit={handleSaveAdBanner} className="space-y-4">
+                  <form onSubmit={handleSaveAdBanner} className="space-y-5">
                     
                     {/* Status Toggle */}
-                    <div className="flex items-center justify-between p-3.5 bg-slate-50 border border-slate-200">
+                    <div className="flex items-center justify-between p-3.5 bg-slate-50 border border-slate-200 rounded-xl">
                       <div>
                         <span className="text-xs font-bold text-slate-800 block">বিজ্ঞাপন পপআপ সক্রিয় রাখুন</span>
-                        <span className="text-[11px] text-slate-500">গ্রাহক ওয়েবসাইটে ঢুকলে পপআপ শো করবে কিনা</span>
+                        <span className="text-[11px] text-slate-500">গ্রাহক পেজ ওপেন করলে ছবির পপআপ আসবে কিনা</span>
                       </div>
                       <label className="relative inline-flex items-center cursor-pointer">
                         <input 
@@ -2333,15 +2321,15 @@ export const AdminPortal = () => {
                     </div>
 
                     {/* Image Selection Method (File upload vs Direct URL) */}
-                    <div className="space-y-2">
+                    <div className="space-y-3">
                       <label className="text-xs font-bold text-slate-700 block">
-                        বিজ্ঞাপনের ছবি আপলোড বা লিংক প্রদান:
+                        বিজ্ঞাপনের ফটো আপলোড বা লিংক নির্বাচন:
                       </label>
                       <div className="flex gap-2">
                         <button
                           type="button"
                           onClick={() => setImageUploadMethod('file')}
-                          className={`flex-1 py-2 px-3 text-xs font-bold rounded-lg border transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                          className={`flex-1 py-2 px-3 text-xs font-bold rounded-xl border transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
                             imageUploadMethod === 'file' 
                               ? 'bg-[#123184] text-white border-[#123184]' 
                               : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
@@ -2353,19 +2341,19 @@ export const AdminPortal = () => {
                         <button
                           type="button"
                           onClick={() => setImageUploadMethod('url')}
-                          className={`flex-1 py-2 px-3 text-xs font-bold rounded-lg border transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                          className={`flex-1 py-2 px-3 text-xs font-bold rounded-xl border transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
                             imageUploadMethod === 'url' 
                               ? 'bg-[#123184] text-white border-[#123184]' 
                               : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
                           }`}
                         >
                           <ExternalLink className="w-3.5 h-3.5" />
-                          <span>অনলাইন ইমেজ লিংক (URL)</span>
+                          <span>ছবির অনলাইন লিংক (URL)</span>
                         </button>
                       </div>
 
                       {imageUploadMethod === 'file' ? (
-                        <div className="border-2 border-dashed border-slate-300 hover:border-[#02975E] p-4 text-center bg-slate-50 transition-colors">
+                        <div className="border-2 border-dashed border-slate-300 hover:border-[#02975E] p-6 text-center bg-slate-50 rounded-2xl transition-colors">
                           <input 
                             type="file"
                             ref={adFileInputRef}
@@ -2373,210 +2361,96 @@ export const AdminPortal = () => {
                             onChange={handleImageFileChange}
                             className="hidden"
                           />
-                          <div className="space-y-2">
-                            <div className="w-10 h-10 rounded-full bg-emerald-100 text-[#02975E] flex items-center justify-center mx-auto">
-                              <Camera className="w-5 h-5" />
+                          <div className="space-y-3">
+                            <div className="w-12 h-12 rounded-full bg-emerald-100 text-[#02975E] flex items-center justify-center mx-auto">
+                              <Camera className="w-6 h-6" />
                             </div>
                             <div>
                               <button
                                 type="button"
                                 onClick={() => adFileInputRef.current?.click()}
                                 disabled={isUploadingImage}
-                                className="bg-[#02975E] hover:bg-[#027e4e] text-white text-xs font-bold px-4 py-2 rounded-lg shadow-xs transition-colors cursor-pointer"
+                                className="bg-[#02975E] hover:bg-[#027e4e] text-white text-xs font-bold px-5 py-2.5 rounded-xl shadow-xs transition-colors cursor-pointer"
                               >
-                                {isUploadingImage ? 'ছবি প্রসেস হচ্ছে...' : 'কম্পিউটার/মোবাইল থেকে ছবি নির্বাচন করুন'}
+                                {isUploadingImage ? 'ছবি অপটিমাইজ হচ্ছে...' : 'কম্পিউটার বা মোবাইল থেকে ফটো নির্বাচন করুন'}
                               </button>
-                              <span className="block text-[11px] text-slate-400 mt-1">
-                                JPG, PNG, WebP ফরম্যাট সমর্থিত (অটো অপটিমাইজেশন হবে)
+                              <span className="block text-[11px] text-slate-400 mt-2">
+                                JPG, PNG, WebP ফরম্যাট সমর্থিত (অটোমেটিক কম্প্রেস ও অপটিমাইজ হবে)
                               </span>
                             </div>
                           </div>
                         </div>
                       ) : (
-                        <div className="space-y-1">
+                        <div className="space-y-1.5">
                           <input 
                             type="url"
                             value={adForm.imageUrl}
                             onChange={(e) => setAdForm({ ...adForm, imageUrl: e.target.value })}
-                            placeholder="https://example.com/ad-banner.jpg"
-                            className="w-full px-3 py-2 bg-slate-50 border border-slate-200 focus:bg-white focus:border-[#123184] outline-none text-xs text-slate-900 rounded-none transition-colors"
+                            placeholder="https://example.com/offer-banner.jpg"
+                            className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 focus:bg-white focus:border-[#123184] outline-none text-xs text-slate-900 rounded-xl transition-colors"
                           />
                           <span className="text-[10px] text-slate-400 block">
-                            যেকোনো ছবির ডিরেক্ট লিংক পেস্ট করুন
+                            যেকোনো অনলাইন ছবির সরাসরি লিংক পেস্ট করুন
                           </span>
                         </div>
                       )}
-                    </div>
-
-                    {/* Offer Title */}
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-bold text-slate-700 block">
-                        বিজ্ঞাপন/অফারের শিরোনাম (Title):
-                      </label>
-                      <input 
-                        type="text"
-                        value={adForm.title}
-                        onChange={(e) => setAdForm({ ...adForm, title: e.target.value })}
-                        placeholder="যেমন: ঈদ ধামাকা অফার! সকল ঔষধে বিশেষ ছাড়"
-                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 focus:bg-white focus:border-[#123184] outline-none text-xs font-bold text-slate-900 rounded-none transition-colors"
-                        required
-                      />
-                    </div>
-
-                    {/* Offer Subtitle / Description */}
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-bold text-slate-700 block">
-                        অফারের বিবরণ (Description):
-                      </label>
-                      <textarea 
-                        rows="2"
-                        value={adForm.subtitle}
-                        onChange={(e) => setAdForm({ ...adForm, subtitle: e.target.value })}
-                        placeholder="যেমন: ঘরে বসেই আসল ওষুধ অর্ডার করুন দ্রুততম ডেলিভারিতে..."
-                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 focus:bg-white focus:border-[#123184] outline-none text-xs text-slate-800 rounded-none transition-colors"
-                      />
-                    </div>
-
-                    {/* Badge Text & Coupon Code Row */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div className="space-y-1.5">
-                        <label className="text-xs font-bold text-slate-700 block">
-                          হাইলাইট ব্যাজ টেক্সট (Badge):
-                        </label>
-                        <input 
-                          type="text"
-                          value={adForm.badgeText}
-                          onChange={(e) => setAdForm({ ...adForm, badgeText: e.target.value })}
-                          placeholder="যেমন: 🔥 ধামাকা অফার বা 🎁 ফ্রি ডেলিভারি"
-                          className="w-full px-3 py-2 bg-slate-50 border border-slate-200 focus:bg-white focus:border-[#123184] outline-none text-xs text-slate-900 rounded-none transition-colors"
-                        />
-                      </div>
-
-                      <div className="space-y-1.5">
-                        <label className="text-xs font-bold text-slate-700 block">
-                          কুপন কোড (Coupon - ঐচ্ছিক):
-                        </label>
-                        <input 
-                          type="text"
-                          value={adForm.couponCode}
-                          onChange={(e) => setAdForm({ ...adForm, couponCode: e.target.value.toUpperCase() })}
-                          placeholder="যেমন: BELI10 বা HEALTH50"
-                          className="w-full px-3 py-2 bg-slate-50 border border-slate-200 focus:bg-white focus:border-[#123184] outline-none text-xs font-mono font-bold text-[#123184] rounded-none transition-colors"
-                        />
-                      </div>
-                    </div>
-
-                    {/* Button Text & Action */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div className="space-y-1.5">
-                        <label className="text-xs font-bold text-slate-700 block">
-                          বাটন টেক্সট (Button Text):
-                        </label>
-                        <input 
-                          type="text"
-                          value={adForm.buttonText}
-                          onChange={(e) => setAdForm({ ...adForm, buttonText: e.target.value })}
-                          placeholder="যেমন: অফারটি লুফে নিন বা অর্ডার করুন"
-                          className="w-full px-3 py-2 bg-slate-50 border border-slate-200 focus:bg-white focus:border-[#123184] outline-none text-xs text-slate-900 rounded-none transition-colors"
-                        />
-                      </div>
-
-                      <div className="space-y-1.5">
-                        <label className="text-xs font-bold text-slate-700 block">
-                          বাটন ক্লিকে কী ঘটবে (Action):
-                        </label>
-                        <select
-                          value={adForm.buttonAction}
-                          onChange={(e) => setAdForm({ ...adForm, buttonAction: e.target.value })}
-                          className="w-full px-3 py-2 bg-slate-50 border border-slate-200 focus:bg-white focus:border-[#123184] outline-none text-xs font-semibold text-slate-900 rounded-none transition-colors"
-                        >
-                          <option value="catalog">ওষুধের তালিকায় স্ক্রল করুন (Catalog)</option>
-                          <option value="prescription">প্রেসক্রিপশন আপলোড মডাল ওপেন করুন</option>
-                        </select>
-                      </div>
                     </div>
 
                     {/* Submit Button */}
                     <div className="pt-2">
                       <button
                         type="submit"
-                        className="w-full bg-gradient-to-r from-[#123184] to-[#02975E] hover:from-[#0e2669] hover:to-[#027e4e] text-white py-3 px-4 text-sm font-bold flex items-center justify-center gap-2 shadow-md transition-all cursor-pointer"
+                        className="w-full bg-gradient-to-r from-[#123184] to-[#02975E] hover:from-[#0e2669] hover:to-[#027e4e] text-white py-3.5 px-4 text-sm font-bold rounded-2xl flex items-center justify-center gap-2 shadow-md transition-all cursor-pointer"
                       >
                         <Save className="w-4 h-4" />
-                        <span>পরিবর্তন সংরক্ষণ ও লাইভ আপডেট করুন (Save & Publish)</span>
+                        <span>ফটো ব্যানার সেভ ও লাইভ পাবলিশ করুন (Save & Publish)</span>
                       </button>
                     </div>
 
                   </form>
                 </div>
 
-                {/* Right Column: Real-Time Live Preview (5 cols) */}
-                <div className="lg:col-span-5 space-y-3">
+                {/* Right Column: Real-Time Live Preview (6 cols) */}
+                <div className="lg:col-span-6 space-y-3">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-black text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
                       <Eye className="w-3.5 h-3.5 text-[#123184]" />
-                      <span>লাইভ প্রিভিউ (Live Preview):</span>
+                      <span>লাইভ ফটো প্রিভিউ (Live Preview):</span>
                     </span>
-                    <span className="text-[11px] text-slate-400">গ্রাহক এটি দেখতে পাবেন</span>
+                    <span className="text-[11px] text-slate-400">গ্রাহক ঠিক এই ফটোটিই দেখতে পাবেন</span>
                   </div>
 
-                  {/* Preview Card Mockup */}
-                  <div className="bg-white rounded-3xl border-2 border-slate-200 shadow-xl overflow-hidden max-w-sm mx-auto">
-                    {/* Header Image */}
-                    <div className="relative w-full h-48 bg-slate-100 overflow-hidden">
+                  {/* Pure Photo Preview Mockup */}
+                  <div className="relative bg-slate-900/10 p-3 rounded-3xl border-2 border-slate-200 shadow-xl overflow-hidden max-w-sm sm:max-w-md mx-auto text-center">
+                    {/* Simulated Close Button */}
+                    <div className="absolute top-5 right-5 z-20 w-8 h-8 rounded-full bg-black/70 text-white flex items-center justify-center shadow-md border border-white/20">
+                      <X className="w-4 h-4" />
+                    </div>
+
+                    {/* Banner Image */}
+                    <div className="relative w-full rounded-2xl overflow-hidden bg-slate-100 flex items-center justify-center min-h-[220px]">
                       {adForm.imageUrl ? (
                         <img 
                           src={adForm.imageUrl} 
                           alt="Ad Preview" 
-                          className="w-full h-full object-cover"
+                          className="w-full h-auto max-h-[380px] object-contain rounded-2xl"
                         />
                       ) : (
-                        <div className="w-full h-full flex flex-col items-center justify-center text-slate-400 text-xs gap-1">
-                          <ImageIcon className="w-8 h-8" />
-                          <span>কোনো ছবি সিলেক্ট করা নেই</span>
+                        <div className="flex flex-col items-center justify-center text-slate-400 text-xs gap-2 p-8">
+                          <ImageIcon className="w-10 h-10 text-slate-300" />
+                          <span>কোনো ব্যানার ছবি দেওয়া হয়নি</span>
                         </div>
                       )}
-                      {adForm.badgeText && (
-                        <div className="absolute bottom-2 left-2 bg-[#123184]/90 text-white text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
-                          <Sparkles className="w-3 h-3 text-amber-300" />
-                          <span>{adForm.badgeText}</span>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Content */}
-                    <div className="p-4 space-y-3">
-                      <div>
-                        <h4 className="font-black text-sm text-slate-900 leading-tight">
-                          {adForm.title || 'অফারের শিরোনাম'}
-                        </h4>
-                        <p className="text-[11px] text-slate-500 mt-1 leading-snug">
-                          {adForm.subtitle || 'অফারের বিস্তারিত বিবরণ এখানে আসবে...'}
-                        </p>
-                      </div>
-
-                      {adForm.couponCode && (
-                        <div className="bg-amber-50 border border-dashed border-amber-300 rounded-xl p-2 flex items-center justify-between">
-                          <div className="text-[10px] text-amber-800 font-bold">
-                            কুপন: <span className="font-mono text-xs font-black text-[#123184]">{adForm.couponCode}</span>
-                          </div>
-                          <span className="bg-[#123184] text-white text-[9px] font-bold px-2 py-0.5 rounded">কপি</span>
-                        </div>
-                      )}
-
-                      <div className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-[#123184] to-[#02975E] text-white font-bold text-xs text-center shadow-xs">
-                        {adForm.buttonText || 'অফারটি লুফে নিন'} &rarr;
-                      </div>
                     </div>
                   </div>
 
-                  <div className="p-3 bg-blue-50/70 border border-blue-200 text-xs text-blue-900 rounded-xl space-y-1">
+                  <div className="p-3.5 bg-blue-50/70 border border-blue-200 text-xs text-blue-900 rounded-2xl space-y-1">
                     <p className="font-bold flex items-center gap-1">
                       <Sparkles className="w-3.5 h-3.5 text-blue-700" />
                       <span>টিপস:</span>
                     </p>
                     <p className="text-[11px] text-blue-800 leading-relaxed">
-                      বিজ্ঞাপনের জন্য আয়তাকার (Landscape বা ৪:৩) অনুপাতের যেকোনো পরিষ্কার অফার ব্যানার ব্যবহার করলে তা মোবাইল ও কম্পিউটারে সবচেয়ে সুন্দর দেখায়।
+                      বিজ্ঞাপনের ব্যানারে কোনো অতিরিক্ত টেক্সট বক্স বা ওষুধের নাম থাকবে না। আপনার অফারের লেখা, কুপন বা ওষুধের ছবি সরাসরি ব্যানারের ভেতরে ডিজাইন করে ফটোটি আপলোড করে দিন।
                     </p>
                   </div>
                 </div>
