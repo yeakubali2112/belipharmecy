@@ -433,7 +433,19 @@ export async function fetchMedexSearchResults(query) {
 
     if (!res.ok) return [];
     const data = await res.json();
-    const results = Array.isArray(data?.results) ? data.results : [];
+    const rawResults = Array.isArray(data?.results) ? data.results : [];
+    const results = rawResults.map(item => ({
+      ...item,
+      company: (item.company || '')
+        .replace(/MedEx(\s*Bangladesh)?(\s*Verified)?/gi, 'বাংলাদেশ ফার্মাসিউটিক্যালস')
+        .trim() || 'বাংলাদেশ ফার্মাসিউটিক্যালস',
+      description: (item.description || '')
+        .replace(/MedEx\s*Bangladesh\s*ডাটাবেজ\s*থেকে\s*সংগৃহীত\s*/gi, '')
+        .replace(/MedEx(\s*Bangladesh)?(\s*Verified)?/gi, 'বেলী ফার্মেসি')
+        .trim(),
+      medexLink: null,
+      isMedEx: false
+    }));
 
     // Cache up to 120 searches
     if (medexSearchCache.size > 120) {

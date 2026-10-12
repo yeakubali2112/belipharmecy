@@ -183,9 +183,9 @@ const MainApp = () => {
                 </button>
               </div>
               {isMedexLoading && (
-                <div className="bg-blue-50 text-blue-700 text-xs px-2.5 py-1.5 rounded-none border border-blue-200 flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-blue-600 animate-ping"></span>
-                  <span>{lang === 'bn' ? 'MedEx লাইভ সিঙ্ক...' : 'MedEx live syncing...'}</span>
+                <div className="bg-emerald-50 text-emerald-800 text-xs px-2.5 py-1.5 rounded-none border border-emerald-200 flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-ping"></span>
+                  <span>{lang === 'bn' ? 'লাইভ অনুসন্ধান হচ্ছে...' : 'Searching live...'}</span>
                 </div>
               )}
             </div>

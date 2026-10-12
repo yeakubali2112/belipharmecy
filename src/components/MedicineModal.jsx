@@ -27,6 +27,15 @@ export const MedicineModal = () => {
     }, 450);
   };
 
+  const rawCompany = selectedMedicine.company || '';
+  const cleanCompany = rawCompany.replace(/MedEx(\s*Bangladesh)?(\s*Verified)?/gi, 'বাংলাদেশ ফার্মাসিউটিক্যালস').trim() || 'বাংলাদেশ ফার্মাসিউটিক্যালস';
+
+  const rawDescription = selectedMedicine.description || '';
+  const cleanDescription = rawDescription
+    .replace(/MedEx\s*Bangladesh\s*ডাটাবেজ\s*থেকে\s*সংগৃহীত\s*/gi, '')
+    .replace(/MedEx(\s*Bangladesh)?(\s*Verified)?/gi, 'বেলী ফার্মেসি')
+    .trim();
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in">
       <div 
@@ -90,20 +99,15 @@ export const MedicineModal = () => {
                     {lang === 'bn' ? 'প্রেসক্রিপশন ছাড়া কেনা যাবে (OTC)' : 'OTC (No Rx Required)'}
                   </span>
                 )}
-                {selectedMedicine.isMedEx && (
-                  <span className="bg-blue-50 text-blue-700 border border-blue-200 font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
-                    🌐 MedEx ভেরিফাইড
-                  </span>
-                )}
               </div>
 
               <div className="flex items-center gap-1.5 text-xs text-slate-600 font-semibold pt-1">
                 <Building2 className="w-4 h-4 text-[#123184]" />
-                <span className="text-[#123184]">{selectedMedicine.company}</span>
+                <span className="text-[#123184]">{cleanCompany}</span>
               </div>
 
               <p className="text-xs text-slate-600 leading-relaxed">
-                {selectedMedicine.description}
+                {cleanDescription}
               </p>
 
               {/* Price Tag */}
@@ -146,21 +150,6 @@ export const MedicineModal = () => {
                 {selectedMedicine.dosage}
               </p>
             </div>
-
-            {/* MedEx External Link if available */}
-            {selectedMedicine.medexLink && (
-              <div className="border border-blue-200 rounded-2xl p-3 bg-blue-50/50 flex items-center justify-between">
-                <span className="text-xs text-blue-900 font-semibold">🌐 MedEx বাংলাদেশ অফিশিয়াল ডিরেক্টরি:</span>
-                <a
-                  href={selectedMedicine.medexLink}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-xs text-[#123184] hover:text-[#02975E] font-bold underline"
-                >
-                  MedEx এ তথ্যাবলী দেখুন &rarr;
-                </a>
-              </div>
-            )}
 
             {/* Side Effects */}
             <div className="border border-slate-200 rounded-2xl p-4 bg-white">

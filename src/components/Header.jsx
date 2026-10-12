@@ -171,9 +171,9 @@ export const Header = () => {
                 <div className="flex items-center gap-2">
                   <span>{lang === 'bn' ? 'ওষুধ তালিকা:' : 'Medicines:'}</span>
                   {isMedexLoading && (
-                    <span className="text-[10px] text-blue-600 font-semibold lowercase tracking-normal flex items-center gap-1 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200">
-                      <span className="w-1.5 h-1.5 rounded-full bg-blue-600 animate-ping"></span>
-                      {lang === 'bn' ? 'MedEx লাইভ খুঁজছে...' : 'MedEx live searching...'}
+                    <span className="text-[10px] text-emerald-700 font-semibold lowercase tracking-normal flex items-center gap-1 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-ping"></span>
+                      {lang === 'bn' ? 'লাইভ অনুসন্ধান হচ্ছে...' : 'Searching catalog...'}
                     </span>
                   )}
                 </div>
@@ -195,11 +195,6 @@ export const Header = () => {
                     <div>
                       <div className="font-semibold text-sm text-slate-900 flex items-center gap-2 flex-wrap">
                         <span>{med.name}</span>
-                        {med.isMedEx && (
-                          <span className="text-[10px] font-bold text-blue-700 bg-blue-50 border border-blue-200 px-1.5 py-0.2 rounded-full">
-                            🌐 MedEx Live
-                          </span>
-                        )}
                         {med.nameBn && med.nameBn !== med.name && (
                           <span className="text-[11px] font-medium text-emerald-800 bg-emerald-50 border border-emerald-200/60 px-1.5 py-0.5 rounded">
                             {med.nameBn}
@@ -208,7 +203,7 @@ export const Header = () => {
                         <span className="text-[11px] font-normal text-slate-500">({med.type})</span>
                       </div>
                       <div className="text-xs text-slate-500 font-medium">
-                        {med.generic} • <span className="text-[#123184] font-semibold">{med.company}</span>
+                        {med.generic} • <span className="text-[#123184] font-semibold">{med.company?.replace(/MedEx(\s*Bangladesh)?(\s*Verified)?/gi, 'বাংলাদেশ ফার্মাসিউটিক্যালস')}</span>
                       </div>
                     </div>
                   </div>
@@ -364,9 +359,9 @@ export const Header = () => {
               <div className="flex items-center gap-1.5">
                 <span>{lang === 'bn' ? 'খুঁজে পাওয়া ওষুধ:' : 'Found Products:'}</span>
                 {isMedexLoading && (
-                  <span className="text-[10px] text-blue-600 font-normal flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-blue-600 animate-ping"></span>
-                    MedEx লাইভ...
+                  <span className="text-[10px] text-emerald-700 font-normal flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-ping"></span>
+                    {lang === 'bn' ? 'লাইভ অনুসন্ধান হচ্ছে...' : 'Searching catalog...'}
                   </span>
                 )}
               </div>
@@ -399,11 +394,6 @@ export const Header = () => {
                       <div className="min-w-0">
                         <div className="font-bold text-xs sm:text-sm text-slate-900 truncate flex items-center gap-1.5 flex-wrap">
                           <span>{med.name}</span>
-                          {med.isMedEx && (
-                            <span className="text-[9px] font-bold text-blue-700 bg-blue-50 border border-blue-200 px-1 rounded">
-                              🌐 MedEx
-                            </span>
-                          )}
                           {med.nameBn && med.nameBn !== med.name && (
                             <span className="text-[10px] font-medium text-emerald-800 bg-emerald-50 px-1 rounded shrink-0">
                               {med.nameBn}
@@ -412,7 +402,7 @@ export const Header = () => {
                           <span className="text-[11px] font-normal text-slate-500">({med.type})</span>
                         </div>
                         <div className="text-[11px] text-slate-500 truncate">
-                          {med.generic} • <span className="text-[#123184] font-semibold">{med.company}</span>
+                          {med.generic} • <span className="text-[#123184] font-semibold">{med.company?.replace(/MedEx(\s*Bangladesh)?(\s*Verified)?/gi, 'বাংলাদেশ ফার্মাসিউটিক্যালস')}</span>
                         </div>
                       </div>
                     </div>

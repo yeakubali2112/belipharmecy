@@ -2349,9 +2349,9 @@ export const AdminPortal = () => {
                       {filteredMedicines.length} টি ওষুধ {totalMedPages > 1 && `• দেখাচ্ছে ${(medPage - 1) * medItemsPerPage + 1}-${Math.min(medPage * medItemsPerPage, filteredMedicines.length)} (পেজ ${medPage}/${totalMedPages})`}
                     </span>
                     {isAdminMedexLoading && (
-                      <span className="text-[11px] text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded flex items-center gap-1 font-bold animate-pulse">
-                        <span className="w-1.5 h-1.5 rounded-full bg-blue-600 animate-ping"></span>
-                        MedEx লাইভ খুঁজছে...
+                      <span className="text-[11px] text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded flex items-center gap-1 font-bold animate-pulse">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-ping"></span>
+                        লাইভ ডাটাবেজ খুঁজছে...
                       </span>
                     )}
                   </div>
@@ -2605,18 +2605,13 @@ export const AdminPortal = () => {
                           <td className="p-3">
                             <div className="flex items-center gap-1.5 flex-wrap">
                               <span className="font-bold text-slate-900">{med.name}</span>
-                              {med.isMedEx && (
-                                <span className="text-[10px] bg-blue-50 text-blue-700 font-bold px-1.5 py-0.5 rounded border border-blue-200">
-                                  🌐 MedEx
-                                </span>
-                              )}
                               {med.nameBn && med.nameBn !== med.name && (
                                 <span className="text-[10px] text-emerald-800 bg-emerald-50 px-1.5 py-0.5 rounded font-medium border border-emerald-100">
                                   {med.nameBn}
                                 </span>
                               )}
                             </div>
-                            <span className="text-[11px] text-slate-500 block">{med.company} ({med.type})</span>
+                            <span className="text-[11px] text-slate-500 block">{med.company?.replace(/MedEx(\s*Bangladesh)?(\s*Verified)?/gi, 'বাংলাদেশ ফার্মাসিউটিক্যালস')} ({med.type})</span>
                           </td>
                           <td className="p-3 text-slate-600 max-w-xs truncate">{med.generic}</td>
                           <td className="p-3 font-bold text-[#123184]">
@@ -3907,9 +3902,9 @@ export const AdminPortal = () => {
                   {rxMedSearch.trim() !== '' && !selectedMedToAdd && (
                     <div className="max-h-52 overflow-y-auto bg-white border border-slate-300 shadow-md divide-y divide-slate-100 text-xs">
                       {isRxMedexLoading && (
-                        <div className="p-2 bg-blue-50 text-blue-700 font-semibold text-[11px] flex items-center gap-1.5 border-b border-blue-100 animate-pulse">
-                          <span className="w-1.5 h-1.5 rounded-full bg-blue-600 animate-ping"></span>
-                          <span>MedEx বাংলাদেশ লাইভ ডাটাবেজ থেকে খোঁজা হচ্ছে...</span>
+                        <div className="p-2 bg-emerald-50 text-emerald-800 font-semibold text-[11px] flex items-center gap-1.5 border-b border-emerald-100 animate-pulse">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-ping"></span>
+                          <span>লাইভ ডাটাবেজ থেকে খোঁজা হচ্ছে...</span>
                         </div>
                       )}
                       {mergeSearchResults(searchMedicines(medicines, rxMedSearch).slice(0, 8), rxMedexResults)
@@ -3926,18 +3921,13 @@ export const AdminPortal = () => {
                             <div>
                               <div className="flex items-center gap-1.5 flex-wrap">
                                 <span className="font-bold text-slate-900">{med.name}</span>
-                                {med.isMedEx && (
-                                  <span className="text-[10px] bg-blue-50 text-blue-700 font-bold px-1.5 py-0.5 rounded border border-blue-200">
-                                    🌐 MedEx
-                                  </span>
-                                )}
                                 {med.nameBn && med.nameBn !== med.name && (
                                   <span className="text-[10px] text-emerald-800 bg-emerald-50 px-1 rounded font-medium border border-emerald-100">
                                     {med.nameBn}
                                   </span>
                                 )}
                               </div>
-                              <span className="text-[11px] text-slate-500 block">{med.generic} • {med.company}</span>
+                              <span className="text-[11px] text-slate-500 block">{med.generic} • {med.company?.replace(/MedEx(\s*Bangladesh)?(\s*Verified)?/gi, 'বাংলাদেশ ফার্মাসিউটিক্যালস')}</span>
                             </div>
                             <div className="text-right">
                               <span className="font-black text-[#123184] block">৳{med.pricePerStrip}/পাতা</span>

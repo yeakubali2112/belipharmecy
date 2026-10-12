@@ -59,6 +59,7 @@ const BANGLA_TO_ENG = {
   'মিরাকফ': 'mirakof',
   'ভেন্টোলিন': 'ventolin',
   'বেক্সিট্রল': 'bexitrol',
+  'হিমোফিক্স': 'hemofix',
   'গ্যাস্ট্রিক': 'omeprazole',
   'জ্বর': 'paracetamol',
   'কাশি': 'cough'
@@ -138,7 +139,35 @@ const BRAND_ENRICHMENT = {
   'tussca': { generic: 'Dextromethorphan + Phenylephrine', company: 'Square Pharmaceuticals PLC', category: 'respiratory' },
   'mirakof': { generic: 'Butamirate Citrate', company: 'Square Pharmaceuticals PLC', category: 'respiratory' },
   'ventolin': { generic: 'Salbutamol Inhaler', company: 'GlaxoSmithKline (GSK)', category: 'respiratory' },
-  'bexitrol': { generic: 'Salmeterol + Fluticasone Inhaler', company: 'Beximco Pharmaceuticals Ltd.', category: 'respiratory' }
+  'bexitrol': { generic: 'Salmeterol + Fluticasone Inhaler', company: 'Beximco Pharmaceuticals Ltd.', category: 'respiratory' },
+  'hemofix': { generic: 'Carbonyl Iron + Folic Acid + Zinc', company: 'Square Pharmaceuticals PLC', category: 'vitamins' },
+  'folison': { generic: 'Folic Acid', company: 'Square Pharmaceuticals PLC', category: 'vitamins' },
+  'aristofer': { generic: 'Iron Polymaltose Complex', company: 'Aristopharma Ltd.', category: 'vitamins' },
+  'ferozyte': { generic: 'Carbonyl Iron + Folic Acid + Zinc', company: 'Incepta Pharmaceuticals Ltd.', category: 'vitamins' },
+  'feofol': { generic: 'Ferrous Sulphate + Folic Acid', company: 'GlaxoSmithKline (GSK)', category: 'vitamins' },
+  'bicozinc': { generic: 'Vitamin B Complex + Zinc', company: 'Square Pharmaceuticals PLC', category: 'vitamins' },
+  'zincon': { generic: 'Zinc Sulphate', company: 'Square Pharmaceuticals PLC', category: 'vitamins' },
+  'babyzinc': { generic: 'Zinc Sulphate', company: 'Square Pharmaceuticals PLC', category: 'vitamins' },
+  'renova': { generic: 'Paracetamol', company: 'Renata Limited', category: 'otc' },
+  'pyralgin': { generic: 'Paracetamol', company: 'Incepta Pharmaceuticals Ltd.', category: 'otc' },
+  'tamina': { generic: 'Paracetamol', company: 'Square Pharmaceuticals PLC', category: 'otc' },
+  'ors': { generic: 'Oral Rehydration Salt', company: 'SMC Enterprise Ltd.', category: 'otc' },
+  'orsaline': { generic: 'Oral Rehydration Salt', company: 'SMC Enterprise Ltd.', category: 'otc' },
+  'electrosal': { generic: 'Oral Rehydration Salt', company: 'Square Pharmaceuticals PLC', category: 'otc' },
+  'supracid': { generic: 'Omeprazole', company: 'Square Pharmaceuticals PLC', category: 'gastric' },
+  'ulgel': { generic: 'Magaldrate + Simethicone', company: 'Square Pharmaceuticals PLC', category: 'gastric' },
+  'marlox': { generic: 'Aluminium Hydroxide + Magnesium Hydroxide', company: 'Incepta Pharmaceuticals Ltd.', category: 'gastric' },
+  'lipicon': { generic: 'Atorvastatin', company: 'Square Pharmaceuticals PLC', category: 'heart' },
+  'atova': { generic: 'Atorvastatin', company: 'Beximco Pharmaceuticals Ltd.', category: 'heart' },
+  'rosuva': { generic: 'Rosuvastatin', company: 'Square Pharmaceuticals PLC', category: 'heart' },
+  'orastat': { generic: 'Rosuvastatin', company: 'Incepta Pharmaceuticals Ltd.', category: 'heart' },
+  'moxacil': { generic: 'Amoxicillin', company: 'Square Pharmaceuticals PLC', category: 'antibiotics' },
+  'ficon': { generic: 'Fluconazole', company: 'Square Pharmaceuticals PLC', category: 'antibiotics' },
+  'flugal': { generic: 'Fluconazole', company: 'Square Pharmaceuticals PLC', category: 'antibiotics' },
+  'diflu': { generic: 'Fluconazole', company: 'Beximco Pharmaceuticals Ltd.', category: 'antibiotics' },
+  'lucan': { generic: 'Fluconazole', company: 'Incepta Pharmaceuticals Ltd.', category: 'antibiotics' },
+  'doxicap': { generic: 'Doxycycline', company: 'Square Pharmaceuticals PLC', category: 'antibiotics' },
+  'ceftron': { generic: 'Ceftriaxone', company: 'Square Pharmaceuticals PLC', category: 'antibiotics' }
 };
 
 function cleanText(str) {
@@ -203,7 +232,7 @@ function parseMedexHtml(html, query) {
     const enrich = BRAND_ENRICHMENT[brandKey] || {};
 
     let generic = enrich.generic || `${brandName} (${dosageForm})`;
-    let company = enrich.company || 'MedEx Bangladesh Verified';
+    let company = enrich.company || 'বাংলাদেশ ফার্মাসিউটিক্যালস';
     let category = enrich.category || 'otc';
 
     if (!enrich.category) {
@@ -224,7 +253,7 @@ function parseMedexHtml(html, query) {
 
     // Generate safe clean ID
     const slug = href.split('/').slice(-1)[0] || `med-${idx}`;
-    const id = `medex-${slug}`;
+    const id = `live-${slug}`;
 
     items.push({
       id,
@@ -241,11 +270,10 @@ function parseMedexHtml(html, query) {
       requiresPrescription: !(/paracetamol|antacid|cetirizine|vitamin|ors/i.test(fullName)),
       stock: 200,
       image: 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=500&auto=format&fit=crop&q=60',
-      description: `MedEx Bangladesh ডাটাবেজ থেকে সংগৃহীত ভেরিফাইড ওষুধ: ${fullName} (${dosageForm})। প্রস্তুতকারক: ${company}।`,
+      description: `উচ্চমানের গুণগত মানসম্পন্ন ভেরিফাইড ওষুধ: ${fullName} (${dosageForm})। প্রস্তুতকারক: ${company}।`,
       indications: 'চিকিৎসকের পরামর্শ অনুযায়ী সেব্য।',
       dosage: 'ডাক্তারের নির্দেশিত মাত্রায় আহারের পর বা পূর্বে সেবনীয়।',
-      medexLink: href.startsWith('http') ? href : `https://medex.com.bd${href}`,
-      isMedEx: true
+      isMedEx: false
     });
 
     idx++;
