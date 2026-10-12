@@ -1195,7 +1195,7 @@ export const AdminPortal = () => {
               }`}
             >
               <Pill className="w-4 h-4 text-emerald-300" />
-              <span>ওষুধ ক্যাটালগ ও স্টক ({medicines.length})</span>
+              <span>ওষুধ ক্যাটালগ ও স্টক</span>
             </button>
 
             <button
