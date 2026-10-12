@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { useShop } from '../context/ShopContext';
 
@@ -9,6 +9,8 @@ export const AdPopupModal = () => {
     setIsAdModalOpen, 
     lang 
   } = useShop();
+
+  const [timeLeft, setTimeLeft] = useState(5);
 
   // Automatically trigger popup on page load if active
   useEffect(() => {
@@ -21,6 +23,27 @@ export const AdPopupModal = () => {
 
     return () => clearTimeout(timer);
   }, [adBanner?.isActive, adBanner?.imageUrl]);
+
+  // Auto-dismiss after exactly 5 seconds
+  useEffect(() => {
+    if (!isAdModalOpen) {
+      setTimeLeft(5);
+      return;
+    }
+
+    setTimeLeft(5);
+    const interval = setInterval(() => {
+      setTimeLeft((prev) => {
+        if (prev <= 1) {
+          setIsAdModalOpen(false);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [isAdModalOpen, setIsAdModalOpen]);
 
   if (!isAdModalOpen || !adBanner?.isActive || !adBanner?.imageUrl) {
     return null;
@@ -47,13 +70,14 @@ export const AdPopupModal = () => {
         className="relative w-full max-w-md sm:max-w-lg bg-transparent rounded-xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 my-auto text-center group"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Floating Close Button */}
+        {/* Floating Close Button with 5-second countdown timer */}
         <button
           onClick={handleClose}
-          className="absolute top-2.5 right-2.5 z-30 w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-black/70 hover:bg-black text-white flex items-center justify-center shadow-lg transition-transform hover:scale-110 cursor-pointer border border-white/20"
+          className="absolute top-2.5 right-2.5 z-30 px-2.5 h-8 sm:h-9 rounded-full bg-black/80 hover:bg-black text-white flex items-center gap-1.5 shadow-lg transition-transform hover:scale-105 cursor-pointer border border-white/20"
           title={lang === 'bn' ? 'বিজ্ঞাপন বন্ধ করুন' : 'Close Ad'}
         >
-          <X className="w-5 h-5" />
+          <span className="text-[11px] text-emerald-400 font-mono font-extrabold">{timeLeft}s</span>
+          <X className="w-4 h-4 text-slate-300 hover:text-white" />
         </button>
 
         {/* Pure Ad Photo Banner (Clickable) */}
