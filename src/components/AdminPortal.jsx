@@ -428,7 +428,21 @@ export const AdminPortal = () => {
   const [adminMedexResults, setAdminMedexResults] = useState([]);
   const [isAdminMedexLoading, setIsAdminMedexLoading] = useState(false);
   const [medPage, setMedPage] = useState(1);
-  const medItemsPerPage = 20;
+  const medItemsPerPage = 15;
+
+  // Smart windowed pagination generator (e.g. 1, 2, 3, 4, 5, '...', 134)
+  const getVisiblePages = (current, total) => {
+    if (total <= 7) {
+      return Array.from({ length: total }, (_, i) => i + 1);
+    }
+    if (current <= 4) {
+      return [1, 2, 3, 4, 5, '...', total];
+    }
+    if (current >= total - 3) {
+      return [1, '...', total - 4, total - 3, total - 2, total - 1, total];
+    }
+    return [1, '...', current - 1, current, current + 1, '...', total];
+  };
 
   // Live MedEx fetch for admin catalog search
   React.useEffect(() => {
@@ -1790,20 +1804,29 @@ export const AdminPortal = () => {
 
                     {/* Page Numbers */}
                     <div className="flex items-center gap-1 flex-wrap">
-                      {Array.from({ length: totalOrderPages }, (_, i) => i + 1).map((pageNum) => (
-                        <button
-                          key={pageNum}
-                          type="button"
-                          onClick={() => handleOrderPageChange(pageNum)}
-                          className={`w-9 h-9 text-xs font-black border transition-all rounded-none cursor-pointer ${
-                            orderPage === pageNum
-                              ? 'bg-[#123184] text-white border-[#123184] shadow-xs'
-                              : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
-                          }`}
-                        >
-                          {pageNum}
-                        </button>
-                      ))}
+                      {getVisiblePages(orderPage, totalOrderPages).map((pageNum, idx) =>
+                        pageNum === '...' ? (
+                          <span
+                            key={`order-ellipsis-${idx}`}
+                            className="w-8 h-9 flex items-center justify-center text-xs font-black text-slate-400 select-none tracking-widest"
+                          >
+                            ...
+                          </span>
+                        ) : (
+                          <button
+                            key={pageNum}
+                            type="button"
+                            onClick={() => handleOrderPageChange(pageNum)}
+                            className={`w-9 h-9 text-xs font-black border transition-all rounded-none cursor-pointer ${
+                              orderPage === pageNum
+                                ? 'bg-[#123184] text-white border-[#123184] shadow-xs'
+                                : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
+                            }`}
+                          >
+                            {pageNum}
+                          </button>
+                        )
+                      )}
                     </div>
 
                     {/* Next Button */}
@@ -2273,20 +2296,29 @@ export const AdminPortal = () => {
                     </button>
 
                     <div className="flex items-center gap-1 flex-wrap">
-                      {Array.from({ length: totalCustomerPages }, (_, i) => i + 1).map((pageNum) => (
-                        <button
-                          key={pageNum}
-                          type="button"
-                          onClick={() => handleCustomerPageChange(pageNum)}
-                          className={`w-9 h-9 text-xs font-black border transition-all cursor-pointer ${
-                            customerPage === pageNum
-                              ? 'bg-[#123184] text-white border-[#123184] shadow-xs'
-                              : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
-                          }`}
-                        >
-                          {pageNum}
-                        </button>
-                      ))}
+                      {getVisiblePages(customerPage, totalCustomerPages).map((pageNum, idx) =>
+                        pageNum === '...' ? (
+                          <span
+                            key={`cust-ellipsis-${idx}`}
+                            className="w-8 h-9 flex items-center justify-center text-xs font-black text-slate-400 select-none tracking-widest"
+                          >
+                            ...
+                          </span>
+                        ) : (
+                          <button
+                            key={pageNum}
+                            type="button"
+                            onClick={() => handleCustomerPageChange(pageNum)}
+                            className={`w-9 h-9 text-xs font-black border transition-all rounded-none cursor-pointer ${
+                              customerPage === pageNum
+                                ? 'bg-[#123184] text-white border-[#123184] shadow-xs'
+                                : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
+                            }`}
+                          >
+                            {pageNum}
+                          </button>
+                        )
+                      )}
                     </div>
 
                     <button
@@ -2670,20 +2702,29 @@ export const AdminPortal = () => {
 
                     {/* Page Numbers */}
                     <div className="flex items-center gap-1 flex-wrap">
-                      {Array.from({ length: totalMedPages }, (_, i) => i + 1).map((pageNum) => (
-                        <button
-                          key={pageNum}
-                          type="button"
-                          onClick={() => handleAdminMedPageChange(pageNum)}
-                          className={`w-9 h-9 text-xs font-black border transition-all rounded-none cursor-pointer ${
-                            medPage === pageNum
-                              ? 'bg-[#123184] text-white border-[#123184] shadow-xs'
-                              : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
-                          }`}
-                        >
-                          {pageNum}
-                        </button>
-                      ))}
+                      {getVisiblePages(medPage, totalMedPages).map((pageNum, idx) =>
+                        pageNum === '...' ? (
+                          <span
+                            key={`ellipsis-${idx}`}
+                            className="w-8 h-9 flex items-center justify-center text-xs font-black text-slate-400 select-none tracking-widest"
+                          >
+                            ...
+                          </span>
+                        ) : (
+                          <button
+                            key={pageNum}
+                            type="button"
+                            onClick={() => handleAdminMedPageChange(pageNum)}
+                            className={`w-9 h-9 text-xs font-black border transition-all rounded-none cursor-pointer ${
+                              medPage === pageNum
+                                ? 'bg-[#123184] text-white border-[#123184] shadow-xs'
+                                : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
+                            }`}
+                          >
+                            {pageNum}
+                          </button>
+                        )
+                      )}
                     </div>
 
                     {/* Next Button */}
