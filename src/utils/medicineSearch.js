@@ -405,3 +405,78 @@ export function searchMedicines(medicinesList = [], query = '', options = {}) {
 
   return scored.map(item => item.med);
 }
+
+// In-memory cache for live MedEx searches
+const medexSearchCache = new Map();
+
+/**
+ * Live search MedEx (medex.com.bd) via backend serverless endpoint (/api/medex-search?q=query)
+ * Returns array of verified medicines formatted identically to our catalog.
+ * Cached in memory so repeated queries don't re-fetch.
+ */
+export async function fetchMedexSearchResults(query) {
+  const cleanQ = (query || '').trim();
+  if (!cleanQ || cleanQ.length < 2) return [];
+
+  const cacheKey = cleanQ.toLowerCase();
+  if (medexSearchCache.has(cacheKey)) {
+    return medexSearchCache.get(cacheKey);
+  }
+
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 4500); // 4.5s timeout
+    const res = await fetch(`/api/medex-search?q=${encodeURIComponent(cleanQ)}`, {
+      signal: controller.signal
+    });
+    clearTimeout(timeoutId);
+
+    if (!res.ok) return [];
+    const data = await res.json();
+    const results = Array.isArray(data?.results) ? data.results : [];
+
+    // Cache up to 120 searches
+    if (medexSearchCache.size > 120) {
+      const firstKey = medexSearchCache.keys().next().value;
+      medexSearchCache.delete(firstKey);
+    }
+    medexSearchCache.set(cacheKey, results);
+    return results;
+  } catch (err) {
+    // Graceful fallback: return empty list on network or server error
+    return [];
+  }
+}
+
+/**
+ * Merges local database search results with live MedEx search results
+ * Prevents duplicates by matching normalized medicine brand names.
+ */
+export function mergeSearchResults(localResults = [], medexResults = []) {
+  if (!Array.isArray(medexResults) || medexResults.length === 0) {
+    return localResults || [];
+  }
+  if (!Array.isArray(localResults) || localResults.length === 0) {
+    return medexResults || [];
+  }
+
+  const seen = new Set();
+  const merged = [];
+
+  for (const item of localResults) {
+    const key = (item.name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    if (key) seen.add(key);
+    merged.push(item);
+  }
+
+  for (const item of medexResults) {
+    const key = (item.name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    if (!key || !seen.has(key)) {
+      if (key) seen.add(key);
+      merged.push(item);
+    }
+  }
+
+  return merged;
+}
+

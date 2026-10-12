@@ -90,6 +90,11 @@ export const MedicineModal = () => {
                     {lang === 'bn' ? 'প্রেসক্রিপশন ছাড়া কেনা যাবে (OTC)' : 'OTC (No Rx Required)'}
                   </span>
                 )}
+                {selectedMedicine.isMedEx && (
+                  <span className="bg-blue-50 text-blue-700 border border-blue-200 font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
+                    🌐 MedEx ভেরিফাইড
+                  </span>
+                )}
               </div>
 
               <div className="flex items-center gap-1.5 text-xs text-slate-600 font-semibold pt-1">
@@ -141,6 +146,21 @@ export const MedicineModal = () => {
                 {selectedMedicine.dosage}
               </p>
             </div>
+
+            {/* MedEx External Link if available */}
+            {selectedMedicine.medexLink && (
+              <div className="border border-blue-200 rounded-2xl p-3 bg-blue-50/50 flex items-center justify-between">
+                <span className="text-xs text-blue-900 font-semibold">🌐 MedEx বাংলাদেশ অফিশিয়াল ডিরেক্টরি:</span>
+                <a
+                  href={selectedMedicine.medexLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs text-[#123184] hover:text-[#02975E] font-bold underline"
+                >
+                  MedEx এ তথ্যাবলী দেখুন &rarr;
+                </a>
+              </div>
+            )}
 
             {/* Side Effects */}
             <div className="border border-slate-200 rounded-2xl p-4 bg-white">

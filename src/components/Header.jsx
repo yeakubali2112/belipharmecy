@@ -18,7 +18,7 @@ import {
   FileText
 } from 'lucide-react';
 import { useShop } from '../context/ShopContext';
-import { searchMedicines } from '../utils/medicineSearch';
+import { searchMedicines, mergeSearchResults } from '../utils/medicineSearch';
 
 export const Header = () => {
   const { 
@@ -38,7 +38,9 @@ export const Header = () => {
     setSearchQuery,
     medicines,
     setSelectedMedicine,
-    setSelectedCategory
+    setSelectedCategory,
+    medexLiveResults,
+    isMedexLoading
   } = useShop();
 
   const [isSearchFocused, setIsSearchFocused] = useState(false);
@@ -49,8 +51,9 @@ export const Header = () => {
 
   const totalCartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
 
-  // Search filter suggestions - bilingual Bangladesh medicine search engine
-  const searchResults = searchQuery.trim() === '' ? [] : searchMedicines(medicines, searchQuery).slice(0, 8);
+  // Search filter suggestions - bilingual Bangladesh medicine search engine + Live MedEx integration
+  const localResults = searchQuery.trim() === '' ? [] : searchMedicines(medicines, searchQuery).slice(0, 8);
+  const searchResults = mergeSearchResults(localResults, medexLiveResults).slice(0, 10);
 
   // Close search suggestions when clicking outside
   useEffect(() => {
@@ -164,8 +167,16 @@ export const Header = () => {
           {/* Autocomplete Dropdown */}
           {isSearchFocused && searchResults.length > 0 && (
             <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl shadow-xl border border-slate-100 py-2 z-50 overflow-hidden animate-in fade-in slide-in-from-top-2">
-              <div className="px-3 py-1.5 text-xs font-semibold text-slate-400 uppercase tracking-wider flex justify-between">
-                <span>{lang === 'bn' ? 'পাওয়া গেছে ওষুধ:' : 'Found Medicines:'}</span>
+              <div className="px-3.5 py-2 text-xs font-semibold text-slate-500 bg-slate-50 border-b border-slate-100 uppercase tracking-wider flex justify-between items-center">
+                <div className="flex items-center gap-2">
+                  <span>{lang === 'bn' ? 'ওষুধ তালিকা:' : 'Medicines:'}</span>
+                  {isMedexLoading && (
+                    <span className="text-[10px] text-blue-600 font-semibold lowercase tracking-normal flex items-center gap-1 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200">
+                      <span className="w-1.5 h-1.5 rounded-full bg-blue-600 animate-ping"></span>
+                      {lang === 'bn' ? 'MedEx লাইভ খুঁজছে...' : 'MedEx live searching...'}
+                    </span>
+                  )}
+                </div>
                 <span className="text-[#02975E] font-bold">{searchResults.length} {lang === 'bn' ? 'টি' : 'items'}</span>
               </div>
               {searchResults.map((med) => (
@@ -182,8 +193,13 @@ export const Header = () => {
                       {med.type[0]}
                     </div>
                     <div>
-                      <div className="font-semibold text-sm text-slate-900 flex items-center gap-2">
-                        {med.name}
+                      <div className="font-semibold text-sm text-slate-900 flex items-center gap-2 flex-wrap">
+                        <span>{med.name}</span>
+                        {med.isMedEx && (
+                          <span className="text-[10px] font-bold text-blue-700 bg-blue-50 border border-blue-200 px-1.5 py-0.2 rounded-full">
+                            🌐 MedEx Live
+                          </span>
+                        )}
                         {med.nameBn && med.nameBn !== med.name && (
                           <span className="text-[11px] font-medium text-emerald-800 bg-emerald-50 border border-emerald-200/60 px-1.5 py-0.5 rounded">
                             {med.nameBn}
@@ -345,7 +361,15 @@ export const Header = () => {
         {isMobileSearchFocused && searchQuery.trim() !== '' && (
           <div className="absolute top-full left-4 right-4 mt-1.5 bg-white rounded-2xl shadow-2xl border border-slate-200 py-2 z-50 max-h-[68vh] overflow-y-auto animate-in fade-in slide-in-from-top-2">
             <div className="px-3.5 py-1.5 text-xs font-bold text-slate-600 bg-slate-50 border-b border-slate-100 flex justify-between items-center">
-              <span>{lang === 'bn' ? 'খুঁজে পাওয়া ওষুধ:' : 'Found Products:'}</span>
+              <div className="flex items-center gap-1.5">
+                <span>{lang === 'bn' ? 'খুঁজে পাওয়া ওষুধ:' : 'Found Products:'}</span>
+                {isMedexLoading && (
+                  <span className="text-[10px] text-blue-600 font-normal flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-blue-600 animate-ping"></span>
+                    MedEx লাইভ...
+                  </span>
+                )}
+              </div>
               <span className="text-[#02975E] font-black">{searchResults.length} {lang === 'bn' ? 'টি' : 'items'}</span>
             </div>
 
@@ -373,8 +397,13 @@ export const Header = () => {
                         </div>
                       )}
                       <div className="min-w-0">
-                        <div className="font-bold text-xs sm:text-sm text-slate-900 truncate flex items-center gap-1.5">
+                        <div className="font-bold text-xs sm:text-sm text-slate-900 truncate flex items-center gap-1.5 flex-wrap">
                           <span>{med.name}</span>
+                          {med.isMedEx && (
+                            <span className="text-[9px] font-bold text-blue-700 bg-blue-50 border border-blue-200 px-1 rounded">
+                              🌐 MedEx
+                            </span>
+                          )}
                           {med.nameBn && med.nameBn !== med.name && (
                             <span className="text-[10px] font-medium text-emerald-800 bg-emerald-50 px-1 rounded shrink-0">
                               {med.nameBn}

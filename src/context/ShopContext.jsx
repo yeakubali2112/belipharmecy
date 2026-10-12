@@ -11,6 +11,7 @@ import {
   saveCloudCustomer,
   deleteCloudCustomer
 } from '../services/firebaseService';
+import { fetchMedexSearchResults } from '../utils/medicineSearch';
 
 const ShopContext = createContext();
 
@@ -502,6 +503,33 @@ export const ShopProvider = ({ children }) => {
   // Filters & Search
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
+  const [medexLiveResults, setMedexLiveResults] = useState([]);
+  const [isMedexLoading, setIsMedexLoading] = useState(false);
+
+  // Live MedEx Search synchronization
+  useEffect(() => {
+    const q = searchQuery.trim();
+    if (q.length < 2) {
+      setMedexLiveResults([]);
+      setIsMedexLoading(false);
+      return;
+    }
+
+    setIsMedexLoading(true);
+    const timer = setTimeout(async () => {
+      try {
+        const liveItems = await fetchMedexSearchResults(q);
+        setMedexLiveResults(liveItems);
+      } catch (err) {
+        console.warn('MedEx search error:', err);
+        setMedexLiveResults([]);
+      } finally {
+        setIsMedexLoading(false);
+      }
+    }, 280);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   // Coupon Management (Saved in localStorage so admin updates persist)
   const INITIAL_COUPONS = [
@@ -1163,6 +1191,9 @@ export const ShopProvider = ({ children }) => {
       setSearchQuery,
       selectedCategory,
       setSelectedCategory,
+      medexLiveResults,
+      isMedexLoading,
+      fetchMedexSearchResults,
 
       // Cart
       addToCart,

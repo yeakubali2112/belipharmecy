@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { ShopProvider, useShop } from './context/ShopContext';
-import { searchMedicines } from './utils/medicineSearch';
+import { searchMedicines, mergeSearchResults } from './utils/medicineSearch';
 import { Header } from './components/Header';
 import { Hero } from './components/Hero';
 import { CategoryFilter } from './components/CategoryFilter';
@@ -43,7 +43,9 @@ const MainApp = () => {
     setIsPrescriptionModalOpen,
     setIsCartOpen,
     cart,
-    currentView
+    currentView,
+    medexLiveResults,
+    isMedexLoading
   } = useShop();
 
   const [sortBy, setSortBy] = useState('popular');
@@ -63,10 +65,13 @@ const MainApp = () => {
     document.title = 'Beli Pharmacy | বেলী ফার্মেসি';
   }, []);
 
-  // Filter & sort logic (powered by bilingual Bangladesh medicine search)
+  // Filter & sort logic (powered by bilingual Bangladesh medicine search + Live MedEx sync)
   const filteredMedicines = useMemo(() => {
     let list = searchQuery.trim()
-      ? searchMedicines(medicines, searchQuery, { category: selectedCategory, filterRx })
+      ? mergeSearchResults(
+          searchMedicines(medicines, searchQuery, { category: selectedCategory, filterRx }),
+          medexLiveResults
+        )
       : medicines.filter((med) => {
           const matchCategory = selectedCategory === 'all' || med.category === selectedCategory;
           let matchRx = true;
@@ -81,7 +86,7 @@ const MainApp = () => {
       if (sortBy === 'name-asc') return a.name.localeCompare(b.name);
       return 0; // maintain search relevance ranking
     });
-  }, [medicines, selectedCategory, searchQuery, filterRx, sortBy]);
+  }, [medicines, selectedCategory, searchQuery, filterRx, sortBy, medexLiveResults]);
 
   const totalPages = Math.ceil(filteredMedicines.length / itemsPerPage) || 1;
 
@@ -167,14 +172,22 @@ const MainApp = () => {
           </div>
 
           {searchQuery && (
-            <div className="bg-emerald-50 text-emerald-800 text-xs px-3 py-1.5 rounded-none border border-emerald-200 flex items-center gap-2">
-              <span>{lang === 'bn' ? 'অনুসন্ধান:' : 'Search:'} <b>"{searchQuery}"</b></span>
-              <button 
-                onClick={() => setSearchQuery('')}
-                className="text-emerald-700 hover:text-emerald-950 font-bold ml-1 cursor-pointer"
-              >
-                ✕
-              </button>
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="bg-emerald-50 text-emerald-800 text-xs px-3 py-1.5 rounded-none border border-emerald-200 flex items-center gap-2">
+                <span>{lang === 'bn' ? 'অনুসন্ধান:' : 'Search:'} <b>"{searchQuery}"</b></span>
+                <button 
+                  onClick={() => setSearchQuery('')}
+                  className="text-emerald-700 hover:text-emerald-950 font-bold ml-1 cursor-pointer"
+                >
+                  ✕
+                </button>
+              </div>
+              {isMedexLoading && (
+                <div className="bg-blue-50 text-blue-700 text-xs px-2.5 py-1.5 rounded-none border border-blue-200 flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-blue-600 animate-ping"></span>
+                  <span>{lang === 'bn' ? 'MedEx লাইভ সিঙ্ক...' : 'MedEx live syncing...'}</span>
+                </div>
+              )}
             </div>
           )}
         </div>

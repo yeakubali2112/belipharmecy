@@ -50,7 +50,7 @@ import {
 import { useShop } from '../context/ShopContext';
 import { CATEGORIES } from '../data/medicines';
 import { PRESET_AVATARS } from '../data/avatars';
-import { searchMedicines } from '../utils/medicineSearch';
+import { searchMedicines, mergeSearchResults, fetchMedexSearchResults } from '../utils/medicineSearch';
 
 export const AdminPortal = () => {
   const { 
@@ -320,15 +320,41 @@ export const AdminPortal = () => {
   const [rxMedicinesList, setRxMedicinesList] = useState([]);
   const [rxPharmacistNotes, setRxPharmacistNotes] = useState('');
   const [rxMedSearch, setRxMedSearch] = useState('');
+  const [rxMedexResults, setRxMedexResults] = useState([]);
+  const [isRxMedexLoading, setIsRxMedexLoading] = useState(false);
   const [selectedMedToAdd, setSelectedMedToAdd] = useState(null);
   const [rxAddUnitType, setRxAddUnitType] = useState('strip');
   const [rxAddQuantity, setRxAddQuantity] = useState(1);
+
+  // Live MedEx fetch for prescription medicine search
+  React.useEffect(() => {
+    const q = rxMedSearch.trim();
+    if (q.length < 2) {
+      setRxMedexResults([]);
+      setIsRxMedexLoading(false);
+      return;
+    }
+    setIsRxMedexLoading(true);
+    const timer = setTimeout(async () => {
+      try {
+        const liveItems = await fetchMedexSearchResults(q);
+        setRxMedexResults(liveItems);
+      } catch {
+        setRxMedexResults([]);
+      } finally {
+        setIsRxMedexLoading(false);
+      }
+    }, 280);
+    return () => clearTimeout(timer);
+  }, [rxMedSearch]);
 
   const handleOpenRxMedicinesModal = (rx) => {
     setActiveRxForMedicines(rx);
     setRxMedicinesList(rx.prescribedMedicines ? [...rx.prescribedMedicines] : []);
     setRxPharmacistNotes(rx.pharmacistNotes || '');
     setRxMedSearch('');
+    setRxMedexResults([]);
+    setIsRxMedexLoading(false);
     setSelectedMedToAdd(null);
     setRxAddUnitType('strip');
     setRxAddQuantity(1);
@@ -399,8 +425,32 @@ export const AdminPortal = () => {
   // Medicine catalog state
   const [showAddForm, setShowAddForm] = useState(false);
   const [medSearch, setMedSearch] = useState('');
+  const [adminMedexResults, setAdminMedexResults] = useState([]);
+  const [isAdminMedexLoading, setIsAdminMedexLoading] = useState(false);
   const [medPage, setMedPage] = useState(1);
   const medItemsPerPage = 20;
+
+  // Live MedEx fetch for admin catalog search
+  React.useEffect(() => {
+    const q = medSearch.trim();
+    if (q.length < 2) {
+      setAdminMedexResults([]);
+      setIsAdminMedexLoading(false);
+      return;
+    }
+    setIsAdminMedexLoading(true);
+    const timer = setTimeout(async () => {
+      try {
+        const liveItems = await fetchMedexSearchResults(q);
+        setAdminMedexResults(liveItems);
+      } catch {
+        setAdminMedexResults([]);
+      } finally {
+        setIsAdminMedexLoading(false);
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [medSearch]);
 
   React.useEffect(() => {
     setMedPage(1);
@@ -601,7 +651,7 @@ export const AdminPortal = () => {
   };
 
   const filteredMedicines = medSearch.trim()
-    ? searchMedicines(medicines, medSearch)
+    ? mergeSearchResults(searchMedicines(medicines, medSearch), adminMedexResults)
     : [...medicines].sort((a, b) => (a.generic || '').localeCompare(b.generic || '') || (a.name || '').localeCompare(b.name || ''));
 
   const totalMedPages = Math.ceil(filteredMedicines.length / medItemsPerPage) || 1;
@@ -2294,9 +2344,17 @@ export const AdminPortal = () => {
                       className="pl-9 pr-3 py-1.5 rounded-none border border-slate-200 text-xs outline-none focus:border-[#123184]"
                     />
                   </div>
-                  <span className="text-xs text-slate-500 font-semibold">
-                    {filteredMedicines.length} টি ওষুধ {totalMedPages > 1 && `• দেখাচ্ছে ${(medPage - 1) * medItemsPerPage + 1}-${Math.min(medPage * medItemsPerPage, filteredMedicines.length)} (পেজ ${medPage}/${totalMedPages})`}
-                  </span>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-xs text-slate-500 font-semibold">
+                      {filteredMedicines.length} টি ওষুধ {totalMedPages > 1 && `• দেখাচ্ছে ${(medPage - 1) * medItemsPerPage + 1}-${Math.min(medPage * medItemsPerPage, filteredMedicines.length)} (পেজ ${medPage}/${totalMedPages})`}
+                    </span>
+                    {isAdminMedexLoading && (
+                      <span className="text-[11px] text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded flex items-center gap-1 font-bold animate-pulse">
+                        <span className="w-1.5 h-1.5 rounded-full bg-blue-600 animate-ping"></span>
+                        MedEx লাইভ খুঁজছে...
+                      </span>
+                    )}
+                  </div>
                 </div>
 
                 <div className="flex gap-2">
@@ -2545,8 +2603,13 @@ export const AdminPortal = () => {
                       {paginatedAdminMedicines.map(med => (
                         <tr key={med.id} className="hover:bg-slate-50">
                           <td className="p-3">
-                            <div className="flex items-center gap-1.5">
+                            <div className="flex items-center gap-1.5 flex-wrap">
                               <span className="font-bold text-slate-900">{med.name}</span>
+                              {med.isMedEx && (
+                                <span className="text-[10px] bg-blue-50 text-blue-700 font-bold px-1.5 py-0.5 rounded border border-blue-200">
+                                  🌐 MedEx
+                                </span>
+                              )}
                               {med.nameBn && med.nameBn !== med.name && (
                                 <span className="text-[10px] text-emerald-800 bg-emerald-50 px-1.5 py-0.5 rounded font-medium border border-emerald-100">
                                   {med.nameBn}
@@ -3842,9 +3905,15 @@ export const AdminPortal = () => {
 
                   {/* Live Search Suggestions Dropdown */}
                   {rxMedSearch.trim() !== '' && !selectedMedToAdd && (
-                    <div className="max-h-48 overflow-y-auto bg-white border border-slate-300 shadow-md divide-y divide-slate-100 text-xs">
-                      {searchMedicines(medicines, rxMedSearch)
-                        .slice(0, 8)
+                    <div className="max-h-52 overflow-y-auto bg-white border border-slate-300 shadow-md divide-y divide-slate-100 text-xs">
+                      {isRxMedexLoading && (
+                        <div className="p-2 bg-blue-50 text-blue-700 font-semibold text-[11px] flex items-center gap-1.5 border-b border-blue-100 animate-pulse">
+                          <span className="w-1.5 h-1.5 rounded-full bg-blue-600 animate-ping"></span>
+                          <span>MedEx বাংলাদেশ লাইভ ডাটাবেজ থেকে খোঁজা হচ্ছে...</span>
+                        </div>
+                      )}
+                      {mergeSearchResults(searchMedicines(medicines, rxMedSearch).slice(0, 8), rxMedexResults)
+                        .slice(0, 10)
                         .map(med => (
                           <div
                             key={med.id}
@@ -3855,8 +3924,13 @@ export const AdminPortal = () => {
                             className="p-2.5 hover:bg-emerald-50 cursor-pointer flex justify-between items-center transition-colors"
                           >
                             <div>
-                              <div className="flex items-center gap-1.5">
+                              <div className="flex items-center gap-1.5 flex-wrap">
                                 <span className="font-bold text-slate-900">{med.name}</span>
+                                {med.isMedEx && (
+                                  <span className="text-[10px] bg-blue-50 text-blue-700 font-bold px-1.5 py-0.5 rounded border border-blue-200">
+                                    🌐 MedEx
+                                  </span>
+                                )}
                                 {med.nameBn && med.nameBn !== med.name && (
                                   <span className="text-[10px] text-emerald-800 bg-emerald-50 px-1 rounded font-medium border border-emerald-100">
                                     {med.nameBn}
