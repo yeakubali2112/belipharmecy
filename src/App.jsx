@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { ShopProvider, useShop } from './context/ShopContext';
+import { searchMedicines } from './utils/medicineSearch';
 import { Header } from './components/Header';
 import { Hero } from './components/Hero';
 import { CategoryFilter } from './components/CategoryFilter';
@@ -62,36 +63,24 @@ const MainApp = () => {
     document.title = 'Beli Pharmacy | বেলী ফার্মেসি';
   }, []);
 
-  // Filter & sort logic
+  // Filter & sort logic (powered by bilingual Bangladesh medicine search)
   const filteredMedicines = useMemo(() => {
-    return medicines
-      .filter((med) => {
-        // Category filter
-        const matchCategory = selectedCategory === 'all' || med.category === selectedCategory;
+    let list = searchQuery.trim()
+      ? searchMedicines(medicines, searchQuery, { category: selectedCategory, filterRx })
+      : medicines.filter((med) => {
+          const matchCategory = selectedCategory === 'all' || med.category === selectedCategory;
+          let matchRx = true;
+          if (filterRx === 'otc') matchRx = !med.requiresPrescription;
+          if (filterRx === 'rx') matchRx = !!med.requiresPrescription;
+          return matchCategory && matchRx;
+        });
 
-        // Search query filter (matches name, generic, company, indications, or description)
-        const q = searchQuery.toLowerCase().trim();
-        const matchSearch = !q || (
-          med.name.toLowerCase().includes(q) ||
-          med.generic.toLowerCase().includes(q) ||
-          med.company.toLowerCase().includes(q) ||
-          (med.indications && med.indications.toLowerCase().includes(q)) ||
-          (med.description && med.description.toLowerCase().includes(q))
-        );
-
-        // Prescription filter
-        let matchRx = true;
-        if (filterRx === 'otc') matchRx = !med.requiresPrescription;
-        if (filterRx === 'rx') matchRx = !!med.requiresPrescription;
-
-        return matchCategory && matchSearch && matchRx;
-      })
-      .sort((a, b) => {
-        if (sortBy === 'price-asc') return a.pricePerStrip - b.pricePerStrip;
-        if (sortBy === 'price-desc') return b.pricePerStrip - a.pricePerStrip;
-        if (sortBy === 'name-asc') return a.name.localeCompare(b.name);
-        return 0; // default popularity
-      });
+    return list.sort((a, b) => {
+      if (sortBy === 'price-asc') return a.pricePerStrip - b.pricePerStrip;
+      if (sortBy === 'price-desc') return b.pricePerStrip - a.pricePerStrip;
+      if (sortBy === 'name-asc') return a.name.localeCompare(b.name);
+      return 0; // maintain search relevance ranking
+    });
   }, [medicines, selectedCategory, searchQuery, filterRx, sortBy]);
 
   const totalPages = Math.ceil(filteredMedicines.length / itemsPerPage) || 1;

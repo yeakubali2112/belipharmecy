@@ -18,6 +18,7 @@ import {
   FileText
 } from 'lucide-react';
 import { useShop } from '../context/ShopContext';
+import { searchMedicines } from '../utils/medicineSearch';
 
 export const Header = () => {
   const { 
@@ -48,17 +49,8 @@ export const Header = () => {
 
   const totalCartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
 
-  // Search filter suggestions - matching name, generic, company, indications, and description
-  const searchResults = searchQuery.trim() === '' ? [] : medicines.filter(m => {
-    const q = searchQuery.toLowerCase().trim();
-    return (
-      m.name.toLowerCase().includes(q) ||
-      m.generic.toLowerCase().includes(q) ||
-      m.company.toLowerCase().includes(q) ||
-      (m.indications && m.indications.toLowerCase().includes(q)) ||
-      (m.description && m.description.toLowerCase().includes(q))
-    );
-  }).slice(0, 8);
+  // Search filter suggestions - bilingual Bangladesh medicine search engine
+  const searchResults = searchQuery.trim() === '' ? [] : searchMedicines(medicines, searchQuery).slice(0, 8);
 
   // Close search suggestions when clicking outside
   useEffect(() => {
@@ -192,6 +184,11 @@ export const Header = () => {
                     <div>
                       <div className="font-semibold text-sm text-slate-900 flex items-center gap-2">
                         {med.name}
+                        {med.nameBn && med.nameBn !== med.name && (
+                          <span className="text-[11px] font-medium text-emerald-800 bg-emerald-50 border border-emerald-200/60 px-1.5 py-0.5 rounded">
+                            {med.nameBn}
+                          </span>
+                        )}
                         <span className="text-[11px] font-normal text-slate-500">({med.type})</span>
                       </div>
                       <div className="text-xs text-slate-500 font-medium">
@@ -376,8 +373,14 @@ export const Header = () => {
                         </div>
                       )}
                       <div className="min-w-0">
-                        <div className="font-bold text-xs sm:text-sm text-slate-900 truncate">
-                          {med.name} <span className="text-[11px] font-normal text-slate-500">({med.type})</span>
+                        <div className="font-bold text-xs sm:text-sm text-slate-900 truncate flex items-center gap-1.5">
+                          <span>{med.name}</span>
+                          {med.nameBn && med.nameBn !== med.name && (
+                            <span className="text-[10px] font-medium text-emerald-800 bg-emerald-50 px-1 rounded shrink-0">
+                              {med.nameBn}
+                            </span>
+                          )}
+                          <span className="text-[11px] font-normal text-slate-500">({med.type})</span>
                         </div>
                         <div className="text-[11px] text-slate-500 truncate">
                           {med.generic} • <span className="text-[#123184] font-semibold">{med.company}</span>

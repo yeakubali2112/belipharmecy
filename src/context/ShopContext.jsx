@@ -127,8 +127,18 @@ export const ShopProvider = ({ children }) => {
       
       // Map of saved admin edits by ID
       const savedMap = new Map(parsed.map(m => [m.id, m]));
-      // Merge: For each item in INITIAL_MEDICINES, use admin edited version if present, else catalog default
-      const merged = INITIAL_MEDICINES.map(m => savedMap.get(m.id) || m);
+      // Merge: For each item in INITIAL_MEDICINES, merge catalog defaults (including nameBn, genericBn, keywords) with admin edits (price, stock, etc.)
+      const merged = INITIAL_MEDICINES.map(m => {
+        const savedItem = savedMap.get(m.id);
+        if (!savedItem) return m;
+        return {
+          ...m,
+          ...savedItem,
+          nameBn: savedItem.nameBn || m.nameBn,
+          genericBn: savedItem.genericBn || m.genericBn,
+          keywords: Array.from(new Set([...(m.keywords || []), ...(savedItem.keywords || [])]))
+        };
+      });
       
       // Also keep any custom medicines manually created by the admin in the portal
       const initialIds = new Set(INITIAL_MEDICINES.map(m => m.id));

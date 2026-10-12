@@ -50,6 +50,7 @@ import {
 import { useShop } from '../context/ShopContext';
 import { CATEGORIES } from '../data/medicines';
 import { PRESET_AVATARS } from '../data/avatars';
+import { searchMedicines } from '../utils/medicineSearch';
 
 export const AdminPortal = () => {
   const { 
@@ -599,16 +600,9 @@ export const AdminPortal = () => {
     }
   };
 
-  const filteredMedicines = medicines.filter(m => {
-    const q = medSearch.toLowerCase().trim();
-    return !q || (
-      m.name.toLowerCase().includes(q) ||
-      m.generic.toLowerCase().includes(q) ||
-      m.company.toLowerCase().includes(q) ||
-      (m.indications && m.indications.toLowerCase().includes(q)) ||
-      (m.description && m.description.toLowerCase().includes(q))
-    );
-  }).sort((a, b) => (a.generic || '').localeCompare(b.generic || '') || (a.name || '').localeCompare(b.name || ''));
+  const filteredMedicines = medSearch.trim()
+    ? searchMedicines(medicines, medSearch)
+    : [...medicines].sort((a, b) => (a.generic || '').localeCompare(b.generic || '') || (a.name || '').localeCompare(b.name || ''));
 
   const totalMedPages = Math.ceil(filteredMedicines.length / medItemsPerPage) || 1;
   const paginatedAdminMedicines = filteredMedicines.slice(
@@ -2551,8 +2545,15 @@ export const AdminPortal = () => {
                       {paginatedAdminMedicines.map(med => (
                         <tr key={med.id} className="hover:bg-slate-50">
                           <td className="p-3">
-                            <span className="font-bold text-slate-900 block">{med.name}</span>
-                            <span className="text-[11px] text-slate-500">{med.company} ({med.type})</span>
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-bold text-slate-900">{med.name}</span>
+                              {med.nameBn && med.nameBn !== med.name && (
+                                <span className="text-[10px] text-emerald-800 bg-emerald-50 px-1.5 py-0.5 rounded font-medium border border-emerald-100">
+                                  {med.nameBn}
+                                </span>
+                              )}
+                            </div>
+                            <span className="text-[11px] text-slate-500 block">{med.company} ({med.type})</span>
                           </td>
                           <td className="p-3 text-slate-600 max-w-xs truncate">{med.generic}</td>
                           <td className="p-3 font-bold text-[#123184]">
@@ -3842,11 +3843,7 @@ export const AdminPortal = () => {
                   {/* Live Search Suggestions Dropdown */}
                   {rxMedSearch.trim() !== '' && !selectedMedToAdd && (
                     <div className="max-h-48 overflow-y-auto bg-white border border-slate-300 shadow-md divide-y divide-slate-100 text-xs">
-                      {medicines
-                        .filter(m => {
-                          const q = rxMedSearch.toLowerCase().trim();
-                          return m.name.toLowerCase().includes(q) || m.generic.toLowerCase().includes(q) || m.company.toLowerCase().includes(q);
-                        })
+                      {searchMedicines(medicines, rxMedSearch)
                         .slice(0, 8)
                         .map(med => (
                           <div
@@ -3858,8 +3855,15 @@ export const AdminPortal = () => {
                             className="p-2.5 hover:bg-emerald-50 cursor-pointer flex justify-between items-center transition-colors"
                           >
                             <div>
-                              <span className="font-bold text-slate-900 block">{med.name}</span>
-                              <span className="text-[11px] text-slate-500">{med.generic} • {med.company}</span>
+                              <div className="flex items-center gap-1.5">
+                                <span className="font-bold text-slate-900">{med.name}</span>
+                                {med.nameBn && med.nameBn !== med.name && (
+                                  <span className="text-[10px] text-emerald-800 bg-emerald-50 px-1 rounded font-medium border border-emerald-100">
+                                    {med.nameBn}
+                                  </span>
+                                )}
+                              </div>
+                              <span className="text-[11px] text-slate-500 block">{med.generic} • {med.company}</span>
                             </div>
                             <div className="text-right">
                               <span className="font-black text-[#123184] block">৳{med.pricePerStrip}/পাতা</span>

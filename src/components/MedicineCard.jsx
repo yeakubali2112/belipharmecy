@@ -91,12 +91,19 @@ export const MedicineCard = ({ medicine }) => {
           </p>
 
           {/* Medicine Brand Name */}
-          <h3 
-            onClick={() => setSelectedMedicine(medicine)}
-            className="font-bold text-base text-slate-900 group-hover:text-[#123184] transition-colors cursor-pointer line-clamp-1 mt-0.5"
-          >
-            {medicine.name}
-          </h3>
+          <div className="flex items-center justify-between gap-1.5 mt-0.5">
+            <h3 
+              onClick={() => setSelectedMedicine(medicine)}
+              className="font-bold text-base text-slate-900 group-hover:text-[#123184] transition-colors cursor-pointer line-clamp-1"
+            >
+              {medicine.name}
+            </h3>
+            {medicine.nameBn && medicine.nameBn !== medicine.name && (
+              <span className="text-[10px] font-semibold text-emerald-800 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200/60 shrink-0">
+                {medicine.nameBn}
+              </span>
+            )}
+          </div>
 
           {/* Generic composition */}
           <p className="text-xs text-slate-500 italic line-clamp-1 mt-0.5" title={medicine.generic}>
