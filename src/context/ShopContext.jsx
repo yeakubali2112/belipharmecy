@@ -968,7 +968,7 @@ export const ShopProvider = ({ children }) => {
   };
 
   // Upload Prescription
-  const uploadPrescription = (prescData) => {
+  const uploadPrescription = (prescData, autoClose = false) => {
     const newId = `RX-${Math.floor(1000 + Math.random() * 9000)}`;
     const existingCust = customerProfiles.find(p => p.phone === prescData.customerPhone);
     const resolvedAvatar = prescData.customerAvatar || currentCustomer?.avatar || existingCust?.avatar || null;
@@ -992,7 +992,9 @@ export const ShopProvider = ({ children }) => {
     // Save to Firebase Cloud immediately
     saveCloudPrescription(newPrescription);
 
-    setIsPrescriptionModalOpen(false);
+    if (autoClose) {
+      setIsPrescriptionModalOpen(false);
+    }
 
     if (prescData.customerPhone) {
       if (!existingCust) {

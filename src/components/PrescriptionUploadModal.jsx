@@ -7,6 +7,7 @@ import {
   ShieldCheck, 
   PhoneCall, 
   CheckCircle,
+  CheckCircle2,
   AlertCircle,
   Mic
 } from 'lucide-react';
@@ -27,7 +28,7 @@ export const PrescriptionUploadModal = () => {
   const [notes, setNotes] = useState('');
   const [previewImage, setPreviewImage] = useState(null);
   const [isCompressing, setIsCompressing] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [uploadState, setUploadState] = useState('idle'); // 'idle' | 'loading' | 'done'
 
   useEffect(() => {
     if (isPrescriptionModalOpen && currentCustomer) {
@@ -126,10 +127,13 @@ export const PrescriptionUploadModal = () => {
       return;
     }
 
-    if (isCompressing || isSubmitting) return;
+    if (isCompressing || uploadState !== 'idle') return;
 
-    setIsSubmitting(true);
+    setUploadState('loading');
     try {
+      // Smooth visual loading animation delay (1.2s)
+      await new Promise(resolve => setTimeout(resolve, 1200));
+
       uploadPrescription({
         customerName: customerName.trim(),
         customerPhone: customerPhone.trim(),
@@ -139,17 +143,23 @@ export const PrescriptionUploadModal = () => {
         image: previewImage
       });
 
-      // Reset form
-      setCustomerName('');
-      setCustomerPhone('');
-      setDeliveryAddress('');
-      setNotes('');
-      setPreviewImage(null);
+      // Switch to success state: "Upload done"
+      setUploadState('done');
+
+      // Hold "Upload done" state for 1.8s so user can see and celebrate confirmation
+      setTimeout(() => {
+        setCustomerName('');
+        setCustomerPhone('');
+        setDeliveryAddress('');
+        setNotes('');
+        setPreviewImage(null);
+        setUploadState('idle');
+        setIsPrescriptionModalOpen(false);
+      }, 1800);
     } catch (err) {
       console.error('Error submitting prescription:', err);
       alert(lang === 'bn' ? 'প্রেসক্রিপশন জমা দিতে সমস্যা হয়েছে। অনুগ্রহ করে আবার চেষ্টা করুন।' : 'Failed to submit prescription. Please try again.');
-    } finally {
-      setIsSubmitting(false);
+      setUploadState('idle');
     }
   };
 
@@ -324,33 +334,51 @@ export const PrescriptionUploadModal = () => {
             </ul>
           </div>
 
-          {/* Submit button in #02975E */}
-          <button
-            type="submit"
-            disabled={isCompressing || isSubmitting}
-            className={`w-full text-white font-extrabold py-3.5 rounded-2xl shadow-xl text-sm flex items-center justify-center gap-2 transition-all ${
-              isCompressing || isSubmitting
-                ? 'bg-slate-400 cursor-not-allowed shadow-none'
-                : 'bg-[#02975E] hover:bg-[#027e4e] shadow-[#02975E]/30 cursor-pointer'
-            }`}
-          >
-            {isCompressing ? (
-              <>
-                <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-                <span>{lang === 'bn' ? 'ছবি প্রস্তুত হচ্ছে...' : 'Processing image...'}</span>
-              </>
-            ) : isSubmitting ? (
-              <>
-                <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-                <span>{lang === 'bn' ? 'প্রেসক্রিপশন জমা হচ্ছে...' : 'Submitting prescription...'}</span>
-              </>
-            ) : (
-              <>
-                <CheckCircle className="w-5 h-5" />
-                <span>{lang === 'bn' ? 'প্রেসক্রিপশন জমা দিন' : 'Submit Prescription'}</span>
-              </>
+          {/* Submit button with Loading Animation and "Upload done" text */}
+          <div className="space-y-2 pt-1">
+            <button
+              type="submit"
+              disabled={isCompressing || uploadState !== 'idle'}
+              className={`w-full text-white font-extrabold py-3.5 rounded-2xl shadow-xl text-sm flex items-center justify-center gap-2.5 transition-all duration-300 ${
+                uploadState === 'done'
+                  ? 'bg-emerald-600 shadow-emerald-500/40 ring-4 ring-emerald-300/60 scale-[1.01]'
+                  : uploadState === 'loading'
+                  ? 'bg-emerald-700 shadow-emerald-600/30 ring-2 ring-emerald-400/50 cursor-wait'
+                  : isCompressing
+                  ? 'bg-slate-400 cursor-not-allowed shadow-none'
+                  : 'bg-[#02975E] hover:bg-[#027e4e] shadow-[#02975E]/30 cursor-pointer active:scale-98'
+              }`}
+            >
+              {isCompressing ? (
+                <>
+                  <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                  <span>{lang === 'bn' ? 'ছবি প্রস্তুত হচ্ছে...' : 'Processing image...'}</span>
+                </>
+              ) : uploadState === 'loading' ? (
+                <>
+                  <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                  <span className="tracking-wide animate-pulse">{lang === 'bn' ? 'প্রেসক্রিপশন আপলোড হচ্ছে...' : 'Uploading prescription...'}</span>
+                </>
+              ) : uploadState === 'done' ? (
+                <>
+                  <CheckCircle2 className="w-5 h-5 text-white animate-bounce" />
+                  <span className="tracking-wide text-base font-black">Upload done</span>
+                </>
+              ) : (
+                <>
+                  <CheckCircle className="w-5 h-5" />
+                  <span>{lang === 'bn' ? 'প্রেসক্রিপশন জমা দিন' : 'Submit Prescription'}</span>
+                </>
+              )}
+            </button>
+
+            {uploadState === 'done' && (
+              <div className="bg-emerald-50 border border-emerald-300 text-emerald-900 rounded-xl p-2.5 text-center text-xs font-bold animate-in zoom-in-95 flex items-center justify-center gap-2 shadow-2xs">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                <span>প্রেসক্রিপশন সফলভাবে জমা হয়েছে! আমাদের ফার্মাসিস্ট দ্রুত যোগাযোগ করবেন।</span>
+              </div>
             )}
-          </button>
+          </div>
         </form>
 
       </div>
