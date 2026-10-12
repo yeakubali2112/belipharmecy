@@ -129,7 +129,7 @@ export const AdminPortal = () => {
   const adFileInputRef = useRef(null);
 
   React.useEffect(() => {
-    if (adBanner) {
+    if (adBanner && !isUploadingImage) {
       setAdForm({
         isActive: adBanner.isActive ?? true,
         title: adBanner.title || '',
@@ -141,7 +141,7 @@ export const AdminPortal = () => {
         couponCode: adBanner.couponCode || ''
       });
     }
-  }, [adBanner]);
+  }, [adBanner?.updatedAt, adBanner?.imageUrl]);
 
   const handleImageFileChange = (e) => {
     const file = e.target.files?.[0];
@@ -161,7 +161,7 @@ export const AdminPortal = () => {
           const canvas = document.createElement('canvas');
           let width = img.width;
           let height = img.height;
-          const maxDim = 900;
+          const maxDim = 800;
           if (width > maxDim || height > maxDim) {
             if (width > height) {
               height = Math.round((height * maxDim) / width);
@@ -175,10 +175,22 @@ export const AdminPortal = () => {
           canvas.height = height;
           const ctx = canvas.getContext('2d');
           ctx.drawImage(img, 0, 0, width, height);
-          const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.82);
-          setAdForm(prev => ({ ...prev, imageUrl: compressedDataUrl }));
+          const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.75);
+
+          const updated = {
+            ...adBanner,
+            ...adForm,
+            imageUrl: compressedDataUrl,
+            isActive: true,
+            updatedAt: new Date().toISOString()
+          };
+          setAdForm(updated);
+          // SAVE IMMEDIATELY TO STATE, LOCALSTORAGE AND CLOUD
+          updateAdBanner(updated);
+
           setIsUploadingImage(false);
-          showToast?.('ছবি সফলভাবে লোড হয়েছে! "সেভ করুন" বাটনে চাপুন।', 'success');
+          if (e.target) e.target.value = '';
+          showToast?.('ছবি সফলভাবে যোগ ও সেভ হয়েছে! বিজ্ঞাপন সক্রিয় রয়েছে।', 'success');
         };
         img.onerror = () => {
           setIsUploadingImage(false);
@@ -199,7 +211,13 @@ export const AdminPortal = () => {
       showToast?.('অনুগ্রহ করে বিজ্ঞাপনের একটি ছবি দিন!', 'error');
       return;
     }
-    updateAdBanner(adForm);
+    const updated = {
+      ...adBanner,
+      ...adForm,
+      updatedAt: new Date().toISOString()
+    };
+    updateAdBanner(updated);
+    showToast?.('বিজ্ঞাপন ব্যানার সফলভাবে সেভ ও লাইভ আপডেট হয়েছে!', 'success');
   };
 
   // Coupon Manager Form State
@@ -2313,7 +2331,17 @@ export const AdminPortal = () => {
                         <input 
                           type="checkbox" 
                           checked={adForm.isActive}
-                          onChange={(e) => setAdForm({ ...adForm, isActive: e.target.checked })}
+                          onChange={(e) => {
+                            const val = e.target.checked;
+                            const updated = {
+                              ...adBanner,
+                              ...adForm,
+                              isActive: val,
+                              updatedAt: new Date().toISOString()
+                            };
+                            setAdForm(updated);
+                            updateAdBanner(updated);
+                          }}
                           className="sr-only peer"
                         />
                         <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#02975E]"></div>
@@ -2353,7 +2381,7 @@ export const AdminPortal = () => {
                       </div>
 
                       {imageUploadMethod === 'file' ? (
-                        <div className="border-2 border-dashed border-slate-300 hover:border-[#02975E] p-6 text-center bg-slate-50 rounded-2xl transition-colors">
+                        <div className="border-2 border-dashed border-slate-300 hover:border-[#02975E] p-6 text-center bg-slate-50 rounded-xl transition-colors">
                           <input 
                             type="file"
                             ref={adFileInputRef}
@@ -2372,10 +2400,10 @@ export const AdminPortal = () => {
                                 disabled={isUploadingImage}
                                 className="bg-[#02975E] hover:bg-[#027e4e] text-white text-xs font-bold px-5 py-2.5 rounded-xl shadow-xs transition-colors cursor-pointer"
                               >
-                                {isUploadingImage ? 'ছবি অপটিমাইজ হচ্ছে...' : 'কম্পিউটার বা মোবাইল থেকে ফটো নির্বাচন করুন'}
+                                {isUploadingImage ? 'ছবি অপটিমাইজ ও সেভ হচ্ছে...' : 'কম্পিউটার বা মোবাইল থেকে ফটো নির্বাচন করুন'}
                               </button>
                               <span className="block text-[11px] text-slate-400 mt-2">
-                                JPG, PNG, WebP ফরম্যাট সমর্থিত (অটোমেটিক কম্প্রেস ও অপটিমাইজ হবে)
+                                JPG, PNG, WebP ফরম্যাট সমর্থিত (অটোমেটিক কম্প্রেস ও সেভ হবে)
                               </span>
                             </div>
                           </div>
@@ -2385,7 +2413,24 @@ export const AdminPortal = () => {
                           <input 
                             type="url"
                             value={adForm.imageUrl}
-                            onChange={(e) => setAdForm({ ...adForm, imageUrl: e.target.value })}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setAdForm(prev => ({ ...prev, imageUrl: val }));
+                            }}
+                            onBlur={(e) => {
+                              const val = e.target.value.trim();
+                              if (val && (val.startsWith('http://') || val.startsWith('https://'))) {
+                                const updated = {
+                                  ...adBanner,
+                                  ...adForm,
+                                  imageUrl: val,
+                                  isActive: true,
+                                  updatedAt: new Date().toISOString()
+                                };
+                                setAdForm(updated);
+                                updateAdBanner(updated);
+                              }
+                            }}
                             placeholder="https://example.com/offer-banner.jpg"
                             className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 focus:bg-white focus:border-[#123184] outline-none text-xs text-slate-900 rounded-xl transition-colors"
                           />
@@ -2400,7 +2445,7 @@ export const AdminPortal = () => {
                     <div className="pt-2">
                       <button
                         type="submit"
-                        className="w-full bg-gradient-to-r from-[#123184] to-[#02975E] hover:from-[#0e2669] hover:to-[#027e4e] text-white py-3.5 px-4 text-sm font-bold rounded-2xl flex items-center justify-center gap-2 shadow-md transition-all cursor-pointer"
+                        className="w-full bg-gradient-to-r from-[#123184] to-[#02975E] hover:from-[#0e2669] hover:to-[#027e4e] text-white py-3.5 px-4 text-sm font-bold rounded-xl flex items-center justify-center gap-2 shadow-md transition-all cursor-pointer"
                       >
                         <Save className="w-4 h-4" />
                         <span>ফটো ব্যানার সেভ ও লাইভ পাবলিশ করুন (Save & Publish)</span>
@@ -2421,19 +2466,19 @@ export const AdminPortal = () => {
                   </div>
 
                   {/* Pure Photo Preview Mockup */}
-                  <div className="relative bg-slate-900/10 p-3 rounded-3xl border-2 border-slate-200 shadow-xl overflow-hidden max-w-sm sm:max-w-md mx-auto text-center">
+                  <div className="relative bg-slate-900/10 p-3 rounded-xl border-2 border-slate-200 shadow-xl overflow-hidden max-w-sm sm:max-w-md mx-auto text-center">
                     {/* Simulated Close Button */}
                     <div className="absolute top-5 right-5 z-20 w-8 h-8 rounded-full bg-black/70 text-white flex items-center justify-center shadow-md border border-white/20">
                       <X className="w-4 h-4" />
                     </div>
 
                     {/* Banner Image */}
-                    <div className="relative w-full rounded-2xl overflow-hidden bg-slate-100 flex items-center justify-center min-h-[220px]">
+                    <div className="relative w-full rounded-xl overflow-hidden bg-slate-100 flex items-center justify-center min-h-[220px]">
                       {adForm.imageUrl ? (
                         <img 
                           src={adForm.imageUrl} 
                           alt="Ad Preview" 
-                          className="w-full h-auto max-h-[380px] object-contain rounded-2xl"
+                          className="w-full h-auto max-h-[380px] object-contain rounded-xl"
                         />
                       ) : (
                         <div className="flex flex-col items-center justify-center text-slate-400 text-xs gap-2 p-8">

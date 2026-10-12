@@ -669,8 +669,15 @@ export const ShopProvider = ({ children }) => {
             safeSetItem('beli_coupons', JSON.stringify(cloudSettings.coupons));
           }
           if (cloudSettings.adBanner) {
-            setAdBanner(prev => ({ ...prev, ...cloudSettings.adBanner }));
-            safeSetItem('beli_ad_banner', JSON.stringify(cloudSettings.adBanner));
+            setAdBanner(prev => {
+              const localTime = new Date(prev?.updatedAt || 0).getTime();
+              const cloudTime = new Date(cloudSettings.adBanner?.updatedAt || 0).getTime();
+              if (cloudTime >= localTime) {
+                safeSetItem('beli_ad_banner', JSON.stringify(cloudSettings.adBanner));
+                return { ...prev, ...cloudSettings.adBanner };
+              }
+              return prev;
+            });
           }
         }
       } catch (err) {
