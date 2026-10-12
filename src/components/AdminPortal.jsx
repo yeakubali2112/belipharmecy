@@ -1132,19 +1132,14 @@ export const AdminPortal = () => {
 
             <button
               onClick={() => setActiveTab('customers')}
-              className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-all cursor-pointer text-left ${
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all cursor-pointer text-left ${
                 activeTab === 'customers' 
                   ? 'bg-white/20 text-white shadow-md backdrop-blur-xs border border-white/20' 
                   : 'text-blue-100/80 hover:bg-white/10'
               }`}
             >
-              <span className="flex items-center gap-3">
-                <Users className="w-4 h-4 text-emerald-300" />
-                <span>গ্রাহক ম্যানেজমেন্ট</span>
-              </span>
-              <span className="bg-emerald-500 text-white text-[10px] px-2 py-0.5 rounded-full font-bold shadow-xs">
-                {consolidatedCustomers.length}
-              </span>
+              <Users className="w-4 h-4 text-emerald-300" />
+              <span>গ্রাহক ম্যানেজমেন্ট</span>
             </button>
 
             <button
