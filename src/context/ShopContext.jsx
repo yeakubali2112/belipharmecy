@@ -1069,7 +1069,14 @@ export const ShopProvider = ({ children }) => {
     showToast(`Prescription ${rxId} updated to ${newStatus}`, 'info');
   };
 
-  const updatePrescriptionMedicines = (rxId, prescribedMedicines, pharmacistNotes = '', newStatus = 'Order Created') => {
+  const updatePrescriptionMedicines = (
+    rxId, 
+    prescribedMedicines, 
+    pharmacistNotes = '', 
+    newStatus = 'Order Created',
+    voiceNote = undefined,
+    voiceNoteDuration = ''
+  ) => {
     const totalPrice = prescribedMedicines.reduce((sum, item) => sum + (Number(item.total) || (Number(item.unitPrice) * Number(item.quantity))), 0);
     
     setPrescriptions(prev => {
@@ -1080,6 +1087,9 @@ export const ShopProvider = ({ children }) => {
             prescribedMedicines,
             totalPrice: Number(totalPrice.toFixed(2)),
             pharmacistNotes,
+            voiceNote: voiceNote !== undefined ? voiceNote : (rx.voiceNote || null),
+            voiceNoteDuration: voiceNoteDuration || rx.voiceNoteDuration || '',
+            hasVoiceNote: !!(voiceNote !== undefined ? voiceNote : rx.voiceNote),
             status: newStatus,
             processedAt: new Date().toLocaleString('en-GB')
           };
@@ -1094,8 +1104,34 @@ export const ShopProvider = ({ children }) => {
 
     showToast(
       lang === 'bn'
-        ? `প্রেসক্রিপশনের ওষুধ ও মূল্য সফলভাবে সংরক্ষিত হয়েছে! মোট: ৳${totalPrice.toFixed(2)}`
-        : `Prescription medicines saved! Total: ৳${totalPrice.toFixed(2)}`,
+        ? `প্রেসক্রিপশনের ওষুধ, অডিও ভয়েস নোট ও মূল্য সংরক্ষিত হয়েছে! মোট: ৳${totalPrice.toFixed(2)}`
+        : `Prescription medicines, audio note & price saved! Total: ৳${totalPrice.toFixed(2)}`,
+      'success'
+    );
+  };
+
+  const updatePrescriptionVoiceNote = (rxId, voiceNote, voiceNoteDuration = '') => {
+    setPrescriptions(prev => {
+      const updated = prev.map(rx => {
+        if (rx.id === rxId) {
+          const uRx = {
+            ...rx,
+            voiceNote,
+            voiceNoteDuration,
+            hasVoiceNote: !!voiceNote,
+            voiceNoteUpdatedAt: new Date().toLocaleString('en-GB')
+          };
+          saveCloudPrescription(uRx);
+          return uRx;
+        }
+        return rx;
+      });
+      safeSetItem('beli_prescriptions', JSON.stringify(updated));
+      return updated;
+    });
+
+    showToast(
+      lang === 'bn' ? 'ফার্মাসিস্টের অডিও ভয়েস নোট সফলভাবে সংযুক্ত হয়েছে! 🎙️' : 'Voice note attached successfully! 🎙️',
       'success'
     );
   };
@@ -1219,6 +1255,7 @@ export const ShopProvider = ({ children }) => {
       updateOrderPaymentMethod,
       updatePrescriptionStatus,
       updatePrescriptionMedicines,
+      updatePrescriptionVoiceNote,
       markPrescriptionAddedToCart,
 
       // Admin CRUD

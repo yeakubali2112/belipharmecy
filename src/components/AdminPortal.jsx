@@ -45,12 +45,18 @@ import {
   UserPlus,
   PhoneCall,
   MapPin,
-  Calendar
+  Calendar,
+  Mic,
+  Square,
+  Headphones,
+  Volume2
 } from 'lucide-react';
 import { useShop } from '../context/ShopContext';
 import { CATEGORIES } from '../data/medicines';
 import { PRESET_AVATARS } from '../data/avatars';
 import { searchMedicines, mergeSearchResults, fetchMedexSearchResults } from '../utils/medicineSearch';
+import { VoiceNotePlayer } from './VoiceNotePlayer';
+import { convertFileToBase64, createSyntheticVoiceAudio } from '../utils/voiceNoteHelper';
 
 export const AdminPortal = () => {
   const { 
@@ -319,6 +325,15 @@ export const AdminPortal = () => {
   const [activeRxForMedicines, setActiveRxForMedicines] = useState(null);
   const [rxMedicinesList, setRxMedicinesList] = useState([]);
   const [rxPharmacistNotes, setRxPharmacistNotes] = useState('');
+  const [rxVoiceNote, setRxVoiceNote] = useState(null);
+  const [rxVoiceDuration, setRxVoiceDuration] = useState('');
+  const [isRecordingVoice, setIsRecordingVoice] = useState(false);
+  const [recordingSeconds, setRecordingSeconds] = useState(0);
+  const mediaRecorderRef = React.useRef(null);
+  const audioStreamRef = React.useRef(null);
+  const audioChunksRef = React.useRef([]);
+  const recordingTimerRef = React.useRef(null);
+
   const [rxMedSearch, setRxMedSearch] = useState('');
   const [rxMedexResults, setRxMedexResults] = useState([]);
   const [isRxMedexLoading, setIsRxMedexLoading] = useState(false);
@@ -352,6 +367,10 @@ export const AdminPortal = () => {
     setActiveRxForMedicines(rx);
     setRxMedicinesList(rx.prescribedMedicines ? [...rx.prescribedMedicines] : []);
     setRxPharmacistNotes(rx.pharmacistNotes || '');
+    setRxVoiceNote(rx.voiceNote || null);
+    setRxVoiceDuration(rx.voiceNoteDuration || '');
+    setIsRecordingVoice(false);
+    setRecordingSeconds(0);
     setRxMedSearch('');
     setRxMedexResults([]);
     setIsRxMedexLoading(false);
@@ -411,13 +430,134 @@ export const AdminPortal = () => {
     }));
   };
 
+  const startVoiceRecording = async () => {
+    try {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        showToast?.('আপনার ব্রাউজারে মাইক্রোফোন সাপোর্ট নেই!', 'error');
+        return;
+      }
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      audioStreamRef.current = stream;
+      audioChunksRef.current = [];
+
+      let options = {};
+      if (typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported) {
+        if (MediaRecorder.isTypeSupported('audio/webm')) {
+          options = { mimeType: 'audio/webm' };
+        } else if (MediaRecorder.isTypeSupported('audio/mp4')) {
+          options = { mimeType: 'audio/mp4' };
+        }
+      }
+
+      const recorder = new MediaRecorder(stream, options);
+      mediaRecorderRef.current = recorder;
+
+      recorder.ondataavailable = (event) => {
+        if (event.data && event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
+
+      recorder.onstop = () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: recorder.mimeType || 'audio/webm' });
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const base64Audio = reader.result;
+          setRxVoiceNote(base64Audio);
+          const mins = Math.floor(recordingSeconds / 60);
+          const secs = recordingSeconds % 60;
+          setRxVoiceDuration(`${mins > 0 ? `${mins} মি. ` : ''}${secs} সে.`);
+          showToast?.('ভয়েস বার্তা সফলভাবে রেকর্ড করা হয়েছে!', 'success');
+        };
+        reader.readAsDataURL(audioBlob);
+
+        if (audioStreamRef.current) {
+          audioStreamRef.current.getTracks().forEach(track => track.stop());
+          audioStreamRef.current = null;
+        }
+      };
+
+      recorder.start(200);
+      setIsRecordingVoice(true);
+      setRecordingSeconds(0);
+
+      if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
+      recordingTimerRef.current = setInterval(() => {
+        setRecordingSeconds(prev => prev + 1);
+      }, 1000);
+    } catch (err) {
+      console.error('Mic access error:', err);
+      showToast?.('মাইক্রোফোন অনুমতি পাওয়া যায়নি! অনুগ্রহ করে ব্রাউজার পারমিশন চেক করুন।', 'error');
+    }
+  };
+
+  const stopVoiceRecording = () => {
+    if (recordingTimerRef.current) {
+      clearInterval(recordingTimerRef.current);
+      recordingTimerRef.current = null;
+    }
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      mediaRecorderRef.current.stop();
+    }
+    setIsRecordingVoice(false);
+  };
+
+  const cancelVoiceRecording = () => {
+    if (recordingTimerRef.current) {
+      clearInterval(recordingTimerRef.current);
+      recordingTimerRef.current = null;
+    }
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      try { mediaRecorderRef.current.stop(); } catch {}
+    }
+    if (audioStreamRef.current) {
+      audioStreamRef.current.getTracks().forEach(track => track.stop());
+      audioStreamRef.current = null;
+    }
+    audioChunksRef.current = [];
+    setIsRecordingVoice(false);
+    setRecordingSeconds(0);
+  };
+
+  const handleVoiceFileUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('audio/')) {
+      showToast?.('অনুগ্রহ করে একটি সঠিক অডিও ফাইল নির্বাচন করুন!', 'error');
+      return;
+    }
+    try {
+      const base64 = await convertFileToBase64(file);
+      setRxVoiceNote(base64);
+      setRxVoiceDuration('অডিও ফাইল');
+      showToast?.('অডিও ফাইল সফলভাবে যুক্ত হয়েছে!', 'success');
+    } catch (err) {
+      showToast?.('অডিও ফাইল পড়তে সমস্যা হয়েছে!', 'error');
+    }
+  };
+
+  const handleUseSampleVoice = () => {
+    const sampleAudio = createSyntheticVoiceAudio(8);
+    setRxVoiceNote(sampleAudio);
+    setRxVoiceDuration('৮ সেকেন্ড');
+    showToast?.('নমুনা টেস্ট অডিও বার্তা যোগ করা হয়েছে!', 'success');
+  };
+
+  const handleDeleteVoiceNote = () => {
+    setRxVoiceNote(null);
+    setRxVoiceDuration('');
+    showToast?.('ভয়েস বার্তা মুছে ফেলা হয়েছে', 'info');
+  };
+
   const handleSavePrescriptionMedicines = () => {
     if (!activeRxForMedicines) return;
     updatePrescriptionMedicines(
       activeRxForMedicines.id,
       rxMedicinesList,
       rxPharmacistNotes,
-      'Order Created'
+      'Order Created',
+      rxVoiceNote,
+      rxVoiceDuration
     );
     setActiveRxForMedicines(null);
   };
@@ -1932,6 +2072,21 @@ export const AdminPortal = () => {
                       )}
                       {/* Prescribed Medicines Summary or Entry Button */}
                       <div className="pt-2 border-t border-slate-100 space-y-1.5">
+                        {rx.voiceNote && (
+                          <div className="bg-amber-50 border border-amber-200 px-2 py-1.5 text-xs flex items-center justify-between gap-1.5">
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <Mic className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                              <span className="font-extrabold text-amber-900 text-[11px] truncate">
+                                🎙️ অডিও সেবনবিধি যুক্ত
+                              </span>
+                            </div>
+                            {rx.voiceNoteDuration && (
+                              <span className="text-[10px] bg-amber-200/80 text-amber-900 font-bold px-1.5 py-0.5 rounded shrink-0">
+                                {rx.voiceNoteDuration}
+                              </span>
+                            )}
+                          </div>
+                        )}
                         {rx.prescribedMedicines && rx.prescribedMedicines.length > 0 ? (
                           <div className="bg-emerald-50 border border-emerald-200 p-2 text-xs space-y-1">
                             <div className="flex justify-between items-center">
@@ -4103,6 +4258,117 @@ export const AdminPortal = () => {
                     placeholder="যেমন: সকালে ১টি রাতে ১টি খাবার পর। ভরা পেটে সেব্য..."
                     className="w-full px-3 py-2 bg-slate-50 border border-slate-300 text-xs text-slate-800 rounded-none outline-none focus:border-[#123184]"
                   />
+                </div>
+
+                {/* 3.1 Voice Note (Audio Directions) */}
+                <div className="p-3 bg-amber-50/70 border border-amber-200/80 rounded-none space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5 text-xs font-black text-amber-900">
+                      <Mic className="w-4 h-4 text-amber-600" />
+                      <span>🎙️ প্রেসক্রিপশন অডিও সেবনবিধি (ভয়েস নোট):</span>
+                    </div>
+                    {rxVoiceDuration && (
+                      <span className="text-[11px] font-bold text-amber-800 bg-amber-100 px-2 py-0.5 rounded">
+                        দৈর্ঘ্য: {rxVoiceDuration}
+                      </span>
+                    )}
+                  </div>
+
+                  <p className="text-[11px] text-amber-800 leading-relaxed">
+                    বয়স্ক রোগী বা পড়তে সমস্যা হওয়া কাস্টমারদের জন্য মুখে বলে দিন কোন ওষুধ কখন খাবেন (যেমন: "চাচা, লাল ট্যাবলেটটি সকালে ও রাতে ভরা পেটে ১টা খাবেন...")।
+                  </p>
+
+                  {/* Audio Player if recorded/uploaded */}
+                  {rxVoiceNote ? (
+                    <div className="space-y-2">
+                      <VoiceNotePlayer 
+                        audioUrl={rxVoiceNote} 
+                        pharmacistNotes={rxPharmacistNotes}
+                        durationLabel={rxVoiceDuration}
+                        label="সংযুক্ত অডিও নির্দেশিকা"
+                        isCompact={true}
+                      />
+                      <div className="flex items-center justify-between pt-1">
+                        <span className="text-[10px] text-emerald-700 font-bold flex items-center gap-1">
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          অডিও প্রস্তুত আছে! সংরক্ষণে এটি গ্রাহক প্রোফাইল ও অর্ডারে শুনতে পাবেন।
+                        </span>
+                        <button
+                          type="button"
+                          onClick={handleDeleteVoiceNote}
+                          className="text-[11px] font-bold text-rose-600 hover:text-rose-800 flex items-center gap-1 cursor-pointer hover:underline"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                          অডিও মুছুন
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    /* Recording & Upload Controls */
+                    <div className="space-y-2">
+                      {isRecordingVoice ? (
+                        <div className="flex items-center justify-between p-3 bg-red-50 border border-red-300 rounded">
+                          <div className="flex items-center gap-2">
+                            <span className="relative flex h-3.5 w-3.5">
+                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                              <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-red-600"></span>
+                            </span>
+                            <span className="text-xs font-black text-red-700">
+                              রেকর্ডিং চলছে... {Math.floor(recordingSeconds / 60)}:{String(recordingSeconds % 60).padStart(2, '0')}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={stopVoiceRecording}
+                              className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white font-bold text-xs flex items-center gap-1 shadow cursor-pointer transition-colors"
+                            >
+                              <Square className="w-3.5 h-3.5 fill-current" />
+                              রেকর্ডিং সম্পন্ন
+                            </button>
+                            <button
+                              type="button"
+                              onClick={cancelVoiceRecording}
+                              className="px-2 py-1 text-slate-500 hover:text-slate-700 text-xs cursor-pointer"
+                            >
+                              বাতিল
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex flex-wrap items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={startVoiceRecording}
+                            className="px-3.5 py-1.5 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm cursor-pointer transition-colors"
+                          >
+                            <Mic className="w-3.5 h-3.5" />
+                            <span>মাইক্রোফোনে রেকর্ড করুন</span>
+                          </button>
+
+                          <label className="px-3 py-1.5 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow-2xs transition-colors">
+                            <Volume2 className="w-3.5 h-3.5 text-slate-500" />
+                            <span>অডিও ফাইল আপলোড</span>
+                            <input
+                              type="file"
+                              accept="audio/*"
+                              onChange={handleVoiceFileUpload}
+                              className="hidden"
+                            />
+                          </label>
+
+                          <button
+                            type="button"
+                            onClick={handleUseSampleVoice}
+                            className="px-2.5 py-1.5 bg-amber-100 hover:bg-amber-200 text-amber-900 font-semibold text-xs flex items-center gap-1 border border-amber-300 cursor-pointer transition-colors ml-auto"
+                            title="মাইক্রোফোন ছাড়া সরাসরি টেস্ট করতে ক্লিক করুন"
+                          >
+                            <span>নমুনা টেস্ট অডিও</span>
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {/* 4. Action Strip */}

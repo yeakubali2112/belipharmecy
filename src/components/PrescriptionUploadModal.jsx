@@ -7,7 +7,8 @@ import {
   ShieldCheck, 
   PhoneCall, 
   CheckCircle,
-  AlertCircle
+  AlertCircle,
+  Mic
 } from 'lucide-react';
 import { useShop } from '../context/ShopContext';
 
@@ -185,6 +186,22 @@ export const PrescriptionUploadModal = () => {
         {/* Form Body */}
         <form onSubmit={handleSubmit} className="p-4 sm:p-6 overflow-y-auto space-y-4">
           
+          {/* Feature Highlight: Bengali Voice Note Support */}
+          <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200/90 rounded-2xl p-3 sm:p-3.5 flex items-start gap-3 shadow-2xs">
+            <div className="w-9 h-9 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-xs">
+              <Mic className="w-5 h-5 animate-pulse" />
+            </div>
+            <div className="text-xs space-y-1">
+              <span className="font-black text-amber-950 flex items-center gap-1.5 text-xs sm:text-sm">
+                <span>🎙️ প্রেসক্রিপশন ভয়েস নোট</span>
+                <span className="bg-amber-200 text-amber-900 text-[10px] font-bold px-1.5 py-0.2 rounded-full">নতুন সেবা</span>
+              </span>
+              <p className="text-[11px] sm:text-xs text-amber-900 leading-snug">
+                ডাক্তারের হাতের লেখা বুঝতে সমস্যা? প্রেসক্রিপশন আপলোড করলেই আমাদের ফার্মাসিস্ট ওষুধ যাচাই করার পর আপনাকে ৩০-৬০ সেকেন্ডের বাংলা ভয়েস নোট পাঠিয়ে বুঝিয়ে দেবেন কোন ওষুধ কীভাবে খাবেন!
+              </p>
+            </div>
+          </div>
+
           {/* File Upload Box */}
           <div>
             <label className="block text-xs font-semibold text-slate-700 mb-1.5">

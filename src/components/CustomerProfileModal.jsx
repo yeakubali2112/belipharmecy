@@ -26,10 +26,12 @@ import {
   Camera,
   Upload,
   Trash2,
-  Check
+  Check,
+  Mic
 } from 'lucide-react';
 import { useShop } from '../context/ShopContext';
 import { PRESET_AVATARS } from '../data/avatars';
+import { VoiceNotePlayer } from './VoiceNotePlayer';
 
 export const CustomerProfileModal = () => {
   const { 
@@ -1061,6 +1063,13 @@ export const CustomerProfileModal = () => {
                         </div>
 
                         <div className="flex items-center gap-2.5 w-full sm:w-auto justify-between sm:justify-end">
+                          {p.voiceNote && (
+                            <span className="px-2.5 py-1 rounded-full font-bold text-xs bg-amber-50 text-amber-800 border border-amber-300 flex items-center gap-1">
+                              <Mic className="w-3 h-3 text-amber-600" />
+                              <span>🎙️ ভয়েস বার্তা</span>
+                            </span>
+                          )}
+
                           <span className={`px-3 py-1 rounded-full font-bold text-xs border ${
                             p.isAddedToCart
                               ? 'bg-emerald-100 text-[#02975E] border-emerald-300'
@@ -1090,6 +1099,18 @@ export const CustomerProfileModal = () => {
                           )}
                         </div>
                       </div>
+
+                      {/* Pharmacist Prescription Audio Note (Voice Note) */}
+                      {p.voiceNote && (
+                        <div className="mt-1">
+                          <VoiceNotePlayer
+                            audioUrl={p.voiceNote}
+                            pharmacistNotes={p.pharmacistNotes}
+                            durationLabel={p.voiceNoteDuration}
+                            label="🎙️ ফার্মাসিস্টের অডিও সেবনবিধি (ভয়েস নোট)"
+                          />
+                        </div>
+                      )}
 
                       {/* Pharmacist Prescribed Medicines Breakdown & Total Price */}
                       {p.prescribedMedicines && p.prescribedMedicines.length > 0 ? (

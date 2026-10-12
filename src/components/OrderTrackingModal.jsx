@@ -9,15 +9,18 @@ import {
   MapPin, 
   Phone, 
   AlertCircle,
-  FileText
+  FileText,
+  Mic
 } from 'lucide-react';
 import { useShop } from '../context/ShopContext';
+import { VoiceNotePlayer } from './VoiceNotePlayer';
 
 export const OrderTrackingModal = () => {
   const { 
     isOrderTrackingModalOpen, 
     setIsOrderTrackingModalOpen, 
     orders, 
+    prescriptions,
     updateOrderPaymentMethod,
     config,
     setActiveInvoiceOrder,
@@ -31,6 +34,10 @@ export const OrderTrackingModal = () => {
   if (!isOrderTrackingModalOpen) return null;
 
   const searchedOrder = searchedOrderId ? orders.find(o => o.id === searchedOrderId) : null;
+  const matchingRx = searchedOrder 
+    ? (prescriptions.find(p => p.id === searchedOrder.prescriptionId) || 
+       prescriptions.find(p => p.customerPhone && searchedOrder.customerPhone && p.customerPhone.includes(searchedOrder.customerPhone) && p.voiceNote))
+    : null;
 
   const handleSearch = (e) => {
     e.preventDefault();
@@ -415,6 +422,18 @@ export const OrderTrackingModal = () => {
                       );
                     })()
                   )
+                )}
+
+                {/* Prescription Voice Note (Oral Dosage Instructions) */}
+                {matchingRx && matchingRx.voiceNote && (
+                  <div className="space-y-1.5 animate-in fade-in">
+                    <VoiceNotePlayer
+                      audioUrl={matchingRx.voiceNote}
+                      pharmacistNotes={matchingRx.pharmacistNotes}
+                      durationLabel={matchingRx.voiceNoteDuration}
+                      label={lang === 'bn' ? '🎙️ ফার্মাসিস্টের অডিও সেবনবিধি (ভয়েস নোট)' : '🎙️ Pharmacist Audio Directions (Voice Note)'}
+                    />
+                  </div>
                 )}
 
                 {/* Order Details & Items */}
