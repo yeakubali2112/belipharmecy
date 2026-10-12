@@ -2671,7 +2671,7 @@ export const AdminPortal = () => {
           {/* TAB: DELIVERY & COUPON SETTINGS */}
           {/* ================================================= */}
           {activeTab === 'coupons' && (
-            <div className="space-y-6 max-w-5xl">
+            <div className="space-y-6 max-w-5xl mx-auto w-full">
               
               {/* Top Quick Status Metric Cards */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -2919,7 +2919,7 @@ export const AdminPortal = () => {
           {/* TAB: OFFER & POPUP ADS MANAGEMENT */}
           {/* ================================================= */}
           {activeTab === 'ads' && (
-            <div className="space-y-6 max-w-5xl">
+            <div className="space-y-6 max-w-5xl mx-auto w-full">
               
               {/* Quick Status Bar */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -3174,7 +3174,7 @@ export const AdminPortal = () => {
           {/* TAB 5: PHARMACY SETTINGS & INFO */}
           {/* ================================================= */}
           {activeTab === 'settings' && (
-            <div className="space-y-4 max-w-3xl">
+            <div className="space-y-4 max-w-3xl mx-auto w-full">
               <div className="bg-white rounded-none border border-slate-200 p-6 shadow-xs space-y-4">
                 <h3 className="font-extrabold text-base text-[#123184]">ফার্মেসি প্রোফাইল ও লগইন বিবরণ</h3>
 
