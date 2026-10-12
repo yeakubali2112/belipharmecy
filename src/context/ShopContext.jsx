@@ -32,6 +32,18 @@ const safeSetItem = (key, value) => {
           }));
           localStorage.setItem(key, JSON.stringify(trimmed));
         }
+      } else if (key === 'beli_medicines') {
+        const parsed = JSON.parse(value);
+        if (Array.isArray(parsed)) {
+          // Keep only admin-created or admin-edited medicines to conserve localStorage quota
+          const initialMap = new Map(INITIAL_MEDICINES.map(m => [m.id, m]));
+          const delta = parsed.filter(m => {
+            const init = initialMap.get(m.id);
+            if (!init) return true;
+            return m.pricePerStrip !== init.pricePerStrip || m.stock !== init.stock || m.discountPercent !== init.discountPercent;
+          });
+          localStorage.setItem(key, JSON.stringify(delta));
+        }
       }
     } catch (e2) {
       // Ignore fallback errors
