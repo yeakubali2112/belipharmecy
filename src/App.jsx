@@ -164,11 +164,6 @@ const MainApp = () => {
               <Pill className="w-6 h-6 text-emerald-600" />
               <span>{lang === 'bn' ? 'উপলব্ধ ওষুধ ও স্বাস্থ্যপণ্য' : 'Available Medicines'}</span>
             </h2>
-            <p className="text-xs sm:text-sm text-slate-500 font-medium">
-              {lang === 'bn' 
-                ? `মোট ${filteredMedicines.length} টি ওষুধ • দেখাচ্ছে ${(currentPage - 1) * itemsPerPage + 1} থেকে ${Math.min(currentPage * itemsPerPage, filteredMedicines.length)} টি (পেজ ${currentPage}/${totalPages})` 
-                : `Showing ${(currentPage - 1) * itemsPerPage + 1} - ${Math.min(currentPage * itemsPerPage, filteredMedicines.length)} of ${filteredMedicines.length} products (Page ${currentPage}/${totalPages})`}
-            </p>
           </div>
 
           {searchQuery && (
