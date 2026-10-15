@@ -14,6 +14,8 @@ export const MedicineCard = ({ medicine }) => {
   const liveMed = (medicines && medicines.find(m => m.id === medicine.id)) || medicine;
   const stockCount = typeof liveMed.stock === 'number' ? liveMed.stock : 100;
   const isOutOfStock = stockCount <= 0;
+  const stripSize = Number(medicine.stripSize) || 10;
+  const maxAllowedUnits = unitType === 'strip' ? Math.max(1, Math.floor(stockCount / stripSize)) : stockCount;
 
   const price = unitType === 'strip' ? medicine.pricePerStrip : medicine.pricePerUnit;
   const discountPercent = medicine.discountPercent || 0;
@@ -217,7 +219,7 @@ export const MedicineCard = ({ medicine }) => {
             </span>
             <button
               onClick={() => setQuantity(quantity + 1)}
-              disabled={isOutOfStock || quantity >= stockCount}
+              disabled={isOutOfStock || quantity >= maxAllowedUnits}
               className="p-1 text-slate-500 hover:text-slate-800 hover:bg-slate-200 cursor-pointer disabled:opacity-40"
             >
               <Plus className="w-3.5 h-3.5" />

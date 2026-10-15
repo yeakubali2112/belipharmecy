@@ -96,6 +96,9 @@ export const CheckoutModal = () => {
           deliveryFee: Number(deliveryFee.toFixed(2)),
           grandTotal: Number(grandTotal.toFixed(2)),
           items: cart.map(item => ({
+            id: item.medicineId || item.id,
+            medicineId: item.medicineId || item.id,
+            stripSize: item.stripSize || 10,
             name: item.name,
             generic: item.generic,
             unitType: item.unitType,

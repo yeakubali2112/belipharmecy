@@ -15,6 +15,8 @@ export const MedicineModal = () => {
   const liveMed = (medicines && medicines.find(m => m.id === selectedMedicine.id)) || selectedMedicine;
   const stockCount = typeof liveMed.stock === 'number' ? liveMed.stock : 100;
   const isOutOfStock = stockCount <= 0;
+  const stripSize = Number(selectedMedicine.stripSize) || 10;
+  const maxAllowedUnits = unitType === 'strip' ? Math.max(1, Math.floor(stockCount / stripSize)) : stockCount;
 
   const price = unitType === 'strip' ? selectedMedicine.pricePerStrip : selectedMedicine.pricePerUnit;
   const discountPercent = selectedMedicine.discountPercent || 0;
@@ -224,7 +226,7 @@ export const MedicineModal = () => {
                 </span>
                 <button
                   onClick={() => setQuantity(quantity + 1)}
-                  disabled={isOutOfStock || quantity >= stockCount}
+                  disabled={isOutOfStock || quantity >= maxAllowedUnits}
                   className="px-2.5 py-1 text-slate-600 hover:bg-slate-100 disabled:opacity-40"
                 >
                   +

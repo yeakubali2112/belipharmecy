@@ -737,6 +737,17 @@ export const ShopProvider = ({ children }) => {
 
   // Cart operations
   const addToCart = (medicine, unitType = 'strip', quantity = 1) => {
+    // Check live stock
+    const currentMed = medicines.find(m => m.id === medicine.id) || medicine;
+    const stockCount = typeof currentMed.stock === 'number' ? currentMed.stock : 100;
+    if (stockCount <= 0) {
+      showToast(lang === 'bn' ? 'দুঃখিত, এই ওষুধটি বর্তমানে স্টকে নেই!' : 'Sorry, this medicine is out of stock!', 'error');
+      return;
+    }
+
+    const stripSize = Number(currentMed.stripSize || medicine.stripSize) || 10;
+    const maxAllowedQty = unitType === 'strip' ? Math.max(1, Math.floor(stockCount / stripSize)) : stockCount;
+
     const price = unitType === 'strip' 
       ? (medicine.pricePerStrip * (1 - (medicine.discountPercent || 0) / 100))
       : (medicine.pricePerUnit * (1 - (medicine.discountPercent || 0) / 100));
@@ -746,24 +757,38 @@ export const ShopProvider = ({ children }) => {
     setCart(prev => {
       const existing = prev.find(item => item.key === itemKey);
       if (existing) {
+        const nextQty = existing.quantity + quantity;
+        if (nextQty > maxAllowedQty) {
+          showToast(
+            lang === 'bn' 
+              ? `স্টকে সর্বোচ্চ ${maxAllowedQty} টি পাওয়া যাবে!` 
+              : `Only ${maxAllowedQty} available in stock!`, 
+            'error'
+          );
+          return prev.map(item => item.key === itemKey ? { ...item, quantity: maxAllowedQty } : item);
+        }
         return prev.map(item => 
           item.key === itemKey 
-            ? { ...item, quantity: item.quantity + quantity }
+            ? { ...item, quantity: nextQty }
             : item
         );
       }
+
+      const safeQty = Math.min(quantity, maxAllowedQty);
       return [...prev, {
         key: itemKey,
+        id: medicine.id,
         medicineId: medicine.id,
+        stripSize: stripSize,
         name: medicine.name,
         generic: medicine.generic,
         image: medicine.image,
         unitType,
-        unitLabel: unitType === 'strip' ? (lang === 'bn' ? 'পাতা (১০টি)' : 'Strip (10 pcs)') : (lang === 'bn' ? 'পিস' : 'Pcs'),
+        unitLabel: unitType === 'strip' ? (lang === 'bn' ? `পাতা (${stripSize}টি)` : `Strip (${stripSize} pcs)`) : (lang === 'bn' ? 'পিস' : 'Pcs'),
         unitPrice: price,
         rawPrice: unitType === 'strip' ? medicine.pricePerStrip : medicine.pricePerUnit,
         discountPercent: medicine.discountPercent || 0,
-        quantity
+        quantity: safeQty
       }];
     });
 
@@ -785,6 +810,27 @@ export const ShopProvider = ({ children }) => {
       removeFromCart(key);
       return;
     }
+
+    const targetItem = cart.find(it => it.key === key);
+    if (targetItem) {
+      const currentMed = medicines.find(m => m.id === (targetItem.medicineId || targetItem.id));
+      if (currentMed) {
+        const stockCount = typeof currentMed.stock === 'number' ? currentMed.stock : 100;
+        const stripSize = Number(targetItem.stripSize || currentMed.stripSize) || 10;
+        const maxQty = targetItem.unitType === 'strip' ? Math.max(1, Math.floor(stockCount / stripSize)) : stockCount;
+        if (num > maxQty) {
+          showToast(
+            lang === 'bn' 
+              ? `স্টকে সর্বোচ্চ ${maxQty} টি পাওয়া যাবে!` 
+              : `Only ${maxQty} available in stock!`, 
+            'error'
+          );
+          setCart(prev => prev.map(item => item.key === key ? { ...item, quantity: maxQty } : item));
+          return;
+        }
+      }
+    }
+
     setCart(prev => prev.map(item => item.key === key ? { ...item, quantity: num } : item));
   };
 
@@ -1047,21 +1093,49 @@ export const ShopProvider = ({ children }) => {
       saveCloudCustomer(profile);
     }
 
-    // Auto-deduct stock for sold items
+    // Auto-deduct stock for sold items (tablets / pieces)
     if (orderData.items && Array.isArray(orderData.items)) {
       setMedicines(prev => {
-        const itemMap = new Map();
+        // Build deduction maps by ID and by lowercase name
+        const idDeductionMap = new Map();
+        const nameDeductionMap = new Map();
+
         orderData.items.forEach(it => {
-          if (it.id) itemMap.set(it.id, Number(it.quantity) || 1);
+          const medId = it.medicineId || it.id;
+          const qty = Math.max(1, Number(it.quantity) || 1);
+          const isStrip = it.unitType === 'strip' || (it.unitLabel && (it.unitLabel.includes('পাতা') || it.unitLabel.toLowerCase().includes('strip')));
+          const stripSize = Number(it.stripSize) || 10;
+          const piecesSold = isStrip ? (qty * stripSize) : qty;
+
+          if (medId) {
+            idDeductionMap.set(medId, (idDeductionMap.get(medId) || 0) + piecesSold);
+          }
+          if (it.name) {
+            const cleanName = it.name.trim().toLowerCase();
+            nameDeductionMap.set(cleanName, (nameDeductionMap.get(cleanName) || 0) + piecesSold);
+          }
         });
+
         const updatedMeds = prev.map(m => {
-          if (itemMap.has(m.id)) {
-            const soldQty = itemMap.get(m.id);
+          let piecesToDeduct = 0;
+          if (idDeductionMap.has(m.id)) {
+            piecesToDeduct = idDeductionMap.get(m.id);
+          } else if (nameDeductionMap.has((m.name || '').trim().toLowerCase())) {
+            piecesToDeduct = nameDeductionMap.get((m.name || '').trim().toLowerCase());
+          }
+
+          if (piecesToDeduct > 0) {
             const currentStock = typeof m.stock === 'number' ? m.stock : 100;
-            return { ...m, stock: Math.max(0, currentStock - soldQty) };
+            const newStock = Math.max(0, currentStock - piecesToDeduct);
+            return {
+              ...m,
+              stock: newStock,
+              lastSoldAt: new Date().toISOString()
+            };
           }
           return m;
         });
+
         safeSetItem('beli_medicines', JSON.stringify(updatedMeds));
         return updatedMeds;
       });
@@ -1141,13 +1215,52 @@ export const ShopProvider = ({ children }) => {
 
   // Admin & Customer Order Actions
   const updateOrderStatus = (orderId, newStatus) => {
+    let orderToCancel = null;
     setOrders(prev => {
+      const target = prev.find(o => o.id === orderId);
+      if (target && target.status !== 'Cancelled' && newStatus === 'Cancelled') {
+        orderToCancel = target;
+      }
       const next = prev.map(o => o.id === orderId ? { ...o, status: newStatus } : o);
       safeSetItem('beli_orders', JSON.stringify(next));
-      const target = next.find(o => o.id === orderId);
-      if (target) saveCloudOrder(target);
+      const updatedTarget = next.find(o => o.id === orderId);
+      if (updatedTarget) saveCloudOrder(updatedTarget);
       return next;
     });
+
+    // If order was cancelled, restore items back to stock
+    if (orderToCancel && orderToCancel.items && Array.isArray(orderToCancel.items)) {
+      setMedicines(prev => {
+        const idMap = new Map();
+        const nameMap = new Map();
+        orderToCancel.items.forEach(it => {
+          const medId = it.medicineId || it.id;
+          const qty = Math.max(1, Number(it.quantity) || 1);
+          const isStrip = it.unitType === 'strip' || (it.unitLabel && (it.unitLabel.includes('পাতা') || it.unitLabel.toLowerCase().includes('strip')));
+          const stripSize = Number(it.stripSize) || 10;
+          const pieces = isStrip ? qty * stripSize : qty;
+
+          if (medId) idMap.set(medId, (idMap.get(medId) || 0) + pieces);
+          if (it.name) nameMap.set(it.name.trim().toLowerCase(), (nameMap.get(it.name.trim().toLowerCase()) || 0) + pieces);
+        });
+
+        const restoredMeds = prev.map(m => {
+          let piecesToRestore = 0;
+          if (idMap.has(m.id)) piecesToRestore = idMap.get(m.id);
+          else if (nameMap.has((m.name || '').trim().toLowerCase())) piecesToRestore = nameMap.get((m.name || '').trim().toLowerCase());
+
+          if (piecesToRestore > 0) {
+            const currentStock = typeof m.stock === 'number' ? m.stock : 0;
+            return { ...m, stock: currentStock + piecesToRestore };
+          }
+          return m;
+        });
+
+        safeSetItem('beli_medicines', JSON.stringify(restoredMeds));
+        return restoredMeds;
+      });
+    }
+
     showToast(`Order ${orderId} status updated to ${newStatus}`, 'info');
   };
 
@@ -1270,85 +1383,156 @@ export const ShopProvider = ({ children }) => {
   };
 
   const addMedicine = (newMed) => {
-    const med = {
-      ...newMed,
-      id: newMed.id || `med-${Date.now()}`
-    };
-    setMedicines(prev => [med, ...prev]);
-    showToast(lang === 'bn' ? 'নতুন ওষুধ সফলভাবে যুক্ত হয়েছে' : 'New medicine added', 'success');
+    const medName = (newMed.name || '').trim().toLowerCase();
+    const existing = medicines.find(m => (newMed.id && m.id === newMed.id) || (medName && m.name.toLowerCase().trim() === medName));
+
+    if (existing) {
+      // Medicine already exists in catalog! Add the stock to existing stock!
+      const oldStock = typeof existing.stock === 'number' ? existing.stock : 0;
+      const incomingStock = Math.max(0, Number(newMed.stock) || 0);
+      const newStock = oldStock + incomingStock;
+
+      const mergedMed = {
+        ...existing,
+        ...newMed,
+        id: existing.id,
+        stock: newStock,
+        lastRestockedAt: new Date().toISOString()
+      };
+
+      setMedicines(prev => {
+        const updated = prev.map(m => m.id === existing.id ? mergedMed : m);
+        safeSetItem('beli_medicines', JSON.stringify(updated));
+        return updated;
+      });
+
+      if (incomingStock > 0) {
+        const logEntry = {
+          id: `rstk-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+          timestamp: Date.now(),
+          dateStr: new Date().toLocaleDateString('bn-BD', { day: 'numeric', month: 'short', year: 'numeric' }),
+          timeStr: new Date().toLocaleTimeString('bn-BD', { hour: '2-digit', minute: '2-digit' }),
+          medicineId: existing.id,
+          medicineName: existing.name,
+          generic: existing.generic || '',
+          company: existing.company || '',
+          oldStock: oldStock,
+          addedStock: incomingStock,
+          newStock: newStock,
+          unitLabel: 'পিস',
+          adminUser: 'yeakub007',
+          note: 'অ্যাডমিন প্যানেল থেকে স্টক যোগ'
+        };
+        setRestockLogs(prev => {
+          const next = [logEntry, ...prev].slice(0, 300);
+          safeSetItem('beli_restock_logs', JSON.stringify(next));
+          return next;
+        });
+      }
+
+      showToast(
+        lang === 'bn' 
+          ? `✓ ${existing.name}-এর স্টকে ${incomingStock} পিস যোগ হয়েছে! মোট স্টক: ${newStock} পিস` 
+          : `✓ Added ${incomingStock} pcs to ${existing.name}! Total stock: ${newStock} pcs`,
+        'success'
+      );
+      return mergedMed;
+    } else {
+      const med = {
+        ...newMed,
+        id: newMed.id || `med-${Date.now()}`,
+        stock: Math.max(0, Number(newMed.stock) || 0),
+        createdAt: new Date().toISOString()
+      };
+      setMedicines(prev => {
+        const next = [med, ...prev];
+        safeSetItem('beli_medicines', JSON.stringify(next));
+        return next;
+      });
+      showToast(lang === 'bn' ? 'নতুন ওষুধ সফলভাবে যুক্ত হয়েছে' : 'New medicine added', 'success');
+      return med;
+    }
   };
 
   const updateMedicine = (updatedMed) => {
     setMedicines(prev => {
       const exists = prev.some(m => m.id === updatedMed.id);
+      let next;
       if (exists) {
-        return prev.map(m => m.id === updatedMed.id ? updatedMed : m);
+        next = prev.map(m => m.id === updatedMed.id ? updatedMed : m);
+      } else {
+        next = [updatedMed, ...prev];
       }
-      return [updatedMed, ...prev];
+      safeSetItem('beli_medicines', JSON.stringify(next));
+      return next;
     });
     showToast(lang === 'bn' ? 'ওষুধের তথ্য আপডেট হয়েছে' : 'Medicine updated', 'success');
   };
 
   const restockMedicine = (medicineOrId, addedUnits, logData = {}) => {
     const targetId = typeof medicineOrId === 'object' ? medicineOrId.id : medicineOrId;
-    let oldStockVal = 0;
-    let newStockVal = 0;
-    let targetMed = null;
+    const existing = medicines.find(m => m.id === targetId || (typeof medicineOrId === 'object' && medicineOrId.name && m.name.toLowerCase().trim() === medicineOrId.name.toLowerCase().trim()));
+    const baseMed = existing || (typeof medicineOrId === 'object' ? medicineOrId : null);
+    if (!baseMed) return { success: false };
+
+    const oldStockVal = typeof baseMed.stock === 'number' ? baseMed.stock : 0;
+    const added = Math.max(0, Number(addedUnits) || 0);
+    const newStockVal = oldStockVal + added;
+
+    const targetMed = {
+      ...baseMed,
+      id: baseMed.id || `med-${Date.now()}`,
+      stock: newStockVal,
+      lastRestockedAt: new Date().toISOString()
+    };
 
     setMedicines(prev => {
-      const existing = prev.find(m => m.id === targetId);
-      const baseMed = existing || (typeof medicineOrId === 'object' ? medicineOrId : null);
-      if (!baseMed) return prev;
-
-      oldStockVal = typeof baseMed.stock === 'number' ? baseMed.stock : 0;
-      const added = Math.max(0, Number(addedUnits) || 0);
-      newStockVal = oldStockVal + added;
-
-      targetMed = {
-        ...baseMed,
-        stock: newStockVal,
-        lastRestockedAt: new Date().toISOString()
-      };
-
-      if (existing) {
-        return prev.map(m => m.id === targetId ? targetMed : m);
+      const matchIndex = prev.findIndex(m => m.id === targetMed.id || m.name.toLowerCase().trim() === targetMed.name.toLowerCase().trim());
+      let updated;
+      if (matchIndex >= 0) {
+        updated = [...prev];
+        updated[matchIndex] = { ...updated[matchIndex], ...targetMed, stock: newStockVal };
+      } else {
+        updated = [targetMed, ...prev];
       }
-      return [targetMed, ...prev];
+      safeSetItem('beli_medicines', JSON.stringify(updated));
+      return updated;
     });
 
-    if (targetMed) {
-      const logEntry = {
-        id: `rstk-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-        timestamp: Date.now(),
-        dateStr: new Date().toLocaleDateString('bn-BD', { day: 'numeric', month: 'short', year: 'numeric' }),
-        timeStr: new Date().toLocaleTimeString('bn-BD', { hour: '2-digit', minute: '2-digit' }),
-        medicineId: targetMed.id,
-        medicineName: targetMed.name,
-        generic: targetMed.generic || '',
-        company: targetMed.company || '',
-        oldStock: oldStockVal,
-        addedStock: Number(addedUnits) || 0,
-        newStock: newStockVal,
-        unitLabel: logData.unitLabel || 'পিস',
-        invoiceNo: logData.invoiceNo || '',
-        supplier: logData.supplier || '',
-        purchasePrice: logData.purchasePrice || '',
-        adminUser: logData.adminUser || 'yeakub007',
-        note: logData.note || ''
-      };
+    const logEntry = {
+      id: `rstk-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      timestamp: Date.now(),
+      dateStr: new Date().toLocaleDateString('bn-BD', { day: 'numeric', month: 'short', year: 'numeric' }),
+      timeStr: new Date().toLocaleTimeString('bn-BD', { hour: '2-digit', minute: '2-digit' }),
+      medicineId: targetMed.id,
+      medicineName: targetMed.name,
+      generic: targetMed.generic || '',
+      company: targetMed.company || '',
+      oldStock: oldStockVal,
+      addedStock: added,
+      newStock: newStockVal,
+      unitLabel: logData.unitLabel || 'পিস',
+      invoiceNo: logData.invoiceNo || '',
+      supplier: logData.supplier || '',
+      purchasePrice: logData.purchasePrice || '',
+      adminUser: logData.adminUser || 'yeakub007',
+      note: logData.note || ''
+    };
 
-      setRestockLogs(prev => [logEntry, ...prev].slice(0, 300));
+    setRestockLogs(prev => {
+      const next = [logEntry, ...prev].slice(0, 300);
+      safeSetItem('beli_restock_logs', JSON.stringify(next));
+      return next;
+    });
 
-      showToast(
-        lang === 'bn' 
-          ? `✓ ${targetMed.name}-এর স্টক ${oldStockVal} থেকে বৃদ্ধি পেয়ে ${newStockVal} পিস হয়েছে!` 
-          : `✓ Restocked ${targetMed.name}: ${oldStockVal} ➜ ${newStockVal} pcs!`,
-        'success'
-      );
+    showToast(
+      lang === 'bn' 
+        ? `✓ ${targetMed.name}-এর স্টক ${oldStockVal} থেকে বৃদ্ধি পেয়ে ${newStockVal} পিস হয়েছে!` 
+        : `✓ Restocked ${targetMed.name}: ${oldStockVal} ➜ ${newStockVal} pcs!`,
+      'success'
+    );
 
-      return { success: true, medicine: targetMed, oldStock: oldStockVal, newStock: newStockVal, logEntry };
-    }
-    return { success: false };
+    return { success: true, medicine: targetMed, oldStock: oldStockVal, newStock: newStockVal, logEntry };
   };
 
   const clearRestockLogs = () => {

@@ -1397,10 +1397,13 @@ export const AdminPortal = () => {
       }
       return [...prev, {
         id: med.id,
+        medicineId: med.id,
         name: med.name,
         generic: med.generic || '',
         price: unitPrice,
         unitLabel: unitLabel,
+        unitType: sellUnitType || (unitLabel === 'পাতা' ? 'strip' : 'unit'),
+        stripSize: Number(med.stripSize) || 10,
         quantity: 1,
         stock: stock
       }];
@@ -1458,6 +1461,9 @@ export const AdminPortal = () => {
       trxId: sellPaymentMethod === 'Cash on Hand' ? 'N/A' : (sellTrxId.trim() || 'POS-' + Math.floor(100000 + Math.random() * 900000)),
       items: sellCart.map(it => ({
         id: it.id,
+        medicineId: it.medicineId || it.id,
+        stripSize: it.stripSize || 10,
+        unitType: it.unitType || (it.unitLabel === 'পাতা' ? 'strip' : 'unit'),
         name: it.name,
         price: Number(it.price) || 0,
         quantity: Math.max(1, Number(it.quantity) || 1),
@@ -1632,6 +1638,9 @@ export const AdminPortal = () => {
     });
 
     if (res && res.success) {
+      if (res.medicine) {
+        setRestockSelectedMed(res.medicine);
+      }
       // Keep selected medicine but reset incoming input to ready for next addition
       setRestockAddedQty('');
       setRestockPurchasePrice('');
