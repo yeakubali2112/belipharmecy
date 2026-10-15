@@ -176,17 +176,42 @@ export const CartDrawer = () => {
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
-                    <div className="flex items-center border border-slate-200 bg-white rounded-lg">
+                    <div className="flex items-center border border-slate-200 bg-white rounded-lg overflow-hidden">
                       <button
-                        onClick={() => updateCartQuantity(item.key, item.quantity - 1)}
-                        className="px-2 py-0.5 text-slate-500 hover:bg-slate-100 text-xs"
+                        type="button"
+                        onClick={() => updateCartQuantity(item.key, (Number(item.quantity) || 1) - 1)}
+                        className="px-2 py-0.5 text-slate-500 hover:bg-slate-100 text-xs cursor-pointer"
+                        title="পরিমাণ কমান"
                       >
                         <Minus className="w-3 h-3" />
                       </button>
-                      <span className="px-2 text-xs font-bold text-slate-800">{item.quantity}</span>
+                      <input
+                        type="number"
+                        min="1"
+                        value={item.quantity === '' ? '' : item.quantity}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          if (val === '') {
+                            updateCartQuantity(item.key, '');
+                          } else {
+                            const n = parseInt(val, 10);
+                            if (!isNaN(n)) updateCartQuantity(item.key, n);
+                          }
+                        }}
+                        onBlur={() => {
+                          if (!item.quantity || Number(item.quantity) < 1) updateCartQuantity(item.key, 1);
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') e.currentTarget.blur();
+                        }}
+                        className="w-10 text-center font-bold text-slate-800 text-xs border-x border-slate-100 outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:bg-emerald-50"
+                        title="সরাসরি পরিমাণ টাইপ করুন"
+                      />
                       <button
-                        onClick={() => updateCartQuantity(item.key, item.quantity + 1)}
-                        className="px-2 py-0.5 text-slate-500 hover:bg-slate-100 text-xs"
+                        type="button"
+                        onClick={() => updateCartQuantity(item.key, (Number(item.quantity) || 0) + 1)}
+                        className="px-2 py-0.5 text-slate-500 hover:bg-slate-100 text-xs cursor-pointer"
+                        title="পরিমাণ বাড়ান"
                       >
                         <Plus className="w-3 h-3" />
                       </button>

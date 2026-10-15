@@ -760,11 +760,16 @@ export const ShopProvider = ({ children }) => {
   };
 
   const updateCartQuantity = (key, newQuantity) => {
-    if (newQuantity <= 0) {
+    if (newQuantity === '') {
+      setCart(prev => prev.map(item => item.key === key ? { ...item, quantity: '' } : item));
+      return;
+    }
+    const num = Number(newQuantity);
+    if (num <= 0) {
       removeFromCart(key);
       return;
     }
-    setCart(prev => prev.map(item => item.key === key ? { ...item, quantity: newQuantity } : item));
+    setCart(prev => prev.map(item => item.key === key ? { ...item, quantity: num } : item));
   };
 
   const removeFromCart = (key) => {
@@ -779,8 +784,8 @@ export const ShopProvider = ({ children }) => {
   };
 
   // Cart totals calculation
-  const cartSubtotal = cart.reduce((sum, item) => sum + (item.unitPrice * item.quantity), 0);
-  const rawSubtotal = cart.reduce((sum, item) => sum + (item.rawPrice * item.quantity), 0);
+  const cartSubtotal = cart.reduce((sum, item) => sum + (item.unitPrice * (Number(item.quantity) || 0)), 0);
+  const rawSubtotal = cart.reduce((sum, item) => sum + (item.rawPrice * (Number(item.quantity) || 0)), 0);
   const totalItemSavings = Math.max(0, rawSubtotal - cartSubtotal);
 
   const applyCoupon = (code) => {

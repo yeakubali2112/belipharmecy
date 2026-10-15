@@ -422,7 +422,17 @@ export const AdminPortal = () => {
   };
 
   const handleUpdateRxItemQuantity = (index, newQty) => {
-    if (newQty <= 0) {
+    if (newQty === '') {
+      setRxMedicinesList(prev => prev.map((item, idx) => {
+        if (idx === index) {
+          return { ...item, quantity: '', total: 0 };
+        }
+        return item;
+      }));
+      return;
+    }
+    const num = Number(newQty);
+    if (num <= 0) {
       handleRemoveMedicineFromRx(index);
       return;
     }
@@ -430,8 +440,8 @@ export const AdminPortal = () => {
       if (idx === index) {
         return {
           ...item,
-          quantity: newQty,
-          total: Number((item.unitPrice * newQty).toFixed(2))
+          quantity: num,
+          total: Number((item.unitPrice * num).toFixed(2))
         };
       }
       return item;
@@ -1141,7 +1151,7 @@ export const AdminPortal = () => {
   const sellHistoryPerPage = 10;
 
   // POS Cart Calculations
-  const sellSubtotal = sellCart.reduce((sum, item) => sum + (Number(item.price || 0) * (item.quantity || 1)), 0);
+  const sellSubtotal = sellCart.reduce((sum, item) => sum + (Number(item.price || 0) * (Number(item.quantity) || 0)), 0);
   const parsedDiscountVal = Math.max(0, Number(sellDiscountValue) || 0);
   const sellDiscountAmount = sellDiscountType === 'percent' 
     ? Math.min(sellSubtotal, (sellSubtotal * parsedDiscountVal) / 100)
@@ -1275,17 +1285,22 @@ export const AdminPortal = () => {
   const updateSellCartQty = (id, newQty) => {
     const target = sellCart.find(it => it.id === id);
     if (!target) return;
-    if (newQty <= 0) {
+    if (newQty === '') {
+      setSellCart(prev => prev.map(it => it.id === id ? { ...it, quantity: '' } : it));
+      return;
+    }
+    const num = Number(newQty);
+    if (num <= 0) {
       setSellCart(prev => prev.filter(it => it.id !== id));
       return;
     }
     const stock = typeof target.stock === 'number' ? target.stock : 999;
-    if (newQty > stock) {
+    if (num > stock) {
       showToast?.(`স্টকে মাত্র ${stock} টি রয়েছে!`, 'error');
       setSellCart(prev => prev.map(it => it.id === id ? { ...it, quantity: stock } : it));
       return;
     }
-    setSellCart(prev => prev.map(it => it.id === id ? { ...it, quantity: newQty } : it));
+    setSellCart(prev => prev.map(it => it.id === id ? { ...it, quantity: num } : it));
   };
 
   const removeFromSellCart = (id) => {
@@ -1320,7 +1335,7 @@ export const AdminPortal = () => {
         id: it.id,
         name: it.name,
         price: Number(it.price) || 0,
-        quantity: it.quantity,
+        quantity: Math.max(1, Number(it.quantity) || 1),
         unitLabel: it.unitLabel || 'পাতা'
       })),
       subtotal: Number(sellSubtotal.toFixed(2)),
@@ -2264,32 +2279,58 @@ export const AdminPortal = () => {
                               <div className="flex-1 min-w-0">
                                 <div className="font-bold text-slate-900 truncate">{item.name}</div>
                                 <div className="text-[10px] text-slate-500">
-                                  ৳{item.price} × {item.quantity} {item.unitLabel}
+                                  ৳{item.price} × {item.quantity || 0} {item.unitLabel}
                                 </div>
                               </div>
 
-                              <div className="flex items-center gap-1.5">
+                              <div className="flex items-center border border-slate-300 rounded bg-white overflow-hidden shadow-2xs">
                                 <button
                                   type="button"
-                                  onClick={() => updateSellCartQty(item.id, item.quantity - 1)}
-                                  className="w-6 h-6 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center justify-center font-bold cursor-pointer"
+                                  onClick={() => updateSellCartQty(item.id, (Number(item.quantity) || 1) - 1)}
+                                  className="w-6 h-6 bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center justify-center font-bold text-xs cursor-pointer transition-colors"
+                                  title="পরিমাণ ১ কমান"
                                 >
                                   -
                                 </button>
-                                <span className="w-6 text-center font-bold text-slate-900">
-                                  {item.quantity}
-                                </span>
+                                <input
+                                  type="number"
+                                  min="1"
+                                  max={typeof item.stock === 'number' ? item.stock : 9999}
+                                  value={item.quantity === '' ? '' : item.quantity}
+                                  onChange={(e) => {
+                                    const val = e.target.value;
+                                    if (val === '') {
+                                      updateSellCartQty(item.id, '');
+                                    } else {
+                                      const num = parseInt(val, 10);
+                                      if (!isNaN(num)) {
+                                        updateSellCartQty(item.id, num);
+                                      }
+                                    }
+                                  }}
+                                  onBlur={() => {
+                                    if (!item.quantity || Number(item.quantity) < 1) {
+                                      updateSellCartQty(item.id, 1);
+                                    }
+                                  }}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') e.currentTarget.blur();
+                                  }}
+                                  className="w-12 h-6 text-center font-black text-slate-900 bg-white text-xs outline-none border-x border-slate-200 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:bg-emerald-50"
+                                  title="সরাসরি পরিমাণ টাইপ করুন"
+                                />
                                 <button
                                   type="button"
-                                  onClick={() => updateSellCartQty(item.id, item.quantity + 1)}
-                                  className="w-6 h-6 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center justify-center font-bold cursor-pointer"
+                                  onClick={() => updateSellCartQty(item.id, (Number(item.quantity) || 0) + 1)}
+                                  className="w-6 h-6 bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center justify-center font-bold text-xs cursor-pointer transition-colors"
+                                  title="পরিমাণ ১ বাড়ান"
                                 >
                                   +
                                 </button>
                               </div>
 
                               <div className="font-extrabold text-[#123184] text-right w-16">
-                                ৳{(item.price * item.quantity).toFixed(2)}
+                                ৳{(item.price * (Number(item.quantity) || 0)).toFixed(2)}
                               </div>
 
                               <button
@@ -5262,15 +5303,35 @@ export const AdminPortal = () => {
                             <div className="flex items-center border border-slate-200 bg-white">
                               <button
                                 type="button"
-                                onClick={() => handleUpdateRxItemQuantity(idx, item.quantity - 1)}
+                                onClick={() => handleUpdateRxItemQuantity(idx, (Number(item.quantity) || 1) - 1)}
                                 className="px-2 py-0.5 text-slate-500 hover:bg-slate-100 cursor-pointer"
                               >
                                 -
                               </button>
-                              <span className="px-2 font-bold text-slate-800">{item.quantity}</span>
+                              <input
+                                type="number"
+                                min="1"
+                                value={item.quantity === '' ? '' : item.quantity}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  if (val === '') {
+                                    handleUpdateRxItemQuantity(idx, '');
+                                  } else {
+                                    const n = parseInt(val, 10);
+                                    if (!isNaN(n)) handleUpdateRxItemQuantity(idx, n);
+                                  }
+                                }}
+                                onBlur={() => {
+                                  if (!item.quantity || Number(item.quantity) < 1) handleUpdateRxItemQuantity(idx, 1);
+                                }}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') e.currentTarget.blur();
+                                }}
+                                className="w-10 text-center font-bold text-slate-800 text-xs border-none outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:bg-emerald-50"
+                              />
                               <button
                                 type="button"
-                                onClick={() => handleUpdateRxItemQuantity(idx, item.quantity + 1)}
+                                onClick={() => handleUpdateRxItemQuantity(idx, (Number(item.quantity) || 0) + 1)}
                                 className="px-2 py-0.5 text-slate-500 hover:bg-slate-100 cursor-pointer"
                               >
                                 +
