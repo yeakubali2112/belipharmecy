@@ -1906,77 +1906,7 @@ export const AdminPortal = () => {
           {/* TAB: SELL / POS (DIRECT COUNTER SALE & SALES REPORT) */}
           {/* ================================================= */}
           {activeTab === 'sell' && (
-            <div className="space-y-6 animate-in fade-in">
-              
-              {/* Top Sales Performance Bar */}
-              <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                
-                {/* 1. Today's Sales */}
-                <div className="bg-white p-4 sm:p-5 rounded-none border-l-4 border-l-[#02975E] border-y border-r border-slate-200 shadow-xs flex flex-col justify-between space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">আজকের বিক্রি</span>
-                    <span className="p-2 rounded-lg bg-emerald-50 text-[#02975E]">
-                      <Store className="w-4 h-4" />
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-2xl font-black text-[#02975E]">৳{todaySalesTotal.toFixed(2)}</span>
-                    <div className="text-[11px] text-slate-500 font-semibold mt-0.5">
-                      {todaySalesOrders.length} টি সফল সেল (আজ)
-                    </div>
-                  </div>
-                </div>
-
-                {/* 2. This Week's Sales */}
-                <div className="bg-white p-4 sm:p-5 rounded-none border-l-4 border-l-[#123184] border-y border-r border-slate-200 shadow-xs flex flex-col justify-between space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">চলতি সপ্তাহের বিক্রি</span>
-                    <span className="p-2 rounded-lg bg-blue-50 text-[#123184]">
-                      <Calendar className="w-4 h-4" />
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-2xl font-black text-[#123184]">৳{weekSalesTotal.toFixed(2)}</span>
-                    <div className="text-[11px] text-slate-500 font-semibold mt-0.5">
-                      {weekSalesOrders.length} টি অর্ডার সম্পন্ন
-                    </div>
-                  </div>
-                </div>
-
-                {/* 3. This Month's Sales */}
-                <div className="bg-white p-4 sm:p-5 rounded-none border-l-4 border-l-amber-500 border-y border-r border-slate-200 shadow-xs flex flex-col justify-between space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">চলতি মাসের বিক্রি</span>
-                    <span className="p-2 rounded-lg bg-amber-50 text-amber-600">
-                      <BarChart3 className="w-4 h-4" />
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-2xl font-black text-amber-600">৳{monthSalesTotal.toFixed(2)}</span>
-                    <div className="text-[11px] text-slate-500 font-semibold mt-0.5">
-                      {monthSalesOrders.length} টি বিক্রয় হিসেব
-                    </div>
-                  </div>
-                </div>
-
-                {/* 4. Total Lifetime Revenue */}
-                <div className="bg-white p-4 sm:p-5 rounded-none border-l-4 border-l-purple-600 border-y border-r border-slate-200 shadow-xs flex flex-col justify-between space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">মোট বিক্রয় (সর্বমোট)</span>
-                    <span className="p-2 rounded-lg bg-purple-50 text-purple-700">
-                      <DollarSign className="w-4 h-4" />
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-2xl font-black text-purple-700">৳{totalSales.toFixed(2)}</span>
-                    <div className="text-[11px] text-slate-500 font-semibold mt-0.5">
-                      কাউন্টার: {counterSalesList.length} | অনলাইন: {onlineSalesList.length}
-                    </div>
-                  </div>
-                </div>
-
-              </div>
-
+            <div className="space-y-4 animate-in fade-in">
               {/* Sub-Tabs Selector */}
               <div className="bg-white p-3 rounded-none border border-slate-200 shadow-xs flex flex-wrap items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
