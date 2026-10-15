@@ -981,7 +981,7 @@ export const ShopProvider = ({ children }) => {
       timestamp: now,
       ...orderData,
       customerAvatar: resolvedAvatar,
-      status: 'Pending',
+      status: orderData.status || 'Pending',
     };
 
     setOrders(prev => {
@@ -993,39 +993,66 @@ export const ShopProvider = ({ children }) => {
     // Save to Firebase Cloud immediately
     saveCloudOrder(newOrder);
 
-    clearCart();
-    setIsCheckoutModalOpen(false);
+    // Only clear online cart if not a counter sale
+    if (!orderData.isCounterSale) {
+      clearCart();
+      setIsCheckoutModalOpen(false);
+    }
 
     // Auto-create / update Customer Profile so user can track orders in their profile
-    const profile = {
-      name: orderData.customerName,
-      phone: orderData.customerPhone,
-      address: orderData.deliveryAddress,
-      avatar: resolvedAvatar,
-      createdAt: currentCustomer?.createdAt || existingCust?.createdAt || new Date().toLocaleDateString('bn-BD'),
-      lastOrderDate: new Date().toLocaleDateString('bn-BD')
-    };
+    if (orderData.customerPhone && orderData.customerPhone !== 'N/A' && orderData.customerPhone.length >= 6) {
+      const profile = {
+        name: orderData.customerName,
+        phone: orderData.customerPhone,
+        address: orderData.deliveryAddress,
+        avatar: resolvedAvatar,
+        createdAt: currentCustomer?.createdAt || existingCust?.createdAt || new Date().toLocaleDateString('bn-BD'),
+        lastOrderDate: new Date().toLocaleDateString('bn-BD')
+      };
 
-    setCurrentCustomer(profile);
-    safeSetItem('beli_current_customer', JSON.stringify(profile));
+      if (!orderData.isCounterSale) {
+        setCurrentCustomer(profile);
+        safeSetItem('beli_current_customer', JSON.stringify(profile));
+      }
 
-    setCustomerProfiles(prev => {
-      const filtered = prev.filter(p => p.phone !== orderData.customerPhone);
-      const next = [profile, ...filtered];
-      safeSetItem('beli_customer_profiles', JSON.stringify(next));
-      return next;
-    });
+      setCustomerProfiles(prev => {
+        const filtered = prev.filter(p => p.phone !== orderData.customerPhone);
+        const next = [profile, ...filtered];
+        safeSetItem('beli_customer_profiles', JSON.stringify(next));
+        return next;
+      });
 
-    // Save Customer Profile to Firebase Cloud
-    saveCloudCustomer(profile);
+      // Save Customer Profile to Firebase Cloud
+      saveCloudCustomer(profile);
+    }
+
+    // Auto-deduct stock for sold items
+    if (orderData.items && Array.isArray(orderData.items)) {
+      setMedicines(prev => {
+        const itemMap = new Map();
+        orderData.items.forEach(it => {
+          if (it.id) itemMap.set(it.id, Number(it.quantity) || 1);
+        });
+        const updatedMeds = prev.map(m => {
+          if (itemMap.has(m.id)) {
+            const soldQty = itemMap.get(m.id);
+            const currentStock = typeof m.stock === 'number' ? m.stock : 100;
+            return { ...m, stock: Math.max(0, currentStock - soldQty) };
+          }
+          return m;
+        });
+        safeSetItem('beli_medicines', JSON.stringify(updatedMeds));
+        return updatedMeds;
+      });
+    }
 
     setActiveInvoiceOrder(newOrder);
     knownOrderIdsRef.current.add(newId);
     triggerOrderNotification(newOrder);
     showToast(
-      lang === 'bn' 
-        ? `অর্ডার সফল! আপনার প্রোফাইল তৈরি হয়েছে। আইডি: ${newId}` 
-        : `Order placed! Your profile has been created. ID: ${newId}`, 
+      orderData.isCounterSale
+        ? (lang === 'bn' ? `কাউন্টার সেল সফল! চালান নং: ${newId}` : `Sale completed! Invoice ID: ${newId}`)
+        : (lang === 'bn' ? `অর্ডার সফল! আপনার প্রোফাইল তৈরি হয়েছে। আইডি: ${newId}` : `Order placed! Your profile has been created. ID: ${newId}`),
       'success'
     );
     return newOrder;
