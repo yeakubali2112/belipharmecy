@@ -328,6 +328,14 @@ export const AdminPortal = () => {
 
   // Prescription preview modal
   const [previewRxImage, setPreviewRxImage] = useState(null);
+  const [rxZoom, setRxZoom] = useState(1);
+  const [rxRotation, setRxRotation] = useState(0);
+
+  const handleOpenRxPreview = (img) => {
+    setPreviewRxImage(img);
+    setRxZoom(1);
+    setRxRotation(0);
+  };
 
   // Prescription Medicine Entry Modal State
   const [activeRxForMedicines, setActiveRxForMedicines] = useState(null);
@@ -3263,7 +3271,7 @@ export const AdminPortal = () => {
                       {/* Image Thumbnail */}
                       {rx.image && (
                         <div 
-                          onClick={() => setPreviewRxImage(rx.image)}
+                          onClick={() => handleOpenRxPreview(rx.image)}
                           className="relative h-32 bg-slate-100 rounded-none overflow-hidden cursor-pointer group border border-slate-200"
                         >
                           <img
@@ -4665,27 +4673,6 @@ export const AdminPortal = () => {
 
       </main>
 
-      {/* Full Image Preview Modal */}
-      {previewRxImage && (
-        <div 
-          className="fixed inset-0 z-60 bg-black/85 flex items-center justify-center p-4 backdrop-blur-xs"
-          onClick={() => setPreviewRxImage(null)}
-        >
-          <div className="relative max-w-4xl max-h-[90vh] bg-white rounded-3xl p-3 shadow-2xl">
-            <button
-              onClick={() => setPreviewRxImage(null)}
-              className="absolute top-4 right-4 bg-black/70 hover:bg-black text-white rounded-full p-2 cursor-pointer"
-            >
-              ✕
-            </button>
-            <img
-              src={previewRxImage}
-              alt="Prescription Large"
-              className="max-h-[85vh] max-w-full object-contain rounded-2xl"
-            />
-          </div>
-        </div>
-      )}
 
       {/* Edit Medicine Modal */}
       {editingMed && (
@@ -5219,10 +5206,10 @@ export const AdminPortal = () => {
                     {activeRxForMedicines.image && (
                       <button
                         type="button"
-                        onClick={() => setPreviewRxImage(activeRxForMedicines.image)}
-                        className="text-[11px] text-[#123184] hover:underline font-bold flex items-center gap-1 cursor-pointer"
+                        onClick={() => handleOpenRxPreview(activeRxForMedicines.image)}
+                        className="text-[11px] text-[#123184] hover:underline font-bold flex items-center gap-1 cursor-pointer bg-blue-50 px-2.5 py-1 rounded border border-blue-200 shadow-2xs hover:bg-blue-100 transition-colors"
                       >
-                        <Eye className="w-3.5 h-3.5" />
+                        <Eye className="w-3.5 h-3.5 text-[#123184]" />
                         <span>বড় করে দেখুন</span>
                       </button>
                     )}
@@ -5234,7 +5221,7 @@ export const AdminPortal = () => {
                         src={activeRxForMedicines.image}
                         alt="Prescription Large"
                         className="max-h-[360px] w-full object-contain cursor-zoom-in hover:scale-105 transition-transform"
-                        onClick={() => setPreviewRxImage(activeRxForMedicines.image)}
+                        onClick={() => handleOpenRxPreview(activeRxForMedicines.image)}
                       />
                     </div>
                   ) : (
@@ -6349,6 +6336,110 @@ export const AdminPortal = () => {
                 📋 কপি
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Full Image Preview Lightbox Modal (Highest z-index z-[100] so it floats above the Medicine Entry Modal) */}
+      {previewRxImage && (
+        <div 
+          className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-md flex flex-col items-center justify-between p-3 sm:p-5 animate-in fade-in duration-200 select-none"
+          onClick={() => setPreviewRxImage(null)}
+        >
+          {/* Top Control Bar */}
+          <div 
+            className="w-full max-w-5xl bg-slate-900/90 border border-white/20 rounded-2xl px-4 py-2.5 flex items-center justify-between text-white shadow-2xl backdrop-blur-md z-10"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-2">
+              <FileText className="w-4 h-4 text-emerald-400" />
+              <span className="text-xs sm:text-sm font-bold tracking-wide">
+                প্রেসক্রিপশন বড় ভিউ (Prescription Full View)
+              </span>
+            </div>
+
+            {/* Zoom & Rotation Controls */}
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              <button
+                type="button"
+                onClick={() => setRxZoom(z => Math.max(0.5, Number((z - 0.25).toFixed(2))))}
+                className="px-2.5 py-1 bg-white/10 hover:bg-white/20 rounded-lg text-xs font-bold cursor-pointer transition-colors"
+                title="জুম আউট (Zoom Out)"
+              >
+                -
+              </button>
+              <span className="text-xs font-mono w-12 text-center text-emerald-400">
+                {Math.round(rxZoom * 100)}%
+              </span>
+              <button
+                type="button"
+                onClick={() => setRxZoom(z => Math.min(3, Number((z + 0.25).toFixed(2))))}
+                className="px-2.5 py-1 bg-white/10 hover:bg-white/20 rounded-lg text-xs font-bold cursor-pointer transition-colors"
+                title="জুম ইন (Zoom In)"
+              >
+                +
+              </button>
+              <button
+                type="button"
+                onClick={() => setRxRotation(r => (r + 90) % 360)}
+                className="px-2.5 py-1 bg-white/10 hover:bg-white/20 rounded-lg text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors"
+                title="ঘোরান (Rotate 90°)"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">ঘোরান</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => { setRxZoom(1); setRxRotation(0); }}
+                className="px-2.5 py-1 bg-white/10 hover:bg-white/20 rounded-lg text-xs font-bold cursor-pointer transition-colors hidden sm:block"
+                title="রিসেট (Reset)"
+              >
+                রিসেট
+              </button>
+              <button
+                type="button"
+                onClick={() => window.open(previewRxImage, '_blank')}
+                className="px-2.5 py-1 bg-blue-600/80 hover:bg-blue-600 text-white rounded-lg text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors"
+                title="নতুন ট্যাবে খুলুন"
+              >
+                <ExternalLink className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">নতুন ট্যাবে</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setPreviewRxImage(null)}
+                className="p-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg cursor-pointer transition-colors ml-1"
+                title="বন্ধ করুন (Esc)"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+
+          {/* Centered Image with Smooth Zoom and Rotation */}
+          <div 
+            className="flex-1 w-full max-w-5xl flex items-center justify-center overflow-auto p-2 my-2 cursor-zoom-out"
+            onClick={() => setPreviewRxImage(null)}
+          >
+            <div 
+              className="transition-transform duration-200 ease-out flex items-center justify-center max-h-full max-w-full"
+              style={{
+                transform: `scale(${rxZoom}) rotate(${rxRotation}deg)`,
+                transformOrigin: 'center center'
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <img
+                src={previewRxImage}
+                alt="Prescription Full Preview"
+                className="max-h-[80vh] max-w-[90vw] object-contain rounded-xl shadow-2xl border-2 border-white/20 bg-white"
+              />
+            </div>
+          </div>
+
+          {/* Bottom Hint */}
+          <div className="text-[11px] text-white/60 pb-1">
+            বাইরে ক্লিক করে বা ✕ বাটনে চাপ দিয়ে বন্ধ করতে পারবেন
           </div>
         </div>
       )}
