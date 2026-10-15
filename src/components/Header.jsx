@@ -128,11 +128,14 @@ export const Header = () => {
             className="flex items-center text-left group cursor-pointer py-0.5"
             title="বেলী ফার্মেসি"
           >
-            <img 
-              src="/logo.png" 
-              alt="বেলী ফার্মেসি" 
-              className="h-11 sm:h-12 md:h-14 w-auto object-contain transition-transform group-hover:scale-102" 
-            />
+            <div className="logo-animated-wrapper">
+              <img 
+                src="/logo.png" 
+                alt="বেলী ফার্মেসি" 
+                className="h-11 sm:h-12 md:h-14 w-auto object-contain" 
+              />
+              <span className="logo-animated-shine" aria-hidden="true" />
+            </div>
           </button>
         </div>
 
