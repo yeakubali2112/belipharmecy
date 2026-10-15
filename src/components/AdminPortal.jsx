@@ -2375,35 +2375,46 @@ export const AdminPortal = () => {
                         ))}
                       </div>
 
-                      {/* If Cash on Hand: Change calculator */}
+                      {/* If Cash on Hand: Change calculator with full-width amount input box */}
                       {sellPaymentMethod === 'Cash on Hand' && (
-                        <div className="bg-emerald-50/70 p-2.5 rounded-none border border-emerald-200 space-y-1.5 text-xs">
-                          <div className="flex items-center justify-between">
-                            <span className="font-semibold text-slate-700">ক্যাশ গ্রহণ (টাকা):</span>
-                            <input
-                              type="number"
-                              min="0"
-                              value={sellReceivedAmount}
-                              onChange={(e) => setSellReceivedAmount(e.target.value)}
-                              placeholder={sellGrandTotal ? sellGrandTotal.toString() : '0'}
-                              className="w-24 p-1 text-right border border-emerald-300 rounded-none bg-white font-black text-xs outline-none"
-                            />
+                        <div className="bg-emerald-50/70 p-3 rounded-none border-2 border-emerald-300 space-y-2 text-xs">
+                          <div>
+                            <div className="flex items-center justify-between mb-1.5">
+                              <label className="font-bold text-slate-800 text-xs flex items-center gap-1.5">
+                                <Banknote className="w-4 h-4 text-[#02975E]" />
+                                <span>কাস্টমার থেকে প্রাপ্ত ক্যাশ (Amount):</span>
+                              </label>
+                              <button
+                                type="button"
+                                onClick={() => setSellReceivedAmount(sellGrandTotal.toString())}
+                                className="text-[11px] bg-emerald-100 hover:bg-emerald-200 text-emerald-900 px-2 py-0.5 rounded font-bold cursor-pointer border border-emerald-300 transition-colors"
+                                title="বিল সমপরিমাণ ক্যাশ বসান"
+                              >
+                                সমান বিল (৳{sellGrandTotal.toFixed(0)})
+                              </button>
+                            </div>
+                            <div className="relative">
+                              <span className="absolute left-3 top-2.5 text-base font-black text-slate-400">৳</span>
+                              <input
+                                type="number"
+                                min="0"
+                                value={sellReceivedAmount}
+                                onChange={(e) => setSellReceivedAmount(e.target.value)}
+                                placeholder={`ক্যাশ টাকা টাইপ করুন (যেমন: ${sellGrandTotal || 500})`}
+                                className="w-full pl-8 pr-3 py-2 border border-emerald-400 rounded-none bg-white font-black text-slate-900 text-base outline-none focus:ring-2 focus:ring-[#02975E]/30"
+                              />
+                            </div>
                           </div>
 
-                          <div className="flex items-center gap-1 justify-end">
-                            <button
-                              type="button"
-                              onClick={() => setSellReceivedAmount(sellGrandTotal.toString())}
-                              className="text-[10px] bg-emerald-200/60 hover:bg-emerald-200 text-emerald-900 px-1.5 py-0.5 rounded font-bold cursor-pointer"
-                            >
-                              সমান (৳{sellGrandTotal.toFixed(0)})
-                            </button>
-                            {[50, 100, 500, 1000].map(amt => (
+                          {/* Quick note buttons */}
+                          <div className="flex items-center gap-1.5 justify-end">
+                            <span className="text-[10px] text-slate-500 font-semibold mr-1">কুইক নোট:</span>
+                            {[50, 100, 200, 500, 1000].map(amt => (
                               <button
                                 key={amt}
                                 type="button"
                                 onClick={() => setSellReceivedAmount(amt.toString())}
-                                className="text-[10px] bg-slate-200 hover:bg-slate-300 text-slate-800 px-1.5 py-0.5 rounded font-bold cursor-pointer"
+                                className="text-[10px] bg-white hover:bg-emerald-50 text-slate-700 hover:text-emerald-800 border border-slate-300 px-1.5 py-0.5 rounded font-bold cursor-pointer transition-colors"
                               >
                                 ৳{amt}
                               </button>
@@ -2411,15 +2422,21 @@ export const AdminPortal = () => {
                           </div>
 
                           {sellChangeDue > 0 && (
-                            <div className="flex justify-between items-center text-xs font-black text-emerald-800 pt-1 border-t border-emerald-200">
-                              <span>ফেরত দিন:</span>
-                              <span className="text-sm">৳{sellChangeDue.toFixed(2)}</span>
+                            <div className="flex justify-between items-center bg-emerald-100/90 border border-emerald-300 p-2 rounded-none text-xs font-black text-emerald-900">
+                              <span className="flex items-center gap-1">
+                                <CheckCircle2 className="w-4 h-4 text-emerald-700" />
+                                <span>কাস্টমারকে ফেরত দিন (Change):</span>
+                              </span>
+                              <span className="text-base text-[#02975E]">৳{sellChangeDue.toFixed(2)}</span>
                             </div>
                           )}
                           {sellDueAmount > 0 && (
-                            <div className="flex justify-between items-center text-xs font-black text-amber-800 pt-1 border-t border-amber-200">
-                              <span>বাকি রয়েছে:</span>
-                              <span className="text-sm">৳{sellDueAmount.toFixed(2)}</span>
+                            <div className="flex justify-between items-center bg-amber-100 border border-amber-300 p-2 rounded-none text-xs font-black text-amber-900">
+                              <span className="flex items-center gap-1">
+                                <AlertCircle className="w-4 h-4 text-amber-700" />
+                                <span>বাকি রয়েছে (Due):</span>
+                              </span>
+                              <span className="text-base text-amber-700">৳{sellDueAmount.toFixed(2)}</span>
                             </div>
                           )}
                         </div>
