@@ -1257,25 +1257,63 @@ export const AdminPortal = () => {
     (sellMedPage - 1) * sellMedItemsPerPage + sellMedItemsPerPage
   );
 
+  // POS Unit Label Helper (Retail counter sales are in Tablet / Capsule / Piece)
+  const getSellUnitLabel = (med) => {
+    if (!med) return 'পিস';
+    const type = (med.type || '').toLowerCase();
+    const name = (med.name || '').toLowerCase();
+
+    if (type.includes('syrup') || type.includes('suspension')) return 'বোতল';
+    if (type.includes('cream') || type.includes('ointment') || type.includes('gel')) return 'টিউব';
+    if (type.includes('drop')) return 'ড্রপ';
+    if (type.includes('injection') || type.includes('ampoule') || type.includes('vial')) return 'ভায়াল';
+    if (type.includes('inhaler')) return 'ইনহেলার';
+    if (type.includes('capsule') || name.includes('capsule') || type.includes('cap')) return 'ক্যাপসুল (পিস)';
+    if (type.includes('tablet') || name.includes('tablet') || type.includes('tab')) return 'ট্যাবলেট (পিস)';
+    if (med.unitLabel && med.unitLabel !== 'পাতা' && med.unitLabel !== 'Strip') return med.unitLabel;
+    return 'পিস';
+  };
+
+  // POS Unit Price Helper (per Tablet / per Piece price)
+  const getSellUnitPrice = (med) => {
+    if (!med) return 10;
+    if (typeof med.pricePerUnit === 'number' && med.pricePerUnit > 0) {
+      return Number(med.pricePerUnit);
+    }
+    if (typeof med.pricePerStrip === 'number' && med.pricePerStrip > 0) {
+      const size = Number(med.stripSize) || 1;
+      return Number((med.pricePerStrip / size).toFixed(2));
+    }
+    if (typeof med.price === 'number' && med.price > 0) {
+      const size = Number(med.stripSize) || 1;
+      if (size > 1 && !med.type?.toLowerCase().includes('bottle')) {
+        return Number((med.price / size).toFixed(2));
+      }
+      return Number(med.price);
+    }
+    return 10;
+  };
+
   // Cart actions
   const addToSellCart = (med) => {
     setSellCart(prev => {
       const existing = prev.find(it => it.id === med.id);
       const stock = typeof med.stock === 'number' ? med.stock : 100;
-      const unitPrice = Number(med.price || med.pricePerStrip || med.pricePerUnit || 10);
+      const unitPrice = getSellUnitPrice(med);
+      const unitLabel = getSellUnitLabel(med);
       if (existing) {
-        if (existing.quantity >= stock) {
-          showToast?.(`স্টকে মাত্র ${stock} টি রয়েছে!`, 'error');
+        if (Number(existing.quantity) >= stock) {
+          showToast?.(`স্টকে মাত্র ${stock} ${unitLabel} রয়েছে!`, 'error');
           return prev;
         }
-        return prev.map(it => it.id === med.id ? { ...it, quantity: it.quantity + 1 } : it);
+        return prev.map(it => it.id === med.id ? { ...it, quantity: (Number(it.quantity) || 0) + 1 } : it);
       }
       return [...prev, {
         id: med.id,
         name: med.name,
         generic: med.generic || '',
         price: unitPrice,
-        unitLabel: med.unitLabel || (med.type === 'Syrup' ? 'বোতল' : 'পাতা'),
+        unitLabel: unitLabel,
         quantity: 1,
         stock: stock
       }];
@@ -1296,7 +1334,7 @@ export const AdminPortal = () => {
     }
     const stock = typeof target.stock === 'number' ? target.stock : 999;
     if (num > stock) {
-      showToast?.(`স্টকে মাত্র ${stock} টি রয়েছে!`, 'error');
+      showToast?.(`স্টকে মাত্র ${stock} ${target.unitLabel || 'টি'} রয়েছে!`, 'error');
       setSellCart(prev => prev.map(it => it.id === id ? { ...it, quantity: stock } : it));
       return;
     }
@@ -1336,7 +1374,7 @@ export const AdminPortal = () => {
         name: it.name,
         price: Number(it.price) || 0,
         quantity: Math.max(1, Number(it.quantity) || 1),
-        unitLabel: it.unitLabel || 'পাতা'
+        unitLabel: it.unitLabel || 'পিস'
       })),
       subtotal: Number(sellSubtotal.toFixed(2)),
       discount: Number(sellDiscountAmount.toFixed(2)),
@@ -2048,9 +2086,9 @@ export const AdminPortal = () => {
                             const inCart = sellCart.find(it => it.id === med.id);
                             const stock = typeof med.stock === 'number' ? med.stock : 100;
                             const isOutOfStock = stock <= 0;
-                            const medPrice = Number(med.price || med.pricePerStrip || med.pricePerUnit || 10).toFixed(2);
+                            const unitPrice = getSellUnitPrice(med);
                             const medCompany = (med.manufacturer || med.company || 'বাংলাদেশ ফার্মাসিউটিক্যালস').replace(/MedEx(\s*Bangladesh)?(\s*Verified)?/gi, 'বাংলাদেশ ফার্মাসিউটিক্যালস');
-                            const medUnit = med.unitLabel || (med.type === 'Syrup' ? 'বোতল' : 'পাতা');
+                            const medUnit = getSellUnitLabel(med);
 
                             return (
                               <div
@@ -2066,9 +2104,19 @@ export const AdminPortal = () => {
                                     <h4 className="font-extrabold text-xs text-slate-900 leading-tight">
                                       {med.name}
                                     </h4>
-                                    <span className="font-black text-xs text-[#123184] shrink-0">
-                                      ৳{medPrice}
-                                    </span>
+                                    <div className="text-right shrink-0">
+                                      <span className="font-black text-xs text-[#123184]">
+                                        ৳{unitPrice.toFixed(2)}
+                                      </span>
+                                      <span className="text-[10px] text-slate-500 block font-normal">
+                                        / {medUnit}
+                                      </span>
+                                      {med.stripSize > 1 && med.pricePerStrip ? (
+                                        <span className="text-[9px] text-slate-400 block font-medium">
+                                          (পাতা: ৳{med.pricePerStrip})
+                                        </span>
+                                      ) : null}
+                                    </div>
                                   </div>
 
                                   <p className="text-[10px] text-slate-500 mt-0.5 line-clamp-1">
@@ -2279,7 +2327,7 @@ export const AdminPortal = () => {
                               <div className="flex-1 min-w-0">
                                 <div className="font-bold text-slate-900 truncate">{item.name}</div>
                                 <div className="text-[10px] text-slate-500">
-                                  ৳{item.price} × {item.quantity || 0} {item.unitLabel}
+                                  ৳{Number(item.price).toFixed(2)} × {item.quantity || 0} {item.unitLabel}
                                 </div>
                               </div>
 
