@@ -1139,11 +1139,14 @@ export const AdminPortal = () => {
           {/* Logo & Header */}
           <div className="text-center space-y-2">
             <div className="flex justify-center mb-1">
-              <img 
-                src="/logo.png" 
-                alt="বেলী ফার্মেসি" 
-                className="h-12 w-auto object-contain"
-              />
+              <div className="logo-animated-wrapper">
+                <img 
+                  src="/logo.png" 
+                  alt="বেলী ফার্মেসি" 
+                  className="h-12 w-auto object-contain"
+                />
+                <span className="logo-animated-shine" aria-hidden="true" />
+              </div>
             </div>
             <h2 className="text-xl sm:text-2xl font-black text-[#123184] tracking-tight">
               অ্যাডমিন কন্ট্রোল প্যানেল
@@ -1265,11 +1268,14 @@ export const AdminPortal = () => {
           {/* Logo container */}
           <div className="p-4 border-b border-white/10 flex items-center justify-between">
             <div className="bg-white p-2 rounded-xl shadow-xs">
-              <img 
-                src="/logo.png" 
-                alt="বেলী ফার্মেসি" 
-                className="h-8 w-auto object-contain"
-              />
+              <div className="logo-animated-wrapper">
+                <img 
+                  src="/logo.png" 
+                  alt="বেলী ফার্মেসি" 
+                  className="h-8 w-auto object-contain"
+                />
+                <span className="logo-animated-shine" aria-hidden="true" />
+              </div>
             </div>
             <span className="bg-gradient-to-r from-[#02975E] to-emerald-400 text-white text-[9px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider shadow-xs">
               Admin
