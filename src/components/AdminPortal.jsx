@@ -1523,7 +1523,6 @@ export const AdminPortal = () => {
   const [restockInvoiceNo, setRestockInvoiceNo] = useState('');
   const [restockSupplier, setRestockSupplier] = useState('');
   const [restockNote, setRestockNote] = useState('');
-  const [restockFilterTab, setRestockFilterTab] = useState('all'); // 'all', 'low', 'out'
   const [restockSearchMedexResults, setRestockSearchMedexResults] = useState([]);
   const [isRestockMedexLoading, setIsRestockMedexLoading] = useState(false);
   const [restockQuickAddInputs, setRestockQuickAddInputs] = useState({});
@@ -1569,32 +1568,16 @@ export const AdminPortal = () => {
 
   useEffect(() => {
     setRestockMedPage(1);
-  }, [restockSearch, restockFilterTab]);
+  }, [restockSearch]);
 
   // Filtered medicines for Stock In search
   const filteredRestockMedicines = useMemo(() => {
     const q = restockSearch.trim();
-    let results = [];
     if (q) {
-      results = mergeSearchResults(searchMedicines(medicines, q), restockSearchMedexResults);
-    } else {
-      results = [...medicines];
+      return mergeSearchResults(searchMedicines(medicines, q), restockSearchMedexResults);
     }
-
-    if (restockFilterTab === 'low') {
-      results = results.filter(m => {
-        const stk = typeof m.stock === 'number' ? m.stock : 100;
-        return stk <= 15 && stk > 0;
-      });
-    } else if (restockFilterTab === 'out') {
-      results = results.filter(m => {
-        const stk = typeof m.stock === 'number' ? m.stock : 100;
-        return stk === 0;
-      });
-    }
-
-    return results;
-  }, [medicines, restockSearch, restockSearchMedexResults, restockFilterTab]);
+    return [...medicines];
+  }, [medicines, restockSearch, restockSearchMedexResults]);
 
   const totalRestockMedPages = Math.ceil(filteredRestockMedicines.length / restockMedPerPage) || 1;
   const paginatedRestockMedicines = filteredRestockMedicines.slice(
@@ -3040,7 +3023,7 @@ export const AdminPortal = () => {
             <div className="space-y-6">
               
               {/* Top Banner / Info Bar */}
-              <div className="bg-gradient-to-r from-[#123184] via-[#0d2463] to-[#02975E] text-white p-5 sm:p-6 rounded-none shadow-md flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+              <div className="bg-gradient-to-r from-[#123184] via-[#0d2463] to-[#02975E] text-white p-5 sm:p-6 rounded-none shadow-md flex items-center justify-between gap-4">
                 <div className="space-y-1">
                   <div className="flex items-center gap-2.5">
                     <div className="w-10 h-10 rounded-xl bg-white/15 backdrop-blur-xs flex items-center justify-center text-emerald-300 shadow-xs">
@@ -3054,49 +3037,6 @@ export const AdminPortal = () => {
                         ওষুধের নাম লিখে সার্চ করুন এবং নতুন আসা সংখ্যা যোগ করে সরাসরি ইনভেন্টরি স্টক বৃদ্ধি করুন।
                       </p>
                     </div>
-                  </div>
-                </div>
-
-                {/* 4 Stats Chips */}
-                <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
-                  <button
-                    type="button"
-                    onClick={() => { setRestockFilterTab('all'); setRestockSearch(''); }}
-                    className={`px-3 py-1.5 rounded-none text-xs font-bold transition-all cursor-pointer border ${
-                      restockFilterTab === 'all' && !restockSearch
-                        ? 'bg-white text-[#123184] border-white shadow-xs'
-                        : 'bg-white/10 hover:bg-white/20 text-white border-white/20'
-                    }`}
-                  >
-                    <span>মোট ওষুধ:</span> <strong className="ml-1 text-emerald-300">{medicines.length}</strong>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setRestockFilterTab('low')}
-                    className={`px-3 py-1.5 rounded-none text-xs font-bold transition-all cursor-pointer border ${
-                      restockFilterTab === 'low'
-                        ? 'bg-amber-400 text-slate-900 border-amber-400 shadow-xs'
-                        : 'bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 border-amber-400/40'
-                    }`}
-                  >
-                    <span>⚠️ স্বল্প স্টক:</span> <strong className="ml-1">{lowStockCount}</strong>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setRestockFilterTab('out')}
-                    className={`px-3 py-1.5 rounded-none text-xs font-bold transition-all cursor-pointer border ${
-                      restockFilterTab === 'out'
-                        ? 'bg-rose-500 text-white border-rose-500 shadow-xs'
-                        : 'bg-rose-500/20 hover:bg-rose-500/30 text-rose-200 border-rose-400/40'
-                    }`}
-                  >
-                    <span>❌ স্টক শূন্য:</span> <strong className="ml-1">{outOfStockCount}</strong>
-                  </button>
-
-                  <div className="px-3 py-1.5 rounded-none bg-emerald-500/20 border border-emerald-400/30 text-xs font-bold text-emerald-200">
-                    <span>হিস্টোরি লগ:</span> <strong className="ml-1 text-white">{restockLogs.length} টি</strong>
                   </div>
                 </div>
               </div>
@@ -3158,43 +3098,6 @@ export const AdminPortal = () => {
                         <span>লাইভ বাংলাদেশ ড্রাগ ডাটাবেজ থেকে খোঁজা হচ্ছে...</span>
                       </div>
                     )}
-                  </div>
-
-                  {/* Filter Pills */}
-                  <div className="flex items-center gap-1.5 flex-wrap text-xs">
-                    <button
-                      type="button"
-                      onClick={() => setRestockFilterTab('all')}
-                      className={`px-2.5 py-1 text-[11px] font-bold rounded-none transition-all cursor-pointer border ${
-                        restockFilterTab === 'all'
-                          ? 'bg-[#123184] text-white border-[#123184]'
-                          : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
-                      }`}
-                    >
-                      সকল ওষুধ ({medicines.length})
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setRestockFilterTab('low')}
-                      className={`px-2.5 py-1 text-[11px] font-bold rounded-none transition-all cursor-pointer border ${
-                        restockFilterTab === 'low'
-                          ? 'bg-amber-500 text-slate-900 border-amber-500'
-                          : 'bg-amber-50 text-amber-800 border-amber-200 hover:bg-amber-100'
-                      }`}
-                    >
-                      ⚠️ কম স্টক ({lowStockCount})
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setRestockFilterTab('out')}
-                      className={`px-2.5 py-1 text-[11px] font-bold rounded-none transition-all cursor-pointer border ${
-                        restockFilterTab === 'out'
-                          ? 'bg-rose-600 text-white border-rose-600'
-                          : 'bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100'
-                      }`}
-                    >
-                      ❌ স্টক শেষ ({outOfStockCount})
-                    </button>
                   </div>
 
                   {/* Medicines Search Results List */}
@@ -3385,36 +3288,6 @@ export const AdminPortal = () => {
                           বাম পাশের সার্চ বক্স থেকে ওষুধের নাম লিখে ওষুধটি নির্বাচন করুন। এরপর নতুন আনা সংখ্যা দিলেই আগের স্টকের সাথে যোগ হয়ে স্বয়ংক্রিয়ভাবে স্টক আপডেট হবে।
                         </p>
                       </div>
-
-                      {/* Quick select chips for low-stock items */}
-                      {medicines.filter(m => (typeof m.stock === 'number' ? m.stock : 100) <= 25).length > 0 && (
-                        <div className="pt-3 border-t border-slate-200/60 max-w-lg mx-auto">
-                          <span className="block text-[11px] font-bold text-slate-600 mb-2">
-                            ⚡ দ্রুত রিস্টক করতে ক্লিক করুন:
-                          </span>
-                          <div className="flex flex-wrap items-center justify-center gap-1.5">
-                            {medicines
-                              .filter(m => (typeof m.stock === 'number' ? m.stock : 100) <= 25)
-                              .slice(0, 6)
-                              .map(m => (
-                                <button
-                                  key={m.id}
-                                  type="button"
-                                  onClick={() => {
-                                    setRestockSelectedMed(m);
-                                    setRestockAddedQty('10');
-                                  }}
-                                  className="px-2.5 py-1 rounded bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-900 text-xs font-bold transition-all cursor-pointer flex items-center gap-1 shadow-2xs"
-                                >
-                                  <span>{m.name}</span>
-                                  <span className="text-[10px] bg-amber-200 text-amber-900 px-1 rounded font-black">
-                                    {m.stock}
-                                  </span>
-                                </button>
-                              ))}
-                          </div>
-                        </div>
-                      )}
                     </div>
                   ) : (
                     /* Active Restock Workspace Form */
