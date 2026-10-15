@@ -395,6 +395,11 @@ class ErrorBoundary extends React.Component {
               <p className="text-xs text-slate-500 mt-1">
                 ওয়েব অ্যাপ্লিকেশনটি নিরাপদে পুনরায় লোড করতে নিচের বাটনে চাপ দিন।
               </p>
+              {this.state.error && (
+                <div className="mt-2.5 p-2 bg-rose-50 border border-rose-200 rounded-lg text-[11px] font-mono text-rose-700 text-left overflow-x-auto">
+                  {String(this.state.error?.message || this.state.error)}
+                </div>
+              )}
             </div>
             <button
               onClick={this.handleReset}
