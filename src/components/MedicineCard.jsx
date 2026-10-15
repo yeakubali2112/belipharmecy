@@ -1,20 +1,26 @@
 import React, { useState } from 'react';
-import { ShoppingCart, Plus, Minus, Info, Check, AlertCircle, Shield, Loader2 } from 'lucide-react';
+import { ShoppingCart, Plus, Minus, Info, Check, AlertCircle, Shield, Loader2, Package } from 'lucide-react';
 import { useShop } from '../context/ShopContext';
 
 export const MedicineCard = ({ medicine }) => {
-  const { lang, addToCart, setSelectedMedicine } = useShop();
+  const { lang, addToCart, setSelectedMedicine, medicines } = useShop();
 
   // Unit selection: 'strip' or 'unit'
   const [unitType, setUnitType] = useState('strip');
   const [quantity, setQuantity] = useState(1);
   const [btnState, setBtnState] = useState('idle'); // 'idle' | 'loading' | 'success'
 
+  // Get synchronized live stock from context
+  const liveMed = (medicines && medicines.find(m => m.id === medicine.id)) || medicine;
+  const stockCount = typeof liveMed.stock === 'number' ? liveMed.stock : 100;
+  const isOutOfStock = stockCount <= 0;
+
   const price = unitType === 'strip' ? medicine.pricePerStrip : medicine.pricePerUnit;
   const discountPercent = medicine.discountPercent || 0;
   const discountedPrice = discountPercent > 0 ? (price * (1 - discountPercent / 100)) : price;
 
   const handleAddToCart = () => {
+    if (isOutOfStock) return;
     if (btnState !== 'idle') return;
     setBtnState('loading');
     setTimeout(() => {
@@ -80,6 +86,24 @@ export const MedicineCard = ({ medicine }) => {
         <span className="absolute bottom-2 right-3 bg-white/95 text-slate-600 text-[11px] font-semibold px-2 py-0.5 rounded-md border border-slate-200">
           {medicine.type}
         </span>
+
+        {/* Live Available Stock Badge on Image */}
+        <div className="absolute bottom-2 left-3 z-10">
+          <span className={`text-[10px] font-black px-2 py-0.5 rounded-md backdrop-blur-xs flex items-center gap-1 border shadow-2xs ${
+            isOutOfStock
+              ? 'bg-rose-50/95 text-rose-700 border-rose-200' 
+              : stockCount <= 15 
+              ? 'bg-amber-50/95 text-amber-800 border-amber-300' 
+              : 'bg-emerald-50/95 text-emerald-800 border-emerald-200'
+          }`}>
+            <span className={`w-1.5 h-1.5 rounded-full ${isOutOfStock ? 'bg-rose-500' : stockCount <= 15 ? 'bg-amber-500 animate-pulse' : 'bg-[#02975E]'}`} />
+            <span>
+              {isOutOfStock 
+                ? (lang === 'bn' ? 'স্টক শেষ' : 'Out of Stock') 
+                : (lang === 'bn' ? `স্টক: ${stockCount} পিস` : `Stock: ${stockCount} pcs`)}
+            </span>
+          </span>
+        </div>
       </div>
 
       {/* Product Content Details */}
@@ -109,6 +133,26 @@ export const MedicineCard = ({ medicine }) => {
           <p className="text-xs text-slate-500 italic line-clamp-1 mt-0.5" title={medicine.generic}>
             {medicine.generic}
           </p>
+
+          {/* Available Stock Indicator Row */}
+          <div className="flex items-center justify-between text-[11px] pt-1.5">
+            <span className="font-semibold text-slate-500 flex items-center gap-1">
+              <Package className="w-3.5 h-3.5 text-[#02975E]" />
+              <span>{lang === 'bn' ? 'মজুদ স্টক:' : 'In Stock:'}</span>
+            </span>
+            <span className={`font-black px-2 py-0.5 rounded-md flex items-center gap-1 text-[11px] ${
+              isOutOfStock 
+                ? 'bg-rose-100 text-rose-700' 
+                : stockCount <= 15 
+                ? 'bg-amber-100 text-amber-900 animate-pulse' 
+                : 'bg-emerald-50 text-emerald-800 border border-emerald-200/60'
+            }`}>
+              <span className={`w-1.5 h-1.5 rounded-full ${isOutOfStock ? 'bg-rose-500' : stockCount <= 15 ? 'bg-amber-500' : 'bg-[#02975E]'}`} />
+              {isOutOfStock 
+                ? (lang === 'bn' ? 'স্টক শেষ (০ পিস)' : 'Out of Stock') 
+                : (lang === 'bn' ? `${stockCount} পিস` : `${stockCount} pcs`)}
+            </span>
+          </div>
         </div>
 
         {/* Unit Selection (Strip vs Piece) */}
@@ -163,16 +207,18 @@ export const MedicineCard = ({ medicine }) => {
           <div className="flex items-center border border-slate-200 rounded-lg overflow-hidden bg-slate-50">
             <button
               onClick={() => setQuantity(Math.max(1, quantity - 1))}
-              className="p-1 text-slate-500 hover:text-slate-800 hover:bg-slate-200 cursor-pointer"
+              disabled={isOutOfStock}
+              className="p-1 text-slate-500 hover:text-slate-800 hover:bg-slate-200 cursor-pointer disabled:opacity-40"
             >
               <Minus className="w-3.5 h-3.5" />
             </button>
             <span className="px-2 text-xs font-bold text-slate-800">
-              {quantity}
+              {isOutOfStock ? 0 : quantity}
             </span>
             <button
               onClick={() => setQuantity(quantity + 1)}
-              className="p-1 text-slate-500 hover:text-slate-800 hover:bg-slate-200 cursor-pointer"
+              disabled={isOutOfStock || quantity >= stockCount}
+              className="p-1 text-slate-500 hover:text-slate-800 hover:bg-slate-200 cursor-pointer disabled:opacity-40"
             >
               <Plus className="w-3.5 h-3.5" />
             </button>
@@ -190,16 +236,20 @@ export const MedicineCard = ({ medicine }) => {
           
           <button
             onClick={handleAddToCart}
-            disabled={btnState === 'loading'}
-            className={`col-span-3 py-2 px-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-md active:scale-95 ${
-              btnState === 'success'
+            disabled={isOutOfStock || btnState === 'loading'}
+            className={`col-span-3 py-2 px-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-all shadow-md active:scale-95 ${
+              isOutOfStock
+                ? 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none'
+                : btnState === 'success'
                 ? 'bg-gradient-to-r from-[#02975E] to-[#027e4e] text-white shadow-emerald-700/20' 
                 : btnState === 'loading'
                 ? 'bg-gradient-to-r from-[#123184] to-[#02975E] opacity-90 text-white cursor-wait'
-                : 'bg-gradient-to-r from-[#123184] to-[#02975E] hover:from-[#0e276b] hover:to-[#027e4e] text-white shadow-[#123184]/25 hover:shadow-lg'
+                : 'bg-gradient-to-r from-[#123184] to-[#02975E] hover:from-[#0e276b] hover:to-[#027e4e] text-white shadow-[#123184]/25 hover:shadow-lg cursor-pointer'
             }`}
           >
-            {btnState === 'loading' ? (
+            {isOutOfStock ? (
+              <span>{lang === 'bn' ? 'স্টক শেষ' : 'Out of Stock'}</span>
+            ) : btnState === 'loading' ? (
               <>
                 <Loader2 className="w-3.5 h-3.5 animate-spin text-white" />
                 <span>{lang === 'bn' ? 'যোগ হচ্ছে...' : 'Adding...'}</span>
