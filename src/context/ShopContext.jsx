@@ -647,6 +647,57 @@ export const ShopProvider = ({ children }) => {
     }, 3500);
   };
 
+  // Order Notification in Bottom-Right
+  const [orderNotification, setOrderNotification] = useState(null);
+  const notificationTimeoutRef = useRef(null);
+  const knownOrderIdsRef = useRef(new Set());
+
+  const playNotificationSound = () => {
+    try {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (!AudioCtx) return;
+      const audioCtx = new AudioCtx();
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(587.33, audioCtx.currentTime); // D5
+      osc.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.15); // A5
+      gain.gain.setValueAtTime(0.35, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.6);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start();
+      osc.stop(audioCtx.currentTime + 0.6);
+    } catch (e) {
+      // AudioContext may require user interaction on some browsers
+    }
+  };
+
+  const triggerOrderNotification = (order) => {
+    if (!order) return;
+    playNotificationSound();
+    setOrderNotification({
+      id: order.id,
+      customerName: order.customerName,
+      customerPhone: order.customerPhone,
+      totalAmount: order.totalAmount || order.total || order.subtotal || 0,
+      itemsCount: order.items?.length || 0,
+      order: order,
+      time: new Date().toLocaleTimeString('bn-BD', { hour: '2-digit', minute: '2-digit' })
+    });
+    if (notificationTimeoutRef.current) clearTimeout(notificationTimeoutRef.current);
+    notificationTimeoutRef.current = setTimeout(() => {
+      setOrderNotification(null);
+    }, 9000);
+  };
+
+  // Pre-seed known order ids
+  useEffect(() => {
+    if (orders && orders.length > 0 && knownOrderIdsRef.current.size === 0) {
+      orders.forEach(o => o && o.id && knownOrderIdsRef.current.add(o.id));
+    }
+  }, [orders]);
+
   // Sync state to local storage
   useEffect(() => {
     safeSetItem('beli_medicines', JSON.stringify(medicines));
@@ -813,6 +864,17 @@ export const ShopProvider = ({ children }) => {
       try {
         const cloudOrders = await fetchCloudOrders();
         if (cloudOrders && Array.isArray(cloudOrders) && isMounted) {
+          // Detect incoming new orders from cloud sync
+          if (knownOrderIdsRef.current.size > 0) {
+            const freshOrders = cloudOrders.filter(o => o && o.id && !knownOrderIdsRef.current.has(o.id));
+            if (freshOrders.length > 0) {
+              freshOrders.forEach(o => knownOrderIdsRef.current.add(o.id));
+              triggerOrderNotification(freshOrders[0]);
+            }
+          } else {
+            cloudOrders.forEach(o => o && o.id && knownOrderIdsRef.current.add(o.id));
+          }
+
           setOrders(prev => {
             const map = new Map();
             prev.forEach(o => map.set(o.id, o));
@@ -958,6 +1020,8 @@ export const ShopProvider = ({ children }) => {
     saveCloudCustomer(profile);
 
     setActiveInvoiceOrder(newOrder);
+    knownOrderIdsRef.current.add(newId);
+    triggerOrderNotification(newOrder);
     showToast(
       lang === 'bn' 
         ? `অর্ডার সফল! আপনার প্রোফাইল তৈরি হয়েছে। আইডি: ${newId}` 
@@ -1278,7 +1342,12 @@ export const ShopProvider = ({ children }) => {
 
       // Toast
       toast,
-      showToast
+      showToast,
+
+      // Order Notification (Bottom-Right)
+      orderNotification,
+      setOrderNotification,
+      triggerOrderNotification
     }}>
       {children}
     </ShopContext.Provider>

@@ -16,6 +16,7 @@ import { AdminPortal } from './components/AdminPortal';
 import { CustomerProfileModal } from './components/CustomerProfileModal';
 import { AdPopupModal } from './components/AdPopupModal';
 import { Footer } from './components/Footer';
+import { OrderNotificationToast } from './components/OrderNotificationToast';
 import { 
   Phone, 
   MessageCircle, 
@@ -125,15 +126,8 @@ const MainApp = () => {
   if (currentView === 'admin') {
     return (
       <div className="min-h-screen bg-slate-50 relative selection:bg-[#02975E] selection:text-white">
-        {/* Toast Alert */}
-        {toast && (
-          <div className="fixed top-6 right-4 z-50 flex items-center gap-2 bg-slate-900 text-white px-4 py-3 rounded-2xl shadow-2xl border border-slate-700 animate-in slide-in-from-top-4 fade-in">
-            {toast.type === 'success' && <CheckCircle2 className="w-4 h-4 text-emerald-400" />}
-            {toast.type === 'error' && <AlertCircle className="w-4 h-4 text-rose-400" />}
-            {toast.type === 'info' && <Info className="w-4 h-4 text-sky-400" />}
-            <span className="text-xs sm:text-sm font-semibold">{toast.message}</span>
-          </div>
-        )}
+        {/* Real-time Order Notification & Toast Alert (Bottom-Right) */}
+        <OrderNotificationToast isUserView={false} />
 
         <AdminPortal />
         <InvoiceModal />
@@ -143,15 +137,8 @@ const MainApp = () => {
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 relative selection:bg-emerald-600 selection:text-white">
-      {/* Toast Alert */}
-      {toast && (
-        <div className="fixed top-20 right-4 z-50 flex items-center gap-2 bg-slate-900 text-white px-4 py-3 rounded-2xl shadow-2xl border border-slate-700 animate-in slide-in-from-top-4 fade-in">
-          {toast.type === 'success' && <CheckCircle2 className="w-4 h-4 text-emerald-400" />}
-          {toast.type === 'error' && <AlertCircle className="w-4 h-4 text-rose-400" />}
-          {toast.type === 'info' && <Info className="w-4 h-4 text-sky-400" />}
-          <span className="text-xs sm:text-sm font-semibold">{toast.message}</span>
-        </div>
-      )}
+      {/* Real-time Order Notification & Toast Alert (Bottom-Right) */}
+      <OrderNotificationToast isUserView={true} />
 
       {/* Header */}
       <Header />
