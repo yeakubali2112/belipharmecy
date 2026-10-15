@@ -1150,6 +1150,74 @@ export const AdminPortal = () => {
   const [sellHistoryPage, setSellHistoryPage] = useState(1);
   const sellHistoryPerPage = 10;
 
+  // Floating POS Quick Calculator State & Handlers
+  const [isCalculatorOpen, setIsCalculatorOpen] = useState(false);
+  const [calcInput, setCalcInput] = useState('');
+  const [calcResult, setCalcResult] = useState('');
+
+  const handleCalcKeyPress = (btn) => {
+    if (btn === 'C') {
+      setCalcInput('');
+      setCalcResult('');
+    } else if (btn === 'DEL') {
+      setCalcInput(prev => prev.slice(0, -1));
+    } else if (btn === '=') {
+      try {
+        const clean = calcInput.replace(/×/g, '*').replace(/÷/g, '/');
+        if (/^[0-9+\-*/%.() ]+$/.test(clean)) {
+          const res = Function(`'use strict'; return (${clean})`)();
+          if (typeof res === 'number' && !isNaN(res) && isFinite(res)) {
+            const formatted = Number(res.toFixed(2)).toString();
+            setCalcResult(formatted);
+            setCalcInput(formatted);
+          }
+        }
+      } catch (err) {
+        setCalcResult('Error');
+      }
+    } else {
+      setCalcInput(prev => {
+        const lastChar = prev.slice(-1);
+        const operators = ['+', '-', '×', '÷', '%'];
+        if (operators.includes(btn) && operators.includes(lastChar)) {
+          return prev.slice(0, -1) + btn;
+        }
+        return prev + btn;
+      });
+    }
+  };
+
+  useEffect(() => {
+    if (!isCalculatorOpen) return;
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        setIsCalculatorOpen(false);
+      } else if (e.key >= '0' && e.key <= '9') {
+        handleCalcKeyPress(e.key);
+      } else if (e.key === '+') {
+        handleCalcKeyPress('+');
+      } else if (e.key === '-') {
+        handleCalcKeyPress('-');
+      } else if (e.key === '*' || e.key === 'x') {
+        handleCalcKeyPress('×');
+      } else if (e.key === '/') {
+        e.preventDefault();
+        handleCalcKeyPress('÷');
+      } else if (e.key === '.') {
+        handleCalcKeyPress('.');
+      } else if (e.key === 'Enter' || e.key === '=') {
+        e.preventDefault();
+        handleCalcKeyPress('=');
+      } else if (e.key === 'Backspace') {
+        handleCalcKeyPress('DEL');
+      } else if (e.key === 'c' || e.key === 'C') {
+        handleCalcKeyPress('C');
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isCalculatorOpen, calcInput]);
+
   // POS Cart Calculations
   const sellSubtotal = sellCart.reduce((sum, item) => sum + (Number(item.price || 0) * (Number(item.quantity) || 0)), 0);
   const parsedDiscountVal = Math.max(0, Number(sellDiscountValue) || 0);
@@ -6048,6 +6116,238 @@ export const AdminPortal = () => {
                   </div>
                 )}
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Floating Calculator Tag on Right Edge (as requested by user) */}
+      <div className="fixed right-0 top-[48%] -translate-y-1/2 z-40">
+        <button
+          type="button"
+          onClick={() => setIsCalculatorOpen(prev => !prev)}
+          className={`group flex items-center justify-center p-2.5 rounded-l-xl shadow-2xl border-l-2 border-y-2 border-white/40 cursor-pointer transition-all duration-200 hover:pr-3.5 focus:outline-none ${
+            isCalculatorOpen 
+              ? 'bg-rose-600 text-white shadow-rose-500/40 ring-2 ring-rose-400' 
+              : 'bg-[#123184] hover:bg-[#02975E] text-white shadow-blue-900/40'
+          }`}
+          title="ক্যালকুলেটর (Quick Calculator)"
+        >
+          <Calculator className="w-5 h-5 transition-transform group-hover:scale-110" />
+        </button>
+      </div>
+
+      {/* Quick Floating Calculator Modal */}
+      {isCalculatorOpen && (
+        <div className="fixed right-12 top-[48%] -translate-y-1/2 z-50 w-72 bg-white rounded-2xl shadow-2xl border-2 border-[#123184] overflow-hidden animate-in fade-in slide-in-from-right-4 duration-200">
+          {/* Calculator Header */}
+          <div className="bg-[#123184] text-white px-3.5 py-2.5 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Calculator className="w-4 h-4 text-emerald-400" />
+              <span className="text-xs font-bold tracking-wide">ক্যালকুলেটর (Calculator)</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsCalculatorOpen(false)}
+              className="text-white/80 hover:text-white p-1 rounded hover:bg-white/10 cursor-pointer transition-colors"
+              title="বন্ধ করুন (Esc)"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+
+          {/* Calculator Display */}
+          <div className="bg-slate-900 text-white p-3 text-right font-mono select-none">
+            <div className="text-[11px] text-slate-400 min-h-[16px] truncate">
+              {calcInput || '0'}
+            </div>
+            <div className="text-2xl font-black text-emerald-400 tracking-wider truncate">
+              {calcResult || (calcInput ? '' : '0')}
+            </div>
+          </div>
+
+          {/* Keypad */}
+          <div className="p-3 bg-slate-50 space-y-2">
+            <div className="grid grid-cols-4 gap-1.5 text-xs font-bold">
+              <button
+                type="button"
+                onClick={() => handleCalcKeyPress('C')}
+                className="p-2.5 rounded bg-rose-100 hover:bg-rose-200 text-rose-700 cursor-pointer active:scale-95 transition-all"
+              >
+                C
+              </button>
+              <button
+                type="button"
+                onClick={() => handleCalcKeyPress('DEL')}
+                className="p-2.5 rounded bg-slate-200 hover:bg-slate-300 text-slate-700 cursor-pointer active:scale-95 transition-all"
+                title="মুছুন"
+              >
+                ⌫
+              </button>
+              <button
+                type="button"
+                onClick={() => handleCalcKeyPress('%')}
+                className="p-2.5 rounded bg-slate-200 hover:bg-slate-300 text-slate-700 cursor-pointer active:scale-95 transition-all"
+              >
+                %
+              </button>
+              <button
+                type="button"
+                onClick={() => handleCalcKeyPress('÷')}
+                className="p-2.5 rounded bg-blue-100 hover:bg-blue-200 text-[#123184] cursor-pointer active:scale-95 transition-all font-black text-sm"
+              >
+                ÷
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleCalcKeyPress('7')}
+                className="p-2.5 rounded bg-white hover:bg-slate-100 text-slate-900 border border-slate-200 cursor-pointer active:scale-95 transition-all"
+              >
+                7
+              </button>
+              <button
+                type="button"
+                onClick={() => handleCalcKeyPress('8')}
+                className="p-2.5 rounded bg-white hover:bg-slate-100 text-slate-900 border border-slate-200 cursor-pointer active:scale-95 transition-all"
+              >
+                8
+              </button>
+              <button
+                type="button"
+                onClick={() => handleCalcKeyPress('9')}
+                className="p-2.5 rounded bg-white hover:bg-slate-100 text-slate-900 border border-slate-200 cursor-pointer active:scale-95 transition-all"
+              >
+                9
+              </button>
+              <button
+                type="button"
+                onClick={() => handleCalcKeyPress('×')}
+                className="p-2.5 rounded bg-blue-100 hover:bg-blue-200 text-[#123184] cursor-pointer active:scale-95 transition-all font-black text-sm"
+              >
+                ×
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleCalcKeyPress('4')}
+                className="p-2.5 rounded bg-white hover:bg-slate-100 text-slate-900 border border-slate-200 cursor-pointer active:scale-95 transition-all"
+              >
+                4
+              </button>
+              <button
+                type="button"
+                onClick={() => handleCalcKeyPress('5')}
+                className="p-2.5 rounded bg-white hover:bg-slate-100 text-slate-900 border border-slate-200 cursor-pointer active:scale-95 transition-all"
+              >
+                5
+              </button>
+              <button
+                type="button"
+                onClick={() => handleCalcKeyPress('6')}
+                className="p-2.5 rounded bg-white hover:bg-slate-100 text-slate-900 border border-slate-200 cursor-pointer active:scale-95 transition-all"
+              >
+                6
+              </button>
+              <button
+                type="button"
+                onClick={() => handleCalcKeyPress('-')}
+                className="p-2.5 rounded bg-blue-100 hover:bg-blue-200 text-[#123184] cursor-pointer active:scale-95 transition-all font-black text-sm"
+              >
+                -
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleCalcKeyPress('1')}
+                className="p-2.5 rounded bg-white hover:bg-slate-100 text-slate-900 border border-slate-200 cursor-pointer active:scale-95 transition-all"
+              >
+                1
+              </button>
+              <button
+                type="button"
+                onClick={() => handleCalcKeyPress('2')}
+                className="p-2.5 rounded bg-white hover:bg-slate-100 text-slate-900 border border-slate-200 cursor-pointer active:scale-95 transition-all"
+              >
+                2
+              </button>
+              <button
+                type="button"
+                onClick={() => handleCalcKeyPress('3')}
+                className="p-2.5 rounded bg-white hover:bg-slate-100 text-slate-900 border border-slate-200 cursor-pointer active:scale-95 transition-all"
+              >
+                3
+              </button>
+              <button
+                type="button"
+                onClick={() => handleCalcKeyPress('+')}
+                className="p-2.5 rounded bg-blue-100 hover:bg-blue-200 text-[#123184] cursor-pointer active:scale-95 transition-all font-black text-sm"
+              >
+                +
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleCalcKeyPress('0')}
+                className="p-2.5 rounded bg-white hover:bg-slate-100 text-slate-900 border border-slate-200 cursor-pointer active:scale-95 transition-all"
+              >
+                0
+              </button>
+              <button
+                type="button"
+                onClick={() => handleCalcKeyPress('.')}
+                className="p-2.5 rounded bg-white hover:bg-slate-100 text-slate-900 border border-slate-200 cursor-pointer active:scale-95 transition-all font-black text-sm"
+              >
+                .
+              </button>
+              <button
+                type="button"
+                onClick={() => handleCalcKeyPress('00')}
+                className="p-2.5 rounded bg-white hover:bg-slate-100 text-slate-900 border border-slate-200 cursor-pointer active:scale-95 transition-all"
+              >
+                00
+              </button>
+              <button
+                type="button"
+                onClick={() => handleCalcKeyPress('=')}
+                className="p-2.5 rounded bg-[#02975E] hover:bg-[#027e4e] text-white cursor-pointer active:scale-95 transition-all font-black text-base"
+              >
+                =
+              </button>
+            </div>
+
+            {/* Quick Actions */}
+            <div className="pt-2 border-t border-slate-200 flex gap-1.5">
+              <button
+                type="button"
+                onClick={() => {
+                  const val = calcResult || calcInput;
+                  if (val && !isNaN(Number(val))) {
+                    setSellReceivedAmount(val);
+                    showToast?.(`৳${val} ক্যাশ বক্সে বসানো হয়েছে!`, 'success');
+                  } else {
+                    showToast?.('কোনো সংখ্যা হিসাব করা হয়নি!', 'info');
+                  }
+                }}
+                className="flex-1 py-1.5 px-2 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 text-emerald-800 text-[11px] font-bold rounded cursor-pointer transition-colors"
+                title="হিসাব করা টাকা সরাসরি ক্যাশ প্রাপ্তি বক্সে বসান"
+              >
+                📥 ক্যাশ বক্সে বসান
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const val = calcResult || calcInput;
+                  if (val) {
+                    navigator.clipboard?.writeText(val);
+                    showToast?.(`৳${val} কপি হয়েছে!`, 'success');
+                  }
+                }}
+                className="py-1.5 px-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-bold rounded cursor-pointer transition-colors"
+                title="কপি করুন"
+              >
+                📋 কপি
+              </button>
             </div>
           </div>
         </div>
