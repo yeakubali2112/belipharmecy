@@ -323,7 +323,14 @@ export const AdminPanel = () => {
                       <div key={order.id} className="bg-white rounded-2xl border border-slate-200 p-4 space-y-3 shadow-xs">
                         <div className="flex flex-wrap justify-between items-start gap-2 border-b border-slate-100 pb-3">
                           <div>
-                            <span className="text-base font-extrabold text-slate-900">{order.id}</span>
+                            <button
+                              type="button"
+                              onClick={() => setActiveInvoiceOrder(order)}
+                              className="text-base font-extrabold text-[#123184] hover:text-[#02975E] hover:underline decoration-dotted underline-offset-2 cursor-pointer transition-colors"
+                              title="ইনভয়েস ও বিস্তারিত দেখতে ক্লিক করুন"
+                            >
+                              {order.id}
+                            </button>
                             <span className="text-xs text-slate-400 ml-2">{order.createdAt}</span>
                             <div className="text-xs text-slate-700 mt-0.5 font-semibold">
                               {order.customerName} • 📞 <a href={`tel:${order.customerPhone}`} className="text-emerald-700 hover:underline">{order.customerPhone}</a>

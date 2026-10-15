@@ -1561,14 +1561,23 @@ export const AdminPortal = () => {
                       {[...orders].sort((a, b) => getOrderTimestamp(b) - getOrderTimestamp(a)).slice(0, 5).map(o => (
                         <tr key={o.id} className="hover:bg-slate-50">
                           <td className="py-2.5 px-3">
-                            {o.status === 'Pending' ? (
-                              <span className="bp-number-lighting text-xs">
-                                <span className="w-1.5 h-1.5 rounded-full bg-current animate-ping"></span>
-                                <span>{o.id}</span>
-                              </span>
-                            ) : (
-                              <span className="font-bold text-[#123184]">{o.id}</span>
-                            )}
+                            <button
+                              type="button"
+                              onClick={() => setActiveInvoiceOrder(o)}
+                              className="group text-left cursor-pointer transition-all inline-flex items-center gap-1"
+                              title="ইনভয়েস ও বিস্তারিত দেখতে ক্লিক করুন"
+                            >
+                              {o.status === 'Pending' ? (
+                                <span className="bp-number-lighting text-xs group-hover:underline">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-current animate-ping"></span>
+                                  <span>{o.id}</span>
+                                </span>
+                              ) : (
+                                <span className="font-bold text-[#123184] hover:text-[#02975E] underline decoration-dotted underline-offset-2">
+                                  {o.id}
+                                </span>
+                              )}
+                            </button>
                           </td>
                           <td className="py-2.5 px-3 text-slate-500">{o.createdAt}</td>
                           <td className="py-2.5 px-3 font-semibold text-slate-800">
@@ -1669,18 +1678,32 @@ export const AdminPortal = () => {
                           <div>
                             <div className="flex items-center gap-2">
                               {order.status === 'Pending' ? (
-                                <span className="bp-number-lighting text-sm cursor-help" title="নতুন অর্ডার (New Order) - স্ট্যাটাস পরিবর্তন করুন">
-                                  <span className="relative flex h-2 w-2">
-                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-current opacity-75"></span>
-                                    <span className="relative inline-flex rounded-full h-2 w-2 bg-current"></span>
+                                <button
+                                  type="button"
+                                  onClick={() => setActiveInvoiceOrder(order)}
+                                  className="group text-left cursor-pointer inline-flex items-center gap-1.5 focus:outline-none"
+                                  title="ইনভয়েস ও বিস্তারিত দেখতে ক্লিক করুন"
+                                >
+                                  <span className="bp-number-lighting text-sm group-hover:underline">
+                                    <span className="relative flex h-2 w-2">
+                                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-current opacity-75"></span>
+                                      <span className="relative inline-flex rounded-full h-2 w-2 bg-current"></span>
+                                    </span>
+                                    <span>{order.id}</span>
+                                    <span className="text-[9px] uppercase font-black px-1.5 py-0.2 rounded bg-rose-200/50 text-rose-900 border border-rose-300">
+                                      NEW
+                                    </span>
                                   </span>
-                                  <span>{order.id}</span>
-                                  <span className="text-[9px] uppercase font-black px-1.5 py-0.2 rounded bg-rose-200/50 text-rose-900 border border-rose-300">
-                                    NEW
-                                  </span>
-                                </span>
+                                </button>
                               ) : (
-                                <span className="text-base font-black text-[#123184]">{order.id}</span>
+                                <button
+                                  type="button"
+                                  onClick={() => setActiveInvoiceOrder(order)}
+                                  className="text-base font-black text-[#123184] hover:text-[#02975E] hover:underline decoration-dotted underline-offset-2 cursor-pointer transition-colors focus:outline-none"
+                                  title="ইনভয়েস ও বিস্তারিত দেখতে ক্লিক করুন"
+                                >
+                                  {order.id}
+                                </button>
                               )}
                               <span className="text-xs text-slate-400">• {order.createdAt}</span>
                             </div>
@@ -4851,7 +4874,17 @@ export const AdminPortal = () => {
                     {getCustomerStats(inspectCustomer.phone).orders.map((o) => (
                       <div key={o.id} className="p-3.5 border border-slate-200 rounded-xl bg-white space-y-2">
                         <div className="flex items-center justify-between">
-                          <span className="font-bold text-[#123184] font-mono">{o.id}</span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setActiveInvoiceOrder(o);
+                              setInspectCustomer(null);
+                            }}
+                            className="font-bold text-[#123184] hover:text-[#02975E] underline decoration-dotted underline-offset-2 font-mono cursor-pointer transition-colors"
+                            title="ইনভয়েস ও বিস্তারিত দেখতে ক্লিক করুন"
+                          >
+                            {o.id}
+                          </button>
                           <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
                             o.status === 'Delivered' ? 'bg-emerald-100 text-emerald-800' :
                             o.status === 'Cancelled' ? 'bg-rose-100 text-rose-800' :

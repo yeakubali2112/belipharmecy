@@ -613,9 +613,14 @@ export const CustomerProfileModal = () => {
                         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
                           <div className="space-y-0.5">
                             <div className="flex items-center gap-2">
-                              <span className="font-extrabold text-sm text-[#123184]">
+                              <button
+                                type="button"
+                                onClick={() => setActiveInvoiceOrder(order)}
+                                className="font-extrabold text-sm text-[#123184] hover:text-[#02975E] hover:underline decoration-dotted underline-offset-2 cursor-pointer transition-colors"
+                                title="ক্যাশ মেমো / ইনভয়েস দেখতে ক্লিক করুন"
+                              >
                                 #{order.id}
-                              </span>
+                              </button>
                               <span className="text-slate-400">•</span>
                               <span className="text-xs text-slate-500">
                                 {order.createdAt}
