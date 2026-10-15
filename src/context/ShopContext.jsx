@@ -193,6 +193,18 @@ export const ShopProvider = ({ children }) => {
     }
   });
 
+  // Stock In / Restock History Logs
+  const [restockLogs, setRestockLogs] = useState(() => {
+    try {
+      const saved = localStorage.getItem('beli_restock_logs');
+      if (!saved) return [];
+      const parsed = JSON.parse(saved);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  });
+
   // Language: 'bn' or 'en'
   const [lang, setLang] = useState(() => {
     return localStorage.getItem('beli_lang') || 'bn';
@@ -718,6 +730,10 @@ export const ShopProvider = ({ children }) => {
   useEffect(() => {
     safeSetItem('beli_lang', lang);
   }, [lang]);
+
+  useEffect(() => {
+    safeSetItem('beli_restock_logs', JSON.stringify(restockLogs));
+  }, [restockLogs]);
 
   // Cart operations
   const addToCart = (medicine, unitType = 'strip', quantity = 1) => {
@@ -1256,15 +1272,89 @@ export const ShopProvider = ({ children }) => {
   const addMedicine = (newMed) => {
     const med = {
       ...newMed,
-      id: `med-${Date.now()}`
+      id: newMed.id || `med-${Date.now()}`
     };
     setMedicines(prev => [med, ...prev]);
     showToast(lang === 'bn' ? 'নতুন ওষুধ সফলভাবে যুক্ত হয়েছে' : 'New medicine added', 'success');
   };
 
   const updateMedicine = (updatedMed) => {
-    setMedicines(prev => prev.map(m => m.id === updatedMed.id ? updatedMed : m));
+    setMedicines(prev => {
+      const exists = prev.some(m => m.id === updatedMed.id);
+      if (exists) {
+        return prev.map(m => m.id === updatedMed.id ? updatedMed : m);
+      }
+      return [updatedMed, ...prev];
+    });
     showToast(lang === 'bn' ? 'ওষুধের তথ্য আপডেট হয়েছে' : 'Medicine updated', 'success');
+  };
+
+  const restockMedicine = (medicineOrId, addedUnits, logData = {}) => {
+    const targetId = typeof medicineOrId === 'object' ? medicineOrId.id : medicineOrId;
+    let oldStockVal = 0;
+    let newStockVal = 0;
+    let targetMed = null;
+
+    setMedicines(prev => {
+      const existing = prev.find(m => m.id === targetId);
+      const baseMed = existing || (typeof medicineOrId === 'object' ? medicineOrId : null);
+      if (!baseMed) return prev;
+
+      oldStockVal = typeof baseMed.stock === 'number' ? baseMed.stock : 0;
+      const added = Math.max(0, Number(addedUnits) || 0);
+      newStockVal = oldStockVal + added;
+
+      targetMed = {
+        ...baseMed,
+        stock: newStockVal,
+        lastRestockedAt: new Date().toISOString()
+      };
+
+      if (existing) {
+        return prev.map(m => m.id === targetId ? targetMed : m);
+      }
+      return [targetMed, ...prev];
+    });
+
+    if (targetMed) {
+      const logEntry = {
+        id: `rstk-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+        timestamp: Date.now(),
+        dateStr: new Date().toLocaleDateString('bn-BD', { day: 'numeric', month: 'short', year: 'numeric' }),
+        timeStr: new Date().toLocaleTimeString('bn-BD', { hour: '2-digit', minute: '2-digit' }),
+        medicineId: targetMed.id,
+        medicineName: targetMed.name,
+        generic: targetMed.generic || '',
+        company: targetMed.company || '',
+        oldStock: oldStockVal,
+        addedStock: Number(addedUnits) || 0,
+        newStock: newStockVal,
+        unitLabel: logData.unitLabel || 'পিস',
+        invoiceNo: logData.invoiceNo || '',
+        supplier: logData.supplier || '',
+        purchasePrice: logData.purchasePrice || '',
+        adminUser: logData.adminUser || 'yeakub007',
+        note: logData.note || ''
+      };
+
+      setRestockLogs(prev => [logEntry, ...prev].slice(0, 300));
+
+      showToast(
+        lang === 'bn' 
+          ? `✓ ${targetMed.name}-এর স্টক ${oldStockVal} থেকে বৃদ্ধি পেয়ে ${newStockVal} পিস হয়েছে!` 
+          : `✓ Restocked ${targetMed.name}: ${oldStockVal} ➜ ${newStockVal} pcs!`,
+        'success'
+      );
+
+      return { success: true, medicine: targetMed, oldStock: oldStockVal, newStock: newStockVal, logEntry };
+    }
+    return { success: false };
+  };
+
+  const clearRestockLogs = () => {
+    setRestockLogs([]);
+    localStorage.removeItem('beli_restock_logs');
+    showToast(lang === 'bn' ? 'স্টক ইন হিস্টোরি মুছে ফেলা হয়েছে' : 'Restock history cleared', 'info');
   };
 
   const deleteMedicine = (medId) => {
@@ -1360,6 +1450,12 @@ export const ShopProvider = ({ children }) => {
       addMedicine,
       updateMedicine,
       deleteMedicine,
+      resetToDefaultMedicines,
+      // Restock & Stock-in
+      restockMedicine,
+      restockLogs,
+      setRestockLogs,
+      clearRestockLogs,
       // Admin Customer CRUD
       adminUpdateCustomer,
       adminAddCustomer,

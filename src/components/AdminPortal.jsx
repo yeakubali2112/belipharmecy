@@ -56,7 +56,11 @@ import {
   Banknote,
   History,
   Calculator,
-  Store
+  Store,
+  PackagePlus,
+  Boxes,
+  TrendingUp,
+  ArrowUpRight
 } from 'lucide-react';
 import { useShop } from '../context/ShopContext';
 import { CATEGORIES } from '../data/medicines';
@@ -95,6 +99,9 @@ export const AdminPortal = () => {
     updateMedicine,
     deleteMedicine,
     resetToDefaultMedicines,
+    restockMedicine,
+    restockLogs,
+    clearRestockLogs,
     setActiveInvoiceOrder,
     navigateTo,
     isAdminAuthenticated,
@@ -1506,6 +1513,188 @@ export const AdminPortal = () => {
   );
 
   // ==========================================
+  // STOCK IN & INVENTORY RESTOCK STATE & LOGIC
+  // ==========================================
+  const [restockSearch, setRestockSearch] = useState('');
+  const [restockSelectedMed, setRestockSelectedMed] = useState(null);
+  const [restockAddedQty, setRestockAddedQty] = useState('10');
+  const [restockUnitType, setRestockUnitType] = useState('piece'); // 'piece' (পিস) or 'strip' (পাতা)
+  const [restockPurchasePrice, setRestockPurchasePrice] = useState('');
+  const [restockInvoiceNo, setRestockInvoiceNo] = useState('');
+  const [restockSupplier, setRestockSupplier] = useState('');
+  const [restockNote, setRestockNote] = useState('');
+  const [restockFilterTab, setRestockFilterTab] = useState('all'); // 'all', 'low', 'out'
+  const [restockSearchMedexResults, setRestockSearchMedexResults] = useState([]);
+  const [isRestockMedexLoading, setIsRestockMedexLoading] = useState(false);
+  const [restockQuickAddInputs, setRestockQuickAddInputs] = useState({});
+  const [restockHistorySearch, setRestockHistorySearch] = useState('');
+  const [restockHistoryPage, setRestockHistoryPage] = useState(1);
+  const restockHistoryPerPage = 8;
+  const [restockMedPage, setRestockMedPage] = useState(1);
+  const restockMedPerPage = 12;
+
+  // Inventory count badges
+  const lowStockCount = useMemo(() => {
+    return medicines.filter(m => {
+      const s = typeof m.stock === 'number' ? m.stock : 100;
+      return s <= 15 && s > 0;
+    }).length;
+  }, [medicines]);
+
+  const outOfStockCount = useMemo(() => {
+    return medicines.filter(m => (typeof m.stock === 'number' ? m.stock : 100) === 0).length;
+  }, [medicines]);
+
+  // Live MedEx fetch for stock-in search
+  useEffect(() => {
+    const q = restockSearch.trim();
+    if (q.length < 2) {
+      setRestockSearchMedexResults([]);
+      setIsRestockMedexLoading(false);
+      return;
+    }
+    setIsRestockMedexLoading(true);
+    const timer = setTimeout(async () => {
+      try {
+        const liveItems = await fetchMedexSearchResults(q);
+        setRestockSearchMedexResults(liveItems);
+      } catch {
+        setRestockSearchMedexResults([]);
+      } finally {
+        setIsRestockMedexLoading(false);
+      }
+    }, 280);
+    return () => clearTimeout(timer);
+  }, [restockSearch]);
+
+  useEffect(() => {
+    setRestockMedPage(1);
+  }, [restockSearch, restockFilterTab]);
+
+  // Filtered medicines for Stock In search
+  const filteredRestockMedicines = useMemo(() => {
+    const q = restockSearch.trim();
+    let results = [];
+    if (q) {
+      results = mergeSearchResults(searchMedicines(medicines, q), restockSearchMedexResults);
+    } else {
+      results = [...medicines];
+    }
+
+    if (restockFilterTab === 'low') {
+      results = results.filter(m => {
+        const stk = typeof m.stock === 'number' ? m.stock : 100;
+        return stk <= 15 && stk > 0;
+      });
+    } else if (restockFilterTab === 'out') {
+      results = results.filter(m => {
+        const stk = typeof m.stock === 'number' ? m.stock : 100;
+        return stk === 0;
+      });
+    }
+
+    return results;
+  }, [medicines, restockSearch, restockSearchMedexResults, restockFilterTab]);
+
+  const totalRestockMedPages = Math.ceil(filteredRestockMedicines.length / restockMedPerPage) || 1;
+  const paginatedRestockMedicines = filteredRestockMedicines.slice(
+    (restockMedPage - 1) * restockMedPerPage,
+    (restockMedPage - 1) * restockMedPerPage + restockMedPerPage
+  );
+
+  // Synchronize selected medicine with latest live catalog updates
+  const activeRestockMed = useMemo(() => {
+    if (!restockSelectedMed) return null;
+    return medicines.find(m => m.id === restockSelectedMed.id) || restockSelectedMed;
+  }, [medicines, restockSelectedMed]);
+
+  // Current stock count of active restock item
+  const restockCurrentStock = useMemo(() => {
+    if (!activeRestockMed) return 0;
+    return typeof activeRestockMed.stock === 'number' ? activeRestockMed.stock : 0;
+  }, [activeRestockMed]);
+
+  // Effective added pieces calculation (considering strip size if strip selected)
+  const restockAddedPieces = useMemo(() => {
+    const rawNum = Math.max(0, parseInt(restockAddedQty, 10) || 0);
+    if (restockUnitType === 'strip') {
+      const size = Number(activeRestockMed?.stripSize) || 10;
+      return rawNum * size;
+    }
+    return rawNum;
+  }, [restockAddedQty, restockUnitType, activeRestockMed]);
+
+  // New resulting stock
+  const restockResultingStock = restockCurrentStock + restockAddedPieces;
+
+  // Handle restock submission
+  const handleConfirmRestock = (e) => {
+    if (e && e.preventDefault) e.preventDefault();
+    if (!activeRestockMed) {
+      showToast?.('অনুগ্রহ করে একটি ওষুধ নির্বাচন করুন!', 'error');
+      return;
+    }
+    if (restockAddedPieces <= 0) {
+      showToast?.('অনুগ্রহ করে যুক্ত করার সঠিক পরিমাণ লিখুন (কমপক্ষে ১)!', 'error');
+      return;
+    }
+
+    const res = restockMedicine(activeRestockMed, restockAddedPieces, {
+      unitLabel: restockUnitType === 'strip' ? 'পাতা' : 'পিস',
+      invoiceNo: restockInvoiceNo,
+      supplier: restockSupplier,
+      purchasePrice: restockPurchasePrice,
+      note: restockNote,
+      adminUser: 'yeakub007'
+    });
+
+    if (res && res.success) {
+      // Keep selected medicine but reset incoming input to ready for next addition
+      setRestockAddedQty('');
+      setRestockPurchasePrice('');
+      setRestockInvoiceNo('');
+      setRestockNote('');
+    }
+  };
+
+  // Quick Inline restock for table rows
+  const handleQuickInlineRestock = (med) => {
+    const val = parseInt(restockQuickAddInputs[med.id], 10);
+    if (!val || val <= 0) {
+      showToast?.('অনুগ্রহ করে সংখ্যা লিখুন (যেমন: ১০)!', 'error');
+      return;
+    }
+
+    restockMedicine(med, val, {
+      unitLabel: 'পিস',
+      adminUser: 'yeakub007',
+      note: 'কুইক স্টক ইন'
+    });
+
+    setRestockQuickAddInputs(prev => ({ ...prev, [med.id]: '' }));
+  };
+
+  // Filtered Restock Logs History
+  const filteredRestockHistory = useMemo(() => {
+    if (!Array.isArray(restockLogs)) return [];
+    const q = restockHistorySearch.trim().toLowerCase();
+    if (!q) return restockLogs;
+    return restockLogs.filter(log => {
+      const mName = (log.medicineName || '').toLowerCase();
+      const mGen = (log.generic || '').toLowerCase();
+      const mInv = (log.invoiceNo || '').toLowerCase();
+      const mSup = (log.supplier || '').toLowerCase();
+      return mName.includes(q) || mGen.includes(q) || mInv.includes(q) || mSup.includes(q);
+    });
+  }, [restockLogs, restockHistorySearch]);
+
+  const totalRestockHistoryPages = Math.ceil(filteredRestockHistory.length / restockHistoryPerPage) || 1;
+  const paginatedRestockHistory = filteredRestockHistory.slice(
+    (restockHistoryPage - 1) * restockHistoryPerPage,
+    (restockHistoryPage - 1) * restockHistoryPerPage + restockHistoryPerPage
+  );
+
+  // ==========================================
   // VIEW 1: DEDICATED ADMIN LOGIN SCREEN
   // ==========================================
   if (!isAdminAuthenticated) {
@@ -1708,6 +1897,23 @@ export const AdminPortal = () => {
             </button>
 
             <button
+              onClick={() => setActiveTab('restock')}
+              className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-all cursor-pointer text-left ${
+                activeTab === 'restock' 
+                  ? 'bg-gradient-to-r from-teal-500/35 to-emerald-500/35 text-white shadow-md backdrop-blur-xs border border-emerald-400/40 font-bold' 
+                  : 'text-blue-100/80 hover:bg-white/10'
+              }`}
+            >
+              <span className="flex items-center gap-3">
+                <PackagePlus className="w-4 h-4 text-emerald-300" />
+                <span>স্টক ইন ও রিস্টক</span>
+              </span>
+              <span className="bg-gradient-to-r from-teal-500 to-emerald-600 text-white text-[9px] px-2 py-0.5 rounded-full font-black tracking-wider uppercase shadow-xs">
+                Stock In
+              </span>
+            </button>
+
+            <button
               onClick={() => setActiveTab('orders')}
               className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-all cursor-pointer text-left ${
                 activeTab === 'orders' 
@@ -1822,6 +2028,7 @@ export const AdminPortal = () => {
             <h1 className="text-xl font-black text-[#123184]">
               {activeTab === 'overview' && 'সামগ্রিক ওভারভিউ ও ব্যবসায়িক তথ্য'}
               {activeTab === 'sell' && 'ফার্মেসি সেল ও কাউন্টার বিলিং (Point of Sale - POS)'}
+              {activeTab === 'restock' && 'নতুন ওষুধ স্টক ইন ও ইনভেন্টরি বৃদ্ধি (Stock In & Restock)'}
               {activeTab === 'orders' && 'গ্রাহকের অর্ডার ও ডেলিভারি ম্যানেজমেন্ট'}
               {activeTab === 'prescriptions' && 'আপলোডকৃত প্রেসক্রিপশন ও ফার্মাসিস্ট রিভিউ'}
               {activeTab === 'customers' && 'নিবন্ধিত গ্রাহক প্রোফাইল ও কাস্টমার ম্যানেজমেন্ট'}
@@ -1871,78 +2078,95 @@ export const AdminPortal = () => {
           {/* ================================================= */}
           {activeTab === 'overview' && (
             <div className="space-y-6">
-              {/* 5 Big Metrics Cards */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+              {/* 6 Big Metrics Cards */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3.5">
                 
                 <div 
                   onClick={() => setActiveTab('sell')}
-                  className="bg-white p-5 rounded-none border border-slate-200 shadow-xs flex flex-col justify-between space-y-2 cursor-pointer hover:border-[#123184] hover:shadow-sm transition-all"
+                  className="bg-white p-4.5 rounded-none border border-slate-200 shadow-xs flex flex-col justify-between space-y-2 cursor-pointer hover:border-[#123184] hover:shadow-sm transition-all"
                   title="সেল কাউন্টার ও বিক্রির হিসেব দেখতে ক্লিক করুন"
                 >
                   <div className="flex justify-between items-center">
-                    <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">মোট বিক্রি</span>
-                    <span className="p-2 rounded-none bg-[#123184]/10 text-[#123184]">
+                    <span className="text-[11px] text-slate-500 font-bold uppercase tracking-wider">মোট বিক্রি</span>
+                    <span className="p-1.5 rounded-none bg-[#123184]/10 text-[#123184]">
                       <DollarSign className="w-4 h-4" />
                     </span>
                   </div>
-                  <span className="text-2xl font-black text-[#123184]">৳{Number(totalSales || 0).toFixed(2)}</span>
-                  <span className="text-[11px] text-[#02975E] font-bold">সেল কাউন্টার ও রিপোর্ট &rarr;</span>
+                  <span className="text-xl font-black text-[#123184]">৳{Number(totalSales || 0).toFixed(2)}</span>
+                  <span className="text-[11px] text-[#02975E] font-bold">সেল কাউন্টার &rarr;</span>
+                </div>
+
+                <div 
+                  onClick={() => setActiveTab('restock')}
+                  className="bg-white p-4.5 rounded-none border border-slate-200 shadow-xs flex flex-col justify-between space-y-2 cursor-pointer hover:border-teal-500 hover:shadow-sm transition-all"
+                  title="নতুন ওষুধ স্টক ইন ও রিস্টক করতে ক্লিক করুন"
+                >
+                  <div className="flex justify-between items-center">
+                    <span className="text-[11px] text-slate-500 font-bold uppercase tracking-wider">স্টক ইন ও রিস্টক</span>
+                    <span className="p-1.5 rounded-none bg-teal-100 text-teal-800">
+                      <PackagePlus className="w-4 h-4" />
+                    </span>
+                  </div>
+                  <span className="text-xl font-black text-teal-900">{medicines.length} প্রকার</span>
+                  <span className="text-[11px] text-teal-600 font-bold">
+                    {lowStockCount > 0 ? `⚠️ ${lowStockCount} টি লো-স্টক` : 'স্টক বৃদ্ধি করুন →'}
+                  </span>
                 </div>
 
                 <div 
                   onClick={() => setActiveTab('customers')}
-                  className="bg-white p-5 rounded-none border border-slate-200 shadow-xs flex flex-col justify-between space-y-2 cursor-pointer hover:border-[#123184] hover:shadow-sm transition-all"
+                  className="bg-white p-4.5 rounded-none border border-slate-200 shadow-xs flex flex-col justify-between space-y-2 cursor-pointer hover:border-[#123184] hover:shadow-sm transition-all"
                 >
                   <div className="flex justify-between items-center">
-                    <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">নিবন্ধিত গ্রাহক</span>
-                    <span className="p-2 rounded-none bg-emerald-100 text-[#02975E]">
+                    <span className="text-[11px] text-slate-500 font-bold uppercase tracking-wider">নিবন্ধিত গ্রাহক</span>
+                    <span className="p-1.5 rounded-none bg-emerald-100 text-[#02975E]">
                       <Users className="w-4 h-4" />
                     </span>
                   </div>
-                  <span className="text-2xl font-black text-slate-900">{consolidatedCustomers.length} জন</span>
+                  <span className="text-xl font-black text-slate-900">{consolidatedCustomers.length} জন</span>
                   <span className="text-[11px] text-[#123184] font-bold">ম্যানেজ করুন &rarr;</span>
                 </div>
 
                 <div 
                   onClick={() => setActiveTab('orders')}
-                  className="bg-white p-5 rounded-none border border-slate-200 shadow-xs flex flex-col justify-between space-y-2 cursor-pointer hover:border-[#02975E] hover:shadow-sm transition-all"
+                  className="bg-white p-4.5 rounded-none border border-slate-200 shadow-xs flex flex-col justify-between space-y-2 cursor-pointer hover:border-[#02975E] hover:shadow-sm transition-all"
                 >
                   <div className="flex justify-between items-center">
-                    <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">মোট অর্ডার</span>
-                    <span className="p-2 rounded-none bg-[#02975E]/10 text-[#02975E]">
+                    <span className="text-[11px] text-slate-500 font-bold uppercase tracking-wider">মোট অর্ডার</span>
+                    <span className="p-1.5 rounded-none bg-[#02975E]/10 text-[#02975E]">
                       <Package className="w-4 h-4" />
                     </span>
                   </div>
-                  <span className="text-2xl font-black text-slate-900">{orders.length}</span>
-                  <span className="text-[11px] text-amber-600 font-bold">{pendingOrders} টি নতুন অপেক্ষমান</span>
+                  <span className="text-xl font-black text-slate-900">{orders.length}</span>
+                  <span className="text-[11px] text-amber-600 font-bold">{pendingOrders} টি অপেক্ষমান</span>
                 </div>
 
                 <div 
                   onClick={() => setActiveTab('prescriptions')}
-                  className="bg-white p-5 rounded-none border border-slate-200 shadow-xs flex flex-col justify-between space-y-2 cursor-pointer hover:border-amber-400 hover:shadow-sm transition-all"
+                  className="bg-white p-4.5 rounded-none border border-slate-200 shadow-xs flex flex-col justify-between space-y-2 cursor-pointer hover:border-amber-400 hover:shadow-sm transition-all"
                 >
                   <div className="flex justify-between items-center">
-                    <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">প্রেসক্রিপশন জমা</span>
-                    <span className="p-2 rounded-none bg-amber-100 text-amber-800">
+                    <span className="text-[11px] text-slate-500 font-bold uppercase tracking-wider">প্রেসক্রিপশন</span>
+                    <span className="p-1.5 rounded-none bg-amber-100 text-amber-800">
                       <FileText className="w-4 h-4" />
                     </span>
                   </div>
-                  <span className="text-2xl font-black text-slate-900">{prescriptions.length}</span>
+                  <span className="text-xl font-black text-slate-900">{prescriptions.length}</span>
                   <span className="text-[11px] text-rose-600 font-bold">{pendingRx} টি রিভিউ বাকি</span>
                 </div>
 
                 <div 
                   onClick={() => setActiveTab('medicines')}
-                  className="bg-white p-5 rounded-none border border-slate-200 shadow-xs flex flex-col justify-between space-y-2 cursor-pointer hover:border-purple-400 hover:shadow-sm transition-all"
+                  className="bg-white p-4.5 rounded-none border border-slate-200 shadow-xs flex flex-col justify-between space-y-2 cursor-pointer hover:border-purple-400 hover:shadow-sm transition-all"
                 >
                   <div className="flex justify-between items-center">
-                    <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">ওষুধ আইটেম</span>
-                    <span className="p-2 rounded-none bg-purple-100 text-purple-800">
+                    <span className="text-[11px] text-slate-500 font-bold uppercase tracking-wider">ওষুধ ক্যাটালগ</span>
+                    <span className="p-1.5 rounded-none bg-purple-100 text-purple-800">
                       <Pill className="w-4 h-4" />
                     </span>
                   </div>
-                  <span className="text-2xl font-black text-slate-900">{medicines.length} প্রকার</span>
-                  <span className="text-[11px] text-slate-500 font-medium">ইন-স্টক ক্যাটালগ</span>
+                  <span className="text-xl font-black text-slate-900">{medicines.length} প্রকার</span>
+                  <span className="text-[11px] text-slate-500 font-medium">ইনভেন্টরি ক্যাটালগ &rarr;</span>
                 </div>
 
               </div>
@@ -2805,6 +3029,960 @@ export const AdminPortal = () => {
 
                 </div>
               )}
+
+            </div>
+          )}
+
+          {/* ================================================= */}
+          {/* TAB: STOCK IN & INVENTORY RESTOCK */}
+          {/* ================================================= */}
+          {activeTab === 'restock' && (
+            <div className="space-y-6">
+              
+              {/* Top Banner / Info Bar */}
+              <div className="bg-gradient-to-r from-[#123184] via-[#0d2463] to-[#02975E] text-white p-5 sm:p-6 rounded-none shadow-md flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-10 h-10 rounded-xl bg-white/15 backdrop-blur-xs flex items-center justify-center text-emerald-300 shadow-xs">
+                      <PackagePlus className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <h2 className="text-lg sm:text-xl font-black tracking-tight">
+                        ওষুধ স্টক ইন ও ইনভেন্টরি এন্ট্রি (Stock In & Restock)
+                      </h2>
+                      <p className="text-xs text-blue-100 font-medium">
+                        ওষুধের নাম লিখে সার্চ করুন এবং নতুন আসা সংখ্যা যোগ করে সরাসরি ইনভেন্টরি স্টক বৃদ্ধি করুন।
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 4 Stats Chips */}
+                <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+                  <button
+                    type="button"
+                    onClick={() => { setRestockFilterTab('all'); setRestockSearch(''); }}
+                    className={`px-3 py-1.5 rounded-none text-xs font-bold transition-all cursor-pointer border ${
+                      restockFilterTab === 'all' && !restockSearch
+                        ? 'bg-white text-[#123184] border-white shadow-xs'
+                        : 'bg-white/10 hover:bg-white/20 text-white border-white/20'
+                    }`}
+                  >
+                    <span>মোট ওষুধ:</span> <strong className="ml-1 text-emerald-300">{medicines.length}</strong>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setRestockFilterTab('low')}
+                    className={`px-3 py-1.5 rounded-none text-xs font-bold transition-all cursor-pointer border ${
+                      restockFilterTab === 'low'
+                        ? 'bg-amber-400 text-slate-900 border-amber-400 shadow-xs'
+                        : 'bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 border-amber-400/40'
+                    }`}
+                  >
+                    <span>⚠️ স্বল্প স্টক:</span> <strong className="ml-1">{lowStockCount}</strong>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setRestockFilterTab('out')}
+                    className={`px-3 py-1.5 rounded-none text-xs font-bold transition-all cursor-pointer border ${
+                      restockFilterTab === 'out'
+                        ? 'bg-rose-500 text-white border-rose-500 shadow-xs'
+                        : 'bg-rose-500/20 hover:bg-rose-500/30 text-rose-200 border-rose-400/40'
+                    }`}
+                  >
+                    <span>❌ স্টক শূন্য:</span> <strong className="ml-1">{outOfStockCount}</strong>
+                  </button>
+
+                  <div className="px-3 py-1.5 rounded-none bg-emerald-500/20 border border-emerald-400/30 text-xs font-bold text-emerald-200">
+                    <span>হিস্টোরি লগ:</span> <strong className="ml-1 text-white">{restockLogs.length} টি</strong>
+                  </div>
+                </div>
+              </div>
+
+              {/* Main Workspace 2-Column Grid */}
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                
+                {/* ======================================================== */}
+                {/* COLUMN 1: MEDICINE SEARCH & SELECTION (lg:col-span-5) */}
+                {/* ======================================================== */}
+                <div className="lg:col-span-5 bg-white border border-slate-200 shadow-xs rounded-none p-4 sm:p-5 space-y-4">
+                  
+                  {/* Card Title */}
+                  <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-lg bg-[#123184]/10 text-[#123184] flex items-center justify-center">
+                        <Search className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <h3 className="font-extrabold text-sm text-slate-900">
+                          ১. ওষুধ সার্চ ও নির্বাচন করুন
+                        </h3>
+                        <p className="text-[11px] text-slate-500">
+                          নাম, জেনেরিক বা প্রস্তুতকারক দিয়ে খুঁজুন
+                        </p>
+                      </div>
+                    </div>
+                    <span className="text-[10px] font-black text-[#02975E] bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                      ৫০,০০০+ ডাটাবেজ
+                    </span>
+                  </div>
+
+                  {/* Search Input Box */}
+                  <div className="space-y-2">
+                    <div className="relative">
+                      <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+                      <input
+                        type="text"
+                        value={restockSearch}
+                        onChange={(e) => setRestockSearch(e.target.value)}
+                        placeholder="ওষুধের নাম লিখুন (যেমন: Napa, Maxpro, Seclo, নাপা)..."
+                        className="w-full pl-9 pr-8 py-2.5 bg-slate-50 border border-slate-300 focus:bg-white focus:border-[#02975E] focus:ring-2 focus:ring-[#02975E]/15 outline-none text-xs font-bold text-slate-900 rounded-none transition-all placeholder:text-slate-400"
+                      />
+                      {restockSearch && (
+                        <button
+                          type="button"
+                          onClick={() => setRestockSearch('')}
+                          className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600 text-xs p-0.5 cursor-pointer"
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Live MedEx Search Alert */}
+                    {isRestockMedexLoading && (
+                      <div className="flex items-center gap-1.5 text-[11px] text-[#02975E] bg-emerald-50 px-2.5 py-1 border border-emerald-100 font-bold animate-pulse">
+                        <span className="w-1.5 h-1.5 rounded-full bg-[#02975E] animate-ping" />
+                        <span>লাইভ বাংলাদেশ ড্রাগ ডাটাবেজ থেকে খোঁজা হচ্ছে...</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Filter Pills */}
+                  <div className="flex items-center gap-1.5 flex-wrap text-xs">
+                    <button
+                      type="button"
+                      onClick={() => setRestockFilterTab('all')}
+                      className={`px-2.5 py-1 text-[11px] font-bold rounded-none transition-all cursor-pointer border ${
+                        restockFilterTab === 'all'
+                          ? 'bg-[#123184] text-white border-[#123184]'
+                          : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                      }`}
+                    >
+                      সকল ওষুধ ({medicines.length})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setRestockFilterTab('low')}
+                      className={`px-2.5 py-1 text-[11px] font-bold rounded-none transition-all cursor-pointer border ${
+                        restockFilterTab === 'low'
+                          ? 'bg-amber-500 text-slate-900 border-amber-500'
+                          : 'bg-amber-50 text-amber-800 border-amber-200 hover:bg-amber-100'
+                      }`}
+                    >
+                      ⚠️ কম স্টক ({lowStockCount})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setRestockFilterTab('out')}
+                      className={`px-2.5 py-1 text-[11px] font-bold rounded-none transition-all cursor-pointer border ${
+                        restockFilterTab === 'out'
+                          ? 'bg-rose-600 text-white border-rose-600'
+                          : 'bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100'
+                      }`}
+                    >
+                      ❌ স্টক শেষ ({outOfStockCount})
+                    </button>
+                  </div>
+
+                  {/* Medicines Search Results List */}
+                  <div className="space-y-2 max-h-[580px] overflow-y-auto pr-1">
+                    {paginatedRestockMedicines.length === 0 ? (
+                      <div className="p-8 text-center bg-slate-50 border border-slate-200 text-xs text-slate-500 space-y-2">
+                        <Pill className="w-8 h-8 text-slate-300 mx-auto" />
+                        <p className="font-bold text-slate-700">কোনো ওষুধ খুঁজে পাওয়া যায়নি</p>
+                        <p className="text-[11px]">অন্য কোনো নাম বা জেনেরিক লিখে সার্চ করার চেষ্টা করুন।</p>
+                      </div>
+                    ) : (
+                      paginatedRestockMedicines.map((med) => {
+                        const isSelected = activeRestockMed?.id === med.id;
+                        const stockCount = typeof med.stock === 'number' ? med.stock : 100;
+                        const isLow = stockCount <= 15 && stockCount > 0;
+                        const isOut = stockCount === 0;
+
+                        return (
+                          <div
+                            key={med.id}
+                            onClick={() => {
+                              setRestockSelectedMed(med);
+                              // Default incoming quantity
+                              if (!restockAddedQty || restockAddedQty === '0') setRestockAddedQty('10');
+                            }}
+                            className={`p-3 border transition-all cursor-pointer flex items-center justify-between gap-3 text-left ${
+                              isSelected
+                                ? 'bg-emerald-50/80 border-[#02975E] shadow-sm ring-2 ring-[#02975E]/20'
+                                : 'bg-white border-slate-200 hover:border-[#123184] hover:bg-slate-50/80'
+                            }`}
+                          >
+                            <div className="flex items-start gap-2.5 min-w-0 flex-1">
+                              <div className="w-10 h-10 rounded-lg bg-slate-100 border border-slate-200 p-1 shrink-0 flex items-center justify-center overflow-hidden">
+                                {med.image ? (
+                                  <img src={med.image} alt={med.name} className="w-full h-full object-contain" />
+                                ) : (
+                                  <Pill className="w-5 h-5 text-slate-400" />
+                                )}
+                              </div>
+
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <h4 className="font-extrabold text-xs text-slate-900 truncate">
+                                    {med.name}
+                                  </h4>
+                                  {med.nameBn && med.nameBn !== med.name && (
+                                    <span className="text-[10px] text-emerald-800 bg-emerald-50 px-1.5 py-0.2 rounded font-medium border border-emerald-100 truncate">
+                                      {med.nameBn}
+                                    </span>
+                                  )}
+                                  <span className="text-[9px] bg-slate-100 text-slate-600 px-1.5 py-0.2 rounded font-mono font-bold">
+                                    {med.type || 'Tablet'}
+                                  </span>
+                                </div>
+
+                                <p className="text-[11px] text-slate-500 truncate mt-0.5">
+                                  {med.generic} • <span className="text-slate-700 font-semibold">{med.company}</span>
+                                </p>
+
+                                <div className="flex items-center gap-2 mt-1">
+                                  <span className="text-[10px] text-[#123184] font-bold">
+                                    ৳{med.pricePerStrip || med.price || 0} / পাতা
+                                  </span>
+                                  {med.stripSize && (
+                                    <span className="text-[10px] text-slate-400">
+                                      ({med.stripSize} টি/পাতা)
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Right Stock Status Badge & Action */}
+                            <div className="text-right shrink-0 space-y-1">
+                              <span
+                                className={`text-[10px] font-black px-2 py-0.5 rounded-full inline-block ${
+                                  isOut
+                                    ? 'bg-rose-100 text-rose-800 border border-rose-200'
+                                    : isLow
+                                    ? 'bg-amber-100 text-amber-900 border border-amber-200'
+                                    : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                                }`}
+                              >
+                                {isOut ? '০ পিস (শূন্য)' : `${stockCount} পিস`}
+                              </span>
+
+                              <div>
+                                <span
+                                  className={`text-[10px] font-bold px-2.5 py-1 rounded inline-flex items-center gap-1 transition-all ${
+                                    isSelected
+                                      ? 'bg-[#02975E] text-white shadow-xs'
+                                      : 'bg-slate-100 hover:bg-[#123184] hover:text-white text-slate-700'
+                                  }`}
+                                >
+                                  {isSelected ? (
+                                    <>
+                                      <Check className="w-3 h-3" />
+                                      <span>নির্বাচিত</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <span>রিস্টক</span>
+                                      <ChevronRight className="w-3 h-3" />
+                                    </>
+                                  )}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+
+                  {/* Pagination for Search Column */}
+                  {totalRestockMedPages > 1 && (
+                    <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-xs">
+                      <span className="text-[11px] text-slate-500">
+                        পেজ {restockMedPage} / {totalRestockMedPages} ({filteredRestockMedicines.length} টি)
+                      </span>
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          disabled={restockMedPage === 1}
+                          onClick={() => setRestockMedPage(p => Math.max(1, p - 1))}
+                          className="px-2 py-1 border border-slate-200 rounded disabled:opacity-40 cursor-pointer text-xs"
+                        >
+                          পূর্ববর্তী
+                        </button>
+                        <button
+                          type="button"
+                          disabled={restockMedPage === totalRestockMedPages}
+                          onClick={() => setRestockMedPage(p => Math.min(totalRestockMedPages, p + 1))}
+                          className="px-2 py-1 border border-slate-200 rounded disabled:opacity-40 cursor-pointer text-xs"
+                        >
+                          পরবর্তী
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                </div>
+
+                {/* ======================================================== */}
+                {/* COLUMN 2: ACTIVE RESTOCK WORKSPACE & CALCULATION (7 cols) */}
+                {/* ======================================================== */}
+                <div className="lg:col-span-7 bg-white border border-slate-200 shadow-xs rounded-none p-4 sm:p-6 space-y-5">
+                  
+                  {/* Card Title */}
+                  <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-lg bg-[#02975E]/10 text-[#02975E] flex items-center justify-center">
+                        <PackagePlus className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <h3 className="font-extrabold text-sm sm:text-base text-slate-900">
+                          ২. স্টক বৃদ্ধি ও লাইভ যোগফল
+                        </h3>
+                        <p className="text-[11px] text-slate-500">
+                          নতুন আসা সংখ্যা লিখুন — আগের স্টকের সাথে স্বয়ংক্রিয়ভাবে যোগ হয়ে স্টক বৃদ্ধি পাবে
+                        </p>
+                      </div>
+                    </div>
+
+                    {activeRestockMed && (
+                      <button
+                        type="button"
+                        onClick={() => setRestockSelectedMed(null)}
+                        className="text-xs text-slate-400 hover:text-rose-600 font-semibold cursor-pointer flex items-center gap-1"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                        <span>ক্লিয়ার</span>
+                      </button>
+                    )}
+                  </div>
+
+                  {!activeRestockMed ? (
+                    /* Empty State: Prompt user to select medicine */
+                    <div className="p-8 sm:p-12 text-center bg-gradient-to-b from-slate-50 to-white border-2 border-dashed border-slate-200 rounded-2xl space-y-4">
+                      <div className="w-16 h-16 rounded-2xl bg-teal-50 text-teal-600 flex items-center justify-center mx-auto shadow-xs">
+                        <Boxes className="w-8 h-8" />
+                      </div>
+                      <div className="space-y-1 max-w-md mx-auto">
+                        <h4 className="font-black text-base text-slate-800">
+                          ওষুধ নির্বাচন করুন
+                        </h4>
+                        <p className="text-xs text-slate-500 leading-relaxed">
+                          বাম পাশের সার্চ বক্স থেকে ওষুধের নাম লিখে ওষুধটি নির্বাচন করুন। এরপর নতুন আনা সংখ্যা দিলেই আগের স্টকের সাথে যোগ হয়ে স্বয়ংক্রিয়ভাবে স্টক আপডেট হবে।
+                        </p>
+                      </div>
+
+                      {/* Quick select chips for low-stock items */}
+                      {medicines.filter(m => (typeof m.stock === 'number' ? m.stock : 100) <= 25).length > 0 && (
+                        <div className="pt-3 border-t border-slate-200/60 max-w-lg mx-auto">
+                          <span className="block text-[11px] font-bold text-slate-600 mb-2">
+                            ⚡ দ্রুত রিস্টক করতে ক্লিক করুন:
+                          </span>
+                          <div className="flex flex-wrap items-center justify-center gap-1.5">
+                            {medicines
+                              .filter(m => (typeof m.stock === 'number' ? m.stock : 100) <= 25)
+                              .slice(0, 6)
+                              .map(m => (
+                                <button
+                                  key={m.id}
+                                  type="button"
+                                  onClick={() => {
+                                    setRestockSelectedMed(m);
+                                    setRestockAddedQty('10');
+                                  }}
+                                  className="px-2.5 py-1 rounded bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-900 text-xs font-bold transition-all cursor-pointer flex items-center gap-1 shadow-2xs"
+                                >
+                                  <span>{m.name}</span>
+                                  <span className="text-[10px] bg-amber-200 text-amber-900 px-1 rounded font-black">
+                                    {m.stock}
+                                  </span>
+                                </button>
+                              ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    /* Active Restock Workspace Form */
+                    <form onSubmit={handleConfirmRestock} className="space-y-5 animate-in fade-in duration-200">
+                      
+                      {/* Selected Medicine Info Banner */}
+                      <div className="bg-gradient-to-r from-blue-50/70 via-slate-50 to-emerald-50/50 border border-slate-200 p-4 rounded-xl flex items-start gap-4">
+                        <div className="w-16 h-16 rounded-xl bg-white border border-slate-200 p-1.5 shrink-0 shadow-xs flex items-center justify-center overflow-hidden">
+                          {activeRestockMed.image ? (
+                            <img src={activeRestockMed.image} alt={activeRestockMed.name} className="w-full h-full object-contain" />
+                          ) : (
+                            <Pill className="w-8 h-8 text-[#02975E]" />
+                          )}
+                        </div>
+
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between gap-2 flex-wrap">
+                            <h3 className="font-black text-base text-[#123184]">
+                              {activeRestockMed.name}
+                            </h3>
+                            <span className="text-xs font-black px-2.5 py-0.5 rounded-full bg-[#123184] text-white">
+                              আইডি: #{activeRestockMed.id}
+                            </span>
+                          </div>
+
+                          <p className="text-xs text-slate-600 font-medium mt-0.5">
+                            {activeRestockMed.generic} • <strong className="text-slate-800">{activeRestockMed.company}</strong>
+                          </p>
+
+                          <div className="flex items-center gap-3 mt-2 text-xs flex-wrap">
+                            <span className="bg-white border border-slate-200 px-2 py-0.5 font-bold text-slate-700">
+                              ধরণ: {activeRestockMed.type || 'Tablet'}
+                            </span>
+                            <span className="bg-white border border-slate-200 px-2 py-0.5 font-bold text-slate-700">
+                              পাতা প্রতি: {activeRestockMed.stripSize || 10} পিস
+                            </span>
+                            <span className="bg-white border border-slate-200 px-2 py-0.5 font-bold text-[#02975E]">
+                              মূল্য: ৳{activeRestockMed.pricePerStrip || 0} / পাতা
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Input Section: Unit Type & Incoming Count */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        
+                        {/* Unit Type Selection */}
+                        <div className="space-y-1.5">
+                          <label className="text-xs font-bold text-slate-700 block">
+                            নতুন আসা ওষুধের একক (Unit)
+                          </label>
+                          <div className="grid grid-cols-2 gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setRestockUnitType('piece')}
+                              className={`py-2 px-3 text-xs font-black transition-all border cursor-pointer text-center ${
+                                restockUnitType === 'piece'
+                                  ? 'bg-[#123184] text-white border-[#123184] shadow-xs'
+                                  : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                              }`}
+                            >
+                              ট্যাবলেট / পিস (Pcs)
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setRestockUnitType('strip')}
+                              className={`py-2 px-3 text-xs font-black transition-all border cursor-pointer text-center ${
+                                restockUnitType === 'strip'
+                                  ? 'bg-[#02975E] text-white border-[#02975E] shadow-xs'
+                                  : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                              }`}
+                            >
+                              পাতা / বক্স (Strip)
+                            </button>
+                          </div>
+                          <span className="text-[10px] text-slate-500 block">
+                            {restockUnitType === 'strip' 
+                              ? `১ পাতা = ${activeRestockMed.stripSize || 10} পিস হিসাবে স্বয়ংক্রিয়ভাবে হিসাব হবে`
+                              : 'সরাসরি পিস বা ট্যাবলেটের সংখ্যা লিখুন'}
+                          </span>
+                        </div>
+
+                        {/* Incoming Quantity Input */}
+                        <div className="space-y-1.5">
+                          <label className="text-xs font-bold text-slate-700 flex items-center justify-between">
+                            <span>নতুন আসা ওষুধের সংখ্যা (Incoming Qty) *</span>
+                            <span className="text-[#02975E] font-bold text-[11px]">
+                              {restockUnitType === 'strip' ? 'পাতার সংখ্যা' : 'পিসের সংখ্যা'}
+                            </span>
+                          </label>
+                          <div className="relative">
+                            <input
+                              type="number"
+                              min="1"
+                              step="1"
+                              required
+                              value={restockAddedQty}
+                              onChange={(e) => setRestockAddedQty(e.target.value)}
+                              placeholder="যেমন: 10"
+                              className="w-full px-3.5 py-2.5 bg-white border-2 border-[#02975E] focus:border-[#123184] outline-none text-base font-black text-slate-900 transition-colors shadow-2xs"
+                            />
+                            <div className="absolute right-2 top-2 flex items-center gap-1">
+                              <button
+                                type="button"
+                                onClick={() => setRestockAddedQty(q => String(Math.max(1, (parseInt(q, 10) || 0) - 1)))}
+                                className="w-7 h-7 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded flex items-center justify-center text-xs cursor-pointer"
+                              >
+                                -
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setRestockAddedQty(q => String((parseInt(q, 10) || 0) + 1))}
+                                className="w-7 h-7 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded flex items-center justify-center text-xs cursor-pointer"
+                              >
+                                +
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+
+                      </div>
+
+                      {/* Quick Quantity Chips */}
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="text-[11px] font-bold text-slate-500 mr-1">
+                          ক্লিক করে পূরণ করুন:
+                        </span>
+                        {[
+                          { val: 5, label: '+৫' },
+                          { val: 10, label: '+১০' },
+                          { val: 20, label: '+২০' },
+                          { val: 50, label: '+৫০' },
+                          { val: 100, label: '+১০০' },
+                          { val: 200, label: '+২০০' },
+                          { val: 500, label: '+৫০০' }
+                        ].map(chip => (
+                          <button
+                            key={chip.val}
+                            type="button"
+                            onClick={() => setRestockAddedQty(String(chip.val))}
+                            className={`px-2.5 py-1 text-xs font-black transition-all cursor-pointer border ${
+                              restockAddedQty === String(chip.val)
+                                ? 'bg-[#02975E] text-white border-[#02975E] shadow-xs'
+                                : 'bg-slate-100 hover:bg-emerald-50 hover:border-emerald-300 text-slate-700 border-slate-200'
+                            }`}
+                          >
+                            {chip.label}
+                          </button>
+                        ))}
+                      </div>
+
+                      {/* ======================================================== */}
+                      {/* REAL-TIME VISUAL MATH EQUATION: CURRENT + ADDED = FINAL  */}
+                      {/* ======================================================== */}
+                      <div className="bg-gradient-to-r from-emerald-50 via-teal-50 to-blue-50 border-2 border-emerald-400 p-4 sm:p-5 rounded-2xl shadow-sm space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-black uppercase tracking-wider text-emerald-950 flex items-center gap-1.5">
+                            <TrendingUp className="w-4 h-4 text-[#02975E]" />
+                            লাইভ স্টক ক্যালকুলেশন প্রিভিউ (Live Stock Preview)
+                          </span>
+                          <span className="text-[11px] font-bold bg-[#02975E] text-white px-2.5 py-0.5 rounded-full shadow-2xs">
+                            স্বয়ংক্রিয় যোগফল
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-3 sm:grid-cols-5 items-center text-center gap-2">
+                          
+                          {/* 1. CURRENT STOCK */}
+                          <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-xs">
+                            <span className="block text-[10px] text-slate-500 font-bold mb-0.5">
+                              পূর্বের স্টক (Current)
+                            </span>
+                            <span className="text-xl sm:text-2xl font-black text-slate-800">
+                              {restockCurrentStock}
+                            </span>
+                            <span className="text-[10px] text-slate-500 block font-medium">পিস</span>
+                          </div>
+
+                          {/* Plus sign */}
+                          <div className="flex justify-center text-emerald-600 font-black text-2xl sm:text-3xl">
+                            +
+                          </div>
+
+                          {/* 2. INCOMING / ADDED STOCK */}
+                          <div className="bg-emerald-100/80 p-3 rounded-xl border-2 border-emerald-400 shadow-xs">
+                            <span className="block text-[10px] text-emerald-800 font-bold mb-0.5">
+                              নতুন আগমন (Added)
+                            </span>
+                            <span className="text-xl sm:text-2xl font-black text-[#02975E]">
+                              +{restockAddedPieces}
+                            </span>
+                            <span className="text-[10px] text-emerald-700 block font-medium">
+                              {restockUnitType === 'strip' ? `${restockAddedQty || 0} পাতা (${restockAddedPieces} পিস)` : 'পিস'}
+                            </span>
+                          </div>
+
+                          {/* Equal sign */}
+                          <div className="flex justify-center text-[#123184] font-black text-2xl sm:text-3xl">
+                            =
+                          </div>
+
+                          {/* 3. NEW TOTAL RESULTING STOCK */}
+                          <div className="col-span-3 sm:col-span-1 bg-gradient-to-br from-[#123184] to-[#02975E] text-white p-3 rounded-xl shadow-md border-2 border-emerald-400">
+                            <span className="block text-[10px] text-emerald-200 font-bold mb-0.5">
+                              আপডেটের পর মোট স্টক
+                            </span>
+                            <span className="text-2xl sm:text-3xl font-black tracking-tight">
+                              {restockResultingStock}
+                            </span>
+                            <span className="text-[10px] text-emerald-200 block font-medium">
+                              পিস (ইনভেন্টরি)
+                            </span>
+                          </div>
+
+                        </div>
+
+                        <div className="text-[11px] text-slate-600 bg-white/70 p-2 rounded-lg border border-emerald-200/50 flex items-center gap-1.5">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-[#02975E] shrink-0" />
+                          <span>
+                            নিশ্চিত করার পর <strong>{activeRestockMed.name}</strong>-এর স্টক সরাসরি <strong>{restockCurrentStock}</strong> থেকে বৃদ্ধি পেয়ে <strong>{restockResultingStock} পিস</strong> হবে।
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Optional Purchase / Supplier Details (Collapsible or 2x2 grid) */}
+                      <div className="bg-slate-50 border border-slate-200 p-3.5 space-y-3">
+                        <span className="text-[11px] font-bold text-slate-700 block uppercase tracking-wider">
+                          অতিরিক্ত তথ্য (ঐচ্ছিক / সুবিধার্থে):
+                        </span>
+                        
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                          <div>
+                            <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                              ক্রয়মূল্য (টাকা / পিস)
+                            </label>
+                            <input
+                              type="number"
+                              step="0.1"
+                              value={restockPurchasePrice}
+                              onChange={(e) => setRestockPurchasePrice(e.target.value)}
+                              placeholder="যেমন: ৪.৫০"
+                              className="w-full px-2.5 py-1.5 bg-white border border-slate-300 text-xs font-semibold outline-none"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                              চালান / ভাউচার নং
+                            </label>
+                            <input
+                              type="text"
+                              value={restockInvoiceNo}
+                              onChange={(e) => setRestockInvoiceNo(e.target.value)}
+                              placeholder="যেমন: INV-9281"
+                              className="w-full px-2.5 py-1.5 bg-white border border-slate-300 text-xs font-semibold outline-none uppercase font-mono"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                              সরবরাহকারী / ডিলার
+                            </label>
+                            <input
+                              type="text"
+                              value={restockSupplier}
+                              onChange={(e) => setRestockSupplier(e.target.value)}
+                              placeholder="যেমন: স্কয়ার ডিপো"
+                              className="w-full px-2.5 py-1.5 bg-white border border-slate-300 text-xs font-semibold outline-none"
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Action Button: Confirm & Save */}
+                      <button
+                        type="submit"
+                        disabled={restockAddedPieces <= 0}
+                        className={`w-full py-4 px-6 font-black text-sm flex items-center justify-center gap-2 shadow-xl transition-all cursor-pointer ${
+                          restockAddedPieces <= 0
+                            ? 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none'
+                            : 'bg-gradient-to-r from-[#02975E] via-emerald-600 to-[#123184] hover:opacity-95 text-white shadow-emerald-500/30 transform hover:-translate-y-0.5'
+                        }`}
+                      >
+                        <CheckCircle2 className="w-5 h-5 text-white" />
+                        <span>✓ নতুন স্টক নিশ্চিত ও ইনভেন্টরিতে সেভ করুন ({restockResultingStock} পিস)</span>
+                      </button>
+
+                    </form>
+                  )}
+
+                </div>
+
+              </div>
+
+              {/* ======================================================== */}
+              {/* SECTION 3: RECENT RESTOCK HISTORY & AUDIT LOGS           */}
+              {/* ======================================================== */}
+              <div className="bg-white border border-slate-200 shadow-xs p-5 space-y-4">
+                
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-9 h-9 rounded-xl bg-teal-50 text-teal-700 flex items-center justify-center">
+                      <History className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h3 className="font-extrabold text-sm sm:text-base text-slate-900">
+                        সাম্প্রতিক স্টক ইন হিস্টোরি ও লগ (Recent Restock History)
+                      </h3>
+                      <p className="text-xs text-slate-500">
+                        কখন কোন ওষুধের স্টক কত বাড়ানো হয়েছিল তার পূর্ণ বিবরণ
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <div className="relative">
+                      <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2" />
+                      <input
+                        type="text"
+                        value={restockHistorySearch}
+                        onChange={(e) => setRestockHistorySearch(e.target.value)}
+                        placeholder="হিস্টোরি সার্চ..."
+                        className="pl-8 pr-3 py-1 bg-slate-50 border border-slate-200 text-xs outline-none focus:bg-white focus:border-[#123184]"
+                      />
+                    </div>
+
+                    {restockLogs.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (window.confirm('আপনি কি সকল স্টক ইন হিস্টোরি মুছে ফেলতে চান?')) {
+                            clearRestockLogs();
+                          }
+                        }}
+                        className="px-3 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold transition-all cursor-pointer"
+                      >
+                        লগ মুছুন
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* History Table */}
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead>
+                      <tr className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200">
+                        <th className="p-3">তারিখ ও সময়</th>
+                        <th className="p-3">ওষুধের নাম ও কোম্পানি</th>
+                        <th className="p-3 text-center">আগের স্টক</th>
+                        <th className="p-3 text-center">নতুন যোগ</th>
+                        <th className="p-3 text-center">আপডেটের পর মোট</th>
+                        <th className="p-3">চালান / নোট</th>
+                        <th className="p-3 text-right">ব্যবহারকারী</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 font-medium">
+                      {paginatedRestockHistory.length === 0 ? (
+                        <tr>
+                          <td colSpan="7" className="p-8 text-center text-slate-400">
+                            এখনও কোনো স্টক ইন করা হয়নি। ওপরের ফর্ম ব্যবহার করে ওষুধ রিস্টক করুন।
+                          </td>
+                        </tr>
+                      ) : (
+                        paginatedRestockHistory.map((log) => (
+                          <tr key={log.id} className="hover:bg-slate-50 transition-colors">
+                            <td className="p-3 whitespace-nowrap">
+                              <span className="font-bold text-slate-800 block">{log.dateStr}</span>
+                              <span className="text-[10px] text-slate-400">{log.timeStr}</span>
+                            </td>
+
+                            <td className="p-3">
+                              <span className="font-black text-slate-900 block">{log.medicineName}</span>
+                              <span className="text-[11px] text-slate-500">{log.generic} {log.company ? `• ${log.company}` : ''}</span>
+                            </td>
+
+                            <td className="p-3 text-center font-bold text-slate-600">
+                              {log.oldStock} পিস
+                            </td>
+
+                            <td className="p-3 text-center">
+                              <span className="bg-emerald-100 text-[#02975E] font-black px-2 py-0.5 rounded-full text-[11px] inline-block">
+                                +{log.addedStock} {log.unitLabel || 'পিস'}
+                              </span>
+                            </td>
+
+                            <td className="p-3 text-center">
+                              <span className="font-black text-sm text-[#123184] bg-blue-50 border border-blue-200 px-2.5 py-0.5 rounded inline-block">
+                                {log.newStock} পিস
+                              </span>
+                            </td>
+
+                            <td className="p-3 text-slate-600">
+                              {log.invoiceNo && <span className="font-mono font-bold text-[11px] block text-slate-800">চালান: {log.invoiceNo}</span>}
+                              {log.supplier && <span className="text-[10px] text-slate-500 block">সাপ্লায়ার: {log.supplier}</span>}
+                              {log.note && <span className="text-[10px] text-slate-400 italic block">{log.note}</span>}
+                              {!log.invoiceNo && !log.supplier && !log.note && '—'}
+                            </td>
+
+                            <td className="p-3 text-right">
+                              <span className="text-[11px] font-mono font-bold text-slate-700 bg-slate-100 px-2 py-0.5">
+                                @{log.adminUser || 'yeakub007'}
+                              </span>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Pagination for History Table */}
+                {totalRestockHistoryPages > 1 && (
+                  <div className="flex items-center justify-between pt-3 border-t border-slate-100 text-xs">
+                    <span className="text-slate-500">
+                      মোট {filteredRestockHistory.length} টির মধ্যে {(restockHistoryPage - 1) * restockHistoryPerPage + 1} - {Math.min(restockHistoryPage * restockHistoryPerPage, filteredRestockHistory.length)} দেখানো হচ্ছে
+                    </span>
+
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        disabled={restockHistoryPage === 1}
+                        onClick={() => setRestockHistoryPage(p => Math.max(1, p - 1))}
+                        className="px-2.5 py-1 border border-slate-200 rounded disabled:opacity-40 cursor-pointer"
+                      >
+                        পূর্ববর্তী
+                      </button>
+                      <span className="px-2 py-1 font-bold text-[#123184]">
+                        {restockHistoryPage} / {totalRestockHistoryPages}
+                      </span>
+                      <button
+                        type="button"
+                        disabled={restockHistoryPage === totalRestockHistoryPages}
+                        onClick={() => setRestockHistoryPage(p => Math.min(totalRestockHistoryPages, p + 1))}
+                        className="px-2.5 py-1 border border-slate-200 rounded disabled:opacity-40 cursor-pointer"
+                      >
+                        পরবর্তী
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+              </div>
+
+              {/* ======================================================== */}
+              {/* SECTION 4: FAST MULTI-ITEM INLINE RESTOCK TABLE          */}
+              {/* ======================================================== */}
+              <div className="bg-white border border-slate-200 shadow-xs p-5 space-y-4">
+                
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-lg bg-[#02975E]/10 text-[#02975E] flex items-center justify-center">
+                      <Boxes className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h3 className="font-extrabold text-sm sm:text-base text-slate-900">
+                        দ্রুত ক্যাটালগ রিস্টক (Fast Multi-Item Restock)
+                      </h3>
+                      <p className="text-xs text-slate-500">
+                        চালান থেকে দ্রুত একাধিক ওষুধে এক ক্লিকেই নতুন স্টক যোগ করুন
+                      </p>
+                    </div>
+                  </div>
+                  <span className="text-xs text-slate-500 font-medium">
+                    সংখ্যা লিখে <kbd className="bg-slate-100 px-1 py-0.5 border font-mono">Enter</kbd> চাপুন বা <strong className="text-[#02975E]">+ যোগ</strong> বাটনে ক্লিক করুন
+                  </span>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead>
+                      <tr className="bg-slate-50 text-slate-700 font-bold border-b border-slate-200">
+                        <th className="p-3">ওষুধের নাম</th>
+                        <th className="p-3">জেনেরিক ও প্রস্তুতকারক</th>
+                        <th className="p-3 text-center">বর্তমান বিদ্যমান স্টক</th>
+                        <th className="p-3 text-center">নতুন আসার সংখ্যা</th>
+                        <th className="p-3 text-center">নতুন মোট স্টক হবে</th>
+                        <th className="p-3 text-right">অ্যাকশন</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {paginatedRestockMedicines.slice(0, 8).map((med) => {
+                        const currentStock = typeof med.stock === 'number' ? med.stock : 100;
+                        const inputVal = restockQuickAddInputs[med.id] || '';
+                        const parsedAdd = parseInt(inputVal, 10) || 0;
+                        const previewNewTotal = currentStock + parsedAdd;
+
+                        return (
+                          <tr key={`quick-${med.id}`} className="hover:bg-slate-50 transition-colors">
+                            <td className="p-3 font-bold text-slate-900 whitespace-nowrap">
+                              <span className="block">{med.name}</span>
+                              {med.nameBn && <span className="text-[10px] text-emerald-800 font-normal">{med.nameBn}</span>}
+                            </td>
+
+                            <td className="p-3 text-slate-600">
+                              <span>{med.generic}</span>
+                              <span className="block text-[10px] text-slate-400">{med.company}</span>
+                            </td>
+
+                            <td className="p-3 text-center font-bold">
+                              <span className={`px-2 py-0.5 rounded text-[11px] ${
+                                currentStock === 0 
+                                  ? 'bg-rose-100 text-rose-800 font-black' 
+                                  : currentStock <= 15 
+                                  ? 'bg-amber-100 text-amber-900 font-bold' 
+                                  : 'bg-slate-100 text-slate-700'
+                              }`}>
+                                {currentStock} পিস
+                              </span>
+                            </td>
+
+                            <td className="p-3 text-center">
+                              <div className="inline-flex items-center gap-1">
+                                <span className="text-emerald-600 font-bold text-sm">+</span>
+                                <input
+                                  type="number"
+                                  min="1"
+                                  value={inputVal}
+                                  onChange={(e) => {
+                                    const val = e.target.value;
+                                    setRestockQuickAddInputs(prev => ({ ...prev, [med.id]: val }));
+                                  }}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                      e.preventDefault();
+                                      handleQuickInlineRestock(med);
+                                    }
+                                  }}
+                                  placeholder="১০"
+                                  className="w-16 px-2 py-1 text-center font-black border border-slate-300 focus:border-[#02975E] bg-white outline-none rounded-none text-xs"
+                                />
+                                <span className="text-[10px] text-slate-400">পিস</span>
+                              </div>
+                            </td>
+
+                            <td className="p-3 text-center">
+                              {parsedAdd > 0 ? (
+                                <span className="font-black text-[#123184] bg-blue-50 border border-blue-200 px-2 py-0.5 rounded text-xs">
+                                  {previewNewTotal} পিস
+                                </span>
+                              ) : (
+                                <span className="text-slate-400 text-[11px]">—</span>
+                              )}
+                            </td>
+
+                            <td className="p-3 text-right">
+                              <button
+                                type="button"
+                                disabled={parsedAdd <= 0}
+                                onClick={() => handleQuickInlineRestock(med)}
+                                className={`px-3 py-1.5 font-bold text-xs rounded transition-all cursor-pointer inline-flex items-center gap-1 ${
+                                  parsedAdd <= 0
+                                    ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                                    : 'bg-[#02975E] hover:bg-[#027e4e] text-white shadow-xs'
+                                }`}
+                              >
+                                <Plus className="w-3.5 h-3.5" />
+                                <span>স্টক ইন</span>
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+
+              </div>
 
             </div>
           )}
