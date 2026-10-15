@@ -1193,25 +1193,66 @@ export const AdminPortal = () => {
   const counterSalesList = completedSales.filter(o => o.isCounterSale || o.deliveryAddress?.includes('কাউন্টার'));
   const onlineSalesList = completedSales.filter(o => !o.isCounterSale && !o.deliveryAddress?.includes('কাউন্টার'));
 
-  // Filtered medicines for POS catalog selection
+  const [sellMedexResults, setSellMedexResults] = useState([]);
+  const [isSellMedexLoading, setIsSellMedexLoading] = useState(false);
+  const [sellMedPage, setSellMedPage] = useState(1);
+  const sellMedItemsPerPage = 14;
+
+  // Live MedEx fetch for sell catalog search (same as medicines catalog)
+  React.useEffect(() => {
+    const q = sellSearch.trim();
+    if (q.length < 2) {
+      setSellMedexResults([]);
+      setIsSellMedexLoading(false);
+      return;
+    }
+    setIsSellMedexLoading(true);
+    const timer = setTimeout(async () => {
+      try {
+        const liveItems = await fetchMedexSearchResults(q);
+        setSellMedexResults(liveItems);
+      } catch {
+        setSellMedexResults([]);
+      } finally {
+        setIsSellMedexLoading(false);
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [sellSearch]);
+
+  React.useEffect(() => {
+    setSellMedPage(1);
+  }, [sellSearch, sellCategory]);
+
+  // Filtered medicines for POS catalog selection (Searches ALL 50k+ Bangladesh medicines & MedEx!)
   const filteredSellMedicines = React.useMemo(() => {
-    return medicines.filter(m => {
-      const matchCat = sellCategory === 'all' || m.category === sellCategory;
-      const q = sellSearch.toLowerCase().trim();
-      const matchQuery = !q || (
-        (m.name && m.name.toLowerCase().includes(q)) ||
-        (m.generic && m.generic.toLowerCase().includes(q)) ||
-        (m.manufacturer && m.manufacturer.toLowerCase().includes(q))
-      );
-      return matchCat && matchQuery;
-    }).slice(0, 30); // show top 30 matching for lightning fast UI
-  }, [medicines, sellCategory, sellSearch]);
+    const q = sellSearch.trim();
+    let results = [];
+    if (q) {
+      results = mergeSearchResults(searchMedicines(medicines, q), sellMedexResults);
+    } else {
+      results = [...medicines].sort((a, b) => (a.generic || '').localeCompare(b.generic || '') || (a.name || '').localeCompare(b.name || ''));
+    }
+
+    if (sellCategory !== 'all') {
+      results = results.filter(m => m.category === sellCategory);
+    }
+
+    return results;
+  }, [medicines, sellCategory, sellSearch, sellMedexResults]);
+
+  const totalSellMedPages = Math.ceil(filteredSellMedicines.length / sellMedItemsPerPage) || 1;
+  const paginatedSellMedicines = filteredSellMedicines.slice(
+    (sellMedPage - 1) * sellMedItemsPerPage,
+    (sellMedPage - 1) * sellMedItemsPerPage + sellMedItemsPerPage
+  );
 
   // Cart actions
   const addToSellCart = (med) => {
     setSellCart(prev => {
       const existing = prev.find(it => it.id === med.id);
-      const stock = typeof med.stock === 'number' ? med.stock : 999;
+      const stock = typeof med.stock === 'number' ? med.stock : 100;
+      const unitPrice = Number(med.price || med.pricePerStrip || med.pricePerUnit || 10);
       if (existing) {
         if (existing.quantity >= stock) {
           showToast?.(`স্টকে মাত্র ${stock} টি রয়েছে!`, 'error');
@@ -1223,8 +1264,8 @@ export const AdminPortal = () => {
         id: med.id,
         name: med.name,
         generic: med.generic || '',
-        price: Number(med.price) || 0,
-        unitLabel: med.unitLabel || 'পাতা',
+        price: unitPrice,
+        unitLabel: med.unitLabel || (med.type === 'Syrup' ? 'বোতল' : 'পাতা'),
         quantity: 1,
         stock: stock
       }];
@@ -1990,7 +2031,7 @@ export const AdminPortal = () => {
                           type="text"
                           value={sellSearch}
                           onChange={(e) => setSellSearch(e.target.value)}
-                          placeholder="ওষুধের নাম, জেনেরিক বা রোগের নাম লিখে খুঁজুন..."
+                          placeholder="ওষুধের নাম, জেনেরিক বা রোগের নাম লিখে খুঁজুন (বাংলা বা English)..."
                           className="w-full pl-9 pr-8 py-2.5 rounded-none border border-slate-200 text-xs outline-none focus:border-[#123184] font-medium"
                         />
                         {sellSearch && (
@@ -2003,6 +2044,15 @@ export const AdminPortal = () => {
                           </button>
                         )}
                       </div>
+
+                      {isSellMedexLoading && (
+                        <div className="flex items-center gap-2">
+                          <span className="text-[11px] text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded flex items-center gap-1 font-bold animate-pulse">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-ping"></span>
+                            লাইভ ডাটাবেজ খুঁজছে...
+                          </span>
+                        </div>
+                      )}
 
                       {/* Category Badges */}
                       <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-[11px] scrollbar-thin">
@@ -2036,30 +2086,33 @@ export const AdminPortal = () => {
                     <div className="bg-white p-4 rounded-none border border-slate-200 shadow-xs">
                       <div className="flex justify-between items-center mb-3 pb-2 border-b border-slate-100">
                         <span className="text-xs font-bold text-slate-700">
-                          ওষুধের তালিকা ({filteredSellMedicines.length} টি দেখানো হচ্ছে)
+                          ওষুধের তালিকা (মোট <strong className="text-[#123184]">{filteredSellMedicines.length}</strong> টি ওষুধ পাওয়া গেছে)
                         </span>
                         <span className="text-[11px] text-slate-400">
-                          ক্লিক করে কার্টে যোগ করুন
+                          পেজ {sellMedPage} / {totalSellMedPages}
                         </span>
                       </div>
 
                       {filteredSellMedicines.length === 0 ? (
                         <div className="py-12 text-center text-slate-400 text-xs">
-                          কোনো ওষুধ পাওয়া যায়নি। সার্চ পরিবর্তন করুন।
+                          কোনো ওষুধ পাওয়া যায়নি। অন্য নাম লিখে সার্চ করুন।
                         </div>
                       ) : (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-[560px] overflow-y-auto pr-1">
-                          {filteredSellMedicines.map(med => {
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-[520px] overflow-y-auto pr-1">
+                          {paginatedSellMedicines.map(med => {
                             const inCart = sellCart.find(it => it.id === med.id);
                             const stock = typeof med.stock === 'number' ? med.stock : 100;
                             const isOutOfStock = stock <= 0;
+                            const medPrice = Number(med.price || med.pricePerStrip || med.pricePerUnit || 10).toFixed(2);
+                            const medCompany = (med.manufacturer || med.company || 'বাংলাদেশ ফার্মাসিউটিক্যালস').replace(/MedEx(\s*Bangladesh)?(\s*Verified)?/gi, 'বাংলাদেশ ফার্মাসিউটিক্যালস');
+                            const medUnit = med.unitLabel || (med.type === 'Syrup' ? 'বোতল' : 'পাতা');
 
                             return (
                               <div
                                 key={med.id}
                                 className={`p-3 border rounded-none flex flex-col justify-between transition-all ${
                                   inCart
-                                    ? 'border-[#02975E] bg-emerald-50/40'
+                                    ? 'border-[#02975E] bg-emerald-50/40 shadow-xs'
                                     : 'border-slate-200 hover:border-[#123184]/40 bg-white'
                                 }`}
                               >
@@ -2069,12 +2122,12 @@ export const AdminPortal = () => {
                                       {med.name}
                                     </h4>
                                     <span className="font-black text-xs text-[#123184] shrink-0">
-                                      ৳{Number(med.price || 0).toFixed(2)}
+                                      ৳{medPrice}
                                     </span>
                                   </div>
 
                                   <p className="text-[10px] text-slate-500 mt-0.5 line-clamp-1">
-                                    {med.generic || med.category} • {med.manufacturer}
+                                    {med.generic || med.category} • {medCompany}
                                   </p>
                                 </div>
 
@@ -2084,7 +2137,7 @@ export const AdminPortal = () => {
                                       ? 'bg-rose-100 text-rose-700' 
                                       : (stock <= 10 ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-600')
                                   }`}>
-                                    {isOutOfStock ? 'স্টক আউট' : `স্টক: ${stock} ${med.unitLabel || 'পাতা'}`}
+                                    {isOutOfStock ? 'স্টক আউট' : `স্টক: ${stock} ${medUnit}`}
                                   </span>
 
                                   <button
@@ -2106,6 +2159,50 @@ export const AdminPortal = () => {
                               </div>
                             );
                           })}
+                        </div>
+                      )}
+
+                      {/* POS Pagination Controls */}
+                      {totalSellMedPages > 1 && (
+                        <div className="flex flex-wrap items-center justify-between gap-2 pt-3 border-t border-slate-200 mt-3 text-xs">
+                          <span className="text-slate-500 text-[11px]">
+                            পেজ <strong>{sellMedPage}</strong> / <strong>{totalSellMedPages}</strong> (মোট <strong>{filteredSellMedicines.length}</strong> টি)
+                          </span>
+                          <div className="flex items-center gap-1">
+                            <button
+                              type="button"
+                              disabled={sellMedPage === 1}
+                              onClick={() => setSellMedPage(p => Math.max(1, p - 1))}
+                              className="px-2 py-1 border border-slate-200 rounded text-slate-700 disabled:opacity-40 hover:bg-slate-100 cursor-pointer text-xs font-bold"
+                            >
+                              পূর্ববর্তী
+                            </button>
+                            {getVisiblePages(sellMedPage, totalSellMedPages).map((p, idx) => (
+                              <button
+                                key={idx}
+                                type="button"
+                                disabled={p === '...'}
+                                onClick={() => typeof p === 'number' && setSellMedPage(p)}
+                                className={`w-7 h-7 rounded text-xs font-bold transition-all ${
+                                  p === sellMedPage
+                                    ? 'bg-[#123184] text-white shadow-xs'
+                                    : p === '...'
+                                    ? 'text-slate-400 cursor-default'
+                                    : 'text-slate-700 hover:bg-slate-100 border border-slate-200 cursor-pointer'
+                                }`}
+                              >
+                                {p}
+                              </button>
+                            ))}
+                            <button
+                              type="button"
+                              disabled={sellMedPage === totalSellMedPages}
+                              onClick={() => setSellMedPage(p => Math.min(totalSellMedPages, p + 1))}
+                              className="px-2 py-1 border border-slate-200 rounded text-slate-700 disabled:opacity-40 hover:bg-slate-100 cursor-pointer text-xs font-bold"
+                            >
+                              পরবর্তী
+                            </button>
+                          </div>
                         </div>
                       )}
                     </div>
