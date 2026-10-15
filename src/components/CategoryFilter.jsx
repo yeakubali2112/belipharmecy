@@ -84,11 +84,13 @@ export const CategoryFilter = ({ sortBy, setSortBy, filterRx, setFilterRx }) => 
                     {renderIcon(cat.icon)}
                   </span>
                   <span>{lang === 'bn' ? cat.nameBn : cat.nameEn}</span>
-                  <span className={`text-[10px] px-1.5 py-0.5 rounded-none font-bold ${
-                    isSelected ? 'bg-[#0d2463] text-white' : 'bg-slate-200 text-slate-600'
-                  }`}>
-                    {count}
-                  </span>
+                  {cat.id !== 'all' && (
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded-none font-bold ${
+                      isSelected ? 'bg-[#0d2463] text-white' : 'bg-slate-200 text-slate-600'
+                    }`}>
+                      {count}
+                    </span>
+                  )}
                 </button>
               );
             })}
