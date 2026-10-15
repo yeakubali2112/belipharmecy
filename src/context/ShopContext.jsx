@@ -9,8 +9,11 @@ import {
   saveCloudSettings,
   fetchCloudCustomers,
   saveCloudCustomer,
-  deleteCloudCustomer
+  deleteCloudCustomer,
+  fetchCloudMedicines,
+  saveCloudMedicine
 } from '../services/firebaseService';
+import { subscribeLiveSync, publishLiveSync, fetchRecentSyncEvents } from '../services/liveSyncService';
 import { fetchMedexSearchResults } from '../utils/medicineSearch';
 
 const ShopContext = createContext();
@@ -41,7 +44,7 @@ const safeSetItem = (key, value) => {
           const delta = parsed.filter(m => {
             const init = initialMap.get(m.id);
             if (!init) return true;
-            return m.pricePerStrip !== init.pricePerStrip || m.stock !== init.stock || m.discountPercent !== init.discountPercent;
+            return m.pricePerStrip !== init.pricePerStrip || m.stock !== init.stock || m.discountPercent !== init.discountPercent || m.image !== init.image || m.name !== init.name;
           });
           localStorage.setItem(key, JSON.stringify(delta));
         }
@@ -924,14 +927,170 @@ export const ShopProvider = ({ children }) => {
     }
   }, [cartSubtotal, coupons]);
 
-  // Real-time Cloud Sync across all devices (Mobile & Desktop)
+  // Helper: Deduct sold items from stock (called when order is Delivered or Counter Sale)
+  const deductItemsFromStock = (items) => {
+    if (!items || !Array.isArray(items)) return;
+    setMedicines(prev => {
+      const idMap = new Map();
+      const nameMap = new Map();
+
+      items.forEach(it => {
+        const medId = it.medicineId || it.id;
+        const qty = Math.max(1, Number(it.quantity) || 1);
+        const isStrip = it.unitType === 'strip' || (it.unitLabel && (it.unitLabel.includes('পাতা') || it.unitLabel.toLowerCase().includes('strip')));
+        const stripSize = Number(it.stripSize) || 10;
+        const piecesSold = isStrip ? (qty * stripSize) : qty;
+
+        if (medId) idMap.set(medId, (idMap.get(medId) || 0) + piecesSold);
+        if (it.name) nameMap.set(it.name.trim().toLowerCase(), (nameMap.get(it.name.trim().toLowerCase()) || 0) + piecesSold);
+      });
+
+      const updatedMeds = prev.map(m => {
+        let piecesToDeduct = 0;
+        if (idMap.has(m.id)) piecesToDeduct = idMap.get(m.id);
+        else if (nameMap.has((m.name || '').trim().toLowerCase())) piecesToDeduct = nameMap.get((m.name || '').trim().toLowerCase());
+
+        if (piecesToDeduct > 0) {
+          const currentStock = typeof m.stock === 'number' ? m.stock : 100;
+          const newStock = Math.max(0, currentStock - piecesToDeduct);
+          const updated = {
+            ...m,
+            stock: newStock,
+            lastSoldAt: new Date().toISOString()
+          };
+          saveCloudMedicine(updated);
+          publishLiveSync({ type: 'STOCK_UPDATED', medicineId: m.id, stock: newStock, medicine: updated });
+          return updated;
+        }
+        return m;
+      });
+
+      safeSetItem('beli_medicines', JSON.stringify(updatedMeds));
+      return updatedMeds;
+    });
+  };
+
+  // Helper: Restore sold items to stock (called if Delivered order is Cancelled)
+  const restoreItemsToStock = (items) => {
+    if (!items || !Array.isArray(items)) return;
+    setMedicines(prev => {
+      const idMap = new Map();
+      const nameMap = new Map();
+
+      items.forEach(it => {
+        const medId = it.medicineId || it.id;
+        const qty = Math.max(1, Number(it.quantity) || 1);
+        const isStrip = it.unitType === 'strip' || (it.unitLabel && (it.unitLabel.includes('পাতা') || it.unitLabel.toLowerCase().includes('strip')));
+        const stripSize = Number(it.stripSize) || 10;
+        const pieces = isStrip ? (qty * stripSize) : qty;
+
+        if (medId) idMap.set(medId, (idMap.get(medId) || 0) + pieces);
+        if (it.name) nameMap.set(it.name.trim().toLowerCase(), (nameMap.get(it.name.trim().toLowerCase()) || 0) + pieces);
+      });
+
+      const restoredMeds = prev.map(m => {
+        let piecesToRestore = 0;
+        if (idMap.has(m.id)) piecesToRestore = idMap.get(m.id);
+        else if (nameMap.has((m.name || '').trim().toLowerCase())) piecesToRestore = nameMap.get((m.name || '').trim().toLowerCase());
+
+        if (piecesToRestore > 0) {
+          const currentStock = typeof m.stock === 'number' ? m.stock : 0;
+          const newStock = currentStock + piecesToRestore;
+          const updated = {
+            ...m,
+            stock: newStock,
+            lastRestockedAt: new Date().toISOString()
+          };
+          saveCloudMedicine(updated);
+          publishLiveSync({ type: 'STOCK_UPDATED', medicineId: m.id, stock: newStock, medicine: updated });
+          return updated;
+        }
+        return m;
+      });
+
+      safeSetItem('beli_medicines', JSON.stringify(restoredMeds));
+      return restoredMeds;
+    });
+  };
+
+  // Handle incoming real-time sync events from any connected device
+  const handleIncomingSyncEvent = (event) => {
+    if (!event || !event.type) return;
+
+    if (event.type === 'ORDER_CREATED' && event.order) {
+      setOrders(prev => {
+        if (prev.some(o => o.id === event.order.id)) return prev;
+        const next = [event.order, ...prev];
+        safeSetItem('beli_orders', JSON.stringify(next));
+        return next;
+      });
+      if (!knownOrderIdsRef.current.has(event.order.id)) {
+        knownOrderIdsRef.current.add(event.order.id);
+        triggerOrderNotification(event.order);
+      }
+    } else if (event.type === 'ORDER_STATUS_CHANGED' && event.orderId) {
+      setOrders(prev => {
+        const next = prev.map(o => o.id === event.orderId ? { 
+          ...o, 
+          status: event.status, 
+          stockDeducted: event.stockDeducted !== undefined ? event.stockDeducted : o.stockDeducted 
+        } : o);
+        safeSetItem('beli_orders', JSON.stringify(next));
+        return next;
+      });
+    } else if (event.type === 'MEDICINE_UPDATED' && event.medicine) {
+      setMedicines(prev => {
+        const index = prev.findIndex(m => m.id === event.medicine.id);
+        let next;
+        if (index >= 0) {
+          next = [...prev];
+          next[index] = { ...next[index], ...event.medicine };
+        } else {
+          next = [event.medicine, ...prev];
+        }
+        safeSetItem('beli_medicines', JSON.stringify(next));
+        return next;
+      });
+    } else if (event.type === 'STOCK_UPDATED' && event.medicineId) {
+      setMedicines(prev => {
+        const next = prev.map(m => m.id === event.medicineId ? { ...m, stock: event.stock } : m);
+        safeSetItem('beli_medicines', JSON.stringify(next));
+        return next;
+      });
+    } else if (event.type === 'PRESCRIPTION_UPLOADED' && event.prescription) {
+      setPrescriptions(prev => {
+        if (prev.some(p => p.id === event.prescription.id)) return prev;
+        const next = [event.prescription, ...prev];
+        safeSetItem('beli_prescriptions', JSON.stringify(next));
+        return next;
+      });
+    } else if (event.type === 'SETTINGS_UPDATED' && event.settings) {
+      if (event.settings.deliverySettings) {
+        setDeliverySettings(event.settings.deliverySettings);
+        safeSetItem('beli_delivery_settings', JSON.stringify(event.settings.deliverySettings));
+      }
+      if (event.settings.adBanner) {
+        setAdBanner(event.settings.adBanner);
+        safeSetItem('beli_ad_banner', JSON.stringify(event.settings.adBanner));
+      }
+    }
+  };
+
+  // Real-time Cloud Sync across all devices (Mobile & Desktop) via Server-Sent Events (SSE)
   useEffect(() => {
     let isMounted = true;
-    const syncData = async () => {
+
+    // 1. Initial catch-up from cloud
+    fetchRecentSyncEvents().then(events => {
+      if (Array.isArray(events) && events.length > 0 && isMounted) {
+        events.forEach(handleIncomingSyncEvent);
+      }
+    });
+
+    const syncCloudDataOnce = async () => {
       try {
         const cloudOrders = await fetchCloudOrders();
         if (cloudOrders && Array.isArray(cloudOrders) && isMounted) {
-          // Detect incoming new orders from cloud sync
           if (knownOrderIdsRef.current.size > 0) {
             const freshOrders = cloudOrders.filter(o => o && o.id && !knownOrderIdsRef.current.has(o.id));
             if (freshOrders.length > 0) {
@@ -946,27 +1105,22 @@ export const ShopProvider = ({ children }) => {
             const map = new Map();
             prev.forEach(o => map.set(o.id, o));
             cloudOrders.forEach(o => map.set(o.id, o));
-            const parseTime = (item) => {
-              if (item.timestamp && typeof item.timestamp === 'number') return item.timestamp;
-              if (item.createdAt) {
-                const parts = String(item.createdAt).split(',');
-                if (parts.length === 2) {
-                  const [d, m, y] = parts[0].trim().split('/').map(Number);
-                  const timePart = parts[1].trim();
-                  const dt = new Date(`${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}T${timePart}`);
-                  if (!isNaN(dt.getTime())) return dt.getTime();
-                }
-                const t = Date.parse(item.createdAt);
-                if (!isNaN(t)) return t;
-              }
-              return 0;
-            };
-            const merged = Array.from(map.values()).sort((a, b) => {
-              const diff = parseTime(b) - parseTime(a);
-              return diff !== 0 ? diff : (b.id || '').localeCompare(a.id || '');
-            });
+            const merged = Array.from(map.values()).sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
             safeSetItem('beli_orders', JSON.stringify(merged));
             return merged;
+          });
+        }
+
+        const cloudMeds = await fetchCloudMedicines();
+        if (cloudMeds && Array.isArray(cloudMeds) && isMounted && cloudMeds.length > 0) {
+          setMedicines(prev => {
+            const cloudMap = new Map(cloudMeds.map(m => [m.id, m]));
+            const next = prev.map(m => cloudMap.has(m.id) ? { ...m, ...cloudMap.get(m.id) } : m);
+            cloudMeds.forEach(cm => {
+              if (!next.some(m => m.id === cm.id)) next.unshift(cm);
+            });
+            safeSetItem('beli_medicines', JSON.stringify(next));
+            return next;
           });
         }
 
@@ -982,42 +1136,15 @@ export const ShopProvider = ({ children }) => {
           });
         }
 
-        const cloudCustomers = await fetchCloudCustomers();
-        if (cloudCustomers && Array.isArray(cloudCustomers) && isMounted) {
-          setCustomerProfiles(prev => {
-            const map = new Map();
-            prev.forEach(p => {
-              if (p && p.phone) map.set(p.phone.trim(), p);
-            });
-            cloudCustomers.forEach(p => {
-              if (p && p.phone) map.set(p.phone.trim(), p);
-            });
-            const merged = Array.from(map.values()).filter(p => p.phone !== '01711223344' && p.name !== 'তানভীর আহমেদ');
-            safeSetItem('beli_customer_profiles', JSON.stringify(merged));
-            return merged;
-          });
-        }
-
         const cloudSettings = await fetchCloudSettings();
         if (cloudSettings && isMounted) {
           if (cloudSettings.deliverySettings) {
             setDeliverySettings(cloudSettings.deliverySettings);
             safeSetItem('beli_delivery_settings', JSON.stringify(cloudSettings.deliverySettings));
           }
-          if (cloudSettings.coupons && Array.isArray(cloudSettings.coupons)) {
-            setCoupons(cloudSettings.coupons);
-            safeSetItem('beli_coupons', JSON.stringify(cloudSettings.coupons));
-          }
           if (cloudSettings.adBanner) {
-            setAdBanner(prev => {
-              const localTime = new Date(prev?.updatedAt || 0).getTime();
-              const cloudTime = new Date(cloudSettings.adBanner?.updatedAt || 0).getTime();
-              if (cloudTime >= localTime) {
-                safeSetItem('beli_ad_banner', JSON.stringify(cloudSettings.adBanner));
-                return { ...prev, ...cloudSettings.adBanner };
-              }
-              return prev;
-            });
+            setAdBanner(cloudSettings.adBanner);
+            safeSetItem('beli_ad_banner', JSON.stringify(cloudSettings.adBanner));
           }
         }
       } catch (err) {
@@ -1025,13 +1152,20 @@ export const ShopProvider = ({ children }) => {
       }
     };
 
-    syncData();
-    window.addEventListener('focus', syncData);
-    const interval = setInterval(syncData, 4000);
+    syncCloudDataOnce();
+    window.addEventListener('focus', syncCloudDataOnce);
+
+    // 2. Connect to real-time stream (instant updates without reload across all devices)
+    const unsubscribeSSE = subscribeLiveSync((event) => {
+      if (isMounted) {
+        handleIncomingSyncEvent(event);
+      }
+    });
+
     return () => {
       isMounted = false;
-      window.removeEventListener('focus', syncData);
-      clearInterval(interval);
+      window.removeEventListener('focus', syncCloudDataOnce);
+      unsubscribeSSE();
     };
   }, []);
 
@@ -1042,13 +1176,18 @@ export const ShopProvider = ({ children }) => {
     const resolvedAvatar = orderData.customerAvatar || currentCustomer?.avatar || existingCust?.avatar || null;
 
     const now = Date.now();
+    const isCounter = !!orderData.isCounterSale;
+
+    // For counter sales: completed immediately with status Delivered and stock deducted.
+    // For online customer orders: starts as Pending, stock is NOT deducted yet (deducted only when Admin marks Delivered!).
     const newOrder = {
       id: newId,
       createdAt: new Date().toLocaleString('en-GB'),
       timestamp: now,
       ...orderData,
       customerAvatar: resolvedAvatar,
-      status: orderData.status || 'Pending',
+      status: isCounter ? 'Delivered' : (orderData.status || 'Pending'),
+      stockDeducted: isCounter // Only immediate counter sales deduct stock upon creation!
     };
 
     setOrders(prev => {
@@ -1060,8 +1199,11 @@ export const ShopProvider = ({ children }) => {
     // Save to Firebase Cloud immediately
     saveCloudOrder(newOrder);
 
+    // Broadcast instant real-time event to all devices
+    publishLiveSync({ type: 'ORDER_CREATED', order: newOrder });
+
     // Only clear online cart if not a counter sale
-    if (!orderData.isCounterSale) {
+    if (!isCounter) {
       clearCart();
       setIsCheckoutModalOpen(false);
     }
@@ -1077,7 +1219,7 @@ export const ShopProvider = ({ children }) => {
         lastOrderDate: new Date().toLocaleDateString('bn-BD')
       };
 
-      if (!orderData.isCounterSale) {
+      if (!isCounter) {
         setCurrentCustomer(profile);
         safeSetItem('beli_current_customer', JSON.stringify(profile));
       }
@@ -1089,63 +1231,20 @@ export const ShopProvider = ({ children }) => {
         return next;
       });
 
-      // Save Customer Profile to Firebase Cloud
       saveCloudCustomer(profile);
     }
 
-    // Auto-deduct stock for sold items (tablets / pieces)
-    if (orderData.items && Array.isArray(orderData.items)) {
-      setMedicines(prev => {
-        // Build deduction maps by ID and by lowercase name
-        const idDeductionMap = new Map();
-        const nameDeductionMap = new Map();
-
-        orderData.items.forEach(it => {
-          const medId = it.medicineId || it.id;
-          const qty = Math.max(1, Number(it.quantity) || 1);
-          const isStrip = it.unitType === 'strip' || (it.unitLabel && (it.unitLabel.includes('পাতা') || it.unitLabel.toLowerCase().includes('strip')));
-          const stripSize = Number(it.stripSize) || 10;
-          const piecesSold = isStrip ? (qty * stripSize) : qty;
-
-          if (medId) {
-            idDeductionMap.set(medId, (idDeductionMap.get(medId) || 0) + piecesSold);
-          }
-          if (it.name) {
-            const cleanName = it.name.trim().toLowerCase();
-            nameDeductionMap.set(cleanName, (nameDeductionMap.get(cleanName) || 0) + piecesSold);
-          }
-        });
-
-        const updatedMeds = prev.map(m => {
-          let piecesToDeduct = 0;
-          if (idDeductionMap.has(m.id)) {
-            piecesToDeduct = idDeductionMap.get(m.id);
-          } else if (nameDeductionMap.has((m.name || '').trim().toLowerCase())) {
-            piecesToDeduct = nameDeductionMap.get((m.name || '').trim().toLowerCase());
-          }
-
-          if (piecesToDeduct > 0) {
-            const currentStock = typeof m.stock === 'number' ? m.stock : 100;
-            const newStock = Math.max(0, currentStock - piecesToDeduct);
-            return {
-              ...m,
-              stock: newStock,
-              lastSoldAt: new Date().toISOString()
-            };
-          }
-          return m;
-        });
-
-        safeSetItem('beli_medicines', JSON.stringify(updatedMeds));
-        return updatedMeds;
-      });
+    // Only deduct stock on creation IF it is an immediate Counter Sale!
+    // Online customer orders wait until Admin marks Delivered!
+    if (isCounter && orderData.items && Array.isArray(orderData.items)) {
+      deductItemsFromStock(orderData.items);
     }
 
     setActiveInvoiceOrder(newOrder);
     knownOrderIdsRef.current.add(newId);
     triggerOrderNotification(newOrder);
     showToast(
-      orderData.isCounterSale
+      isCounter
         ? (lang === 'bn' ? `কাউন্টার সেল সফল! চালান নং: ${newId}` : `Sale completed! Invoice ID: ${newId}`)
         : (lang === 'bn' ? `অর্ডার সফল! আপনার প্রোফাইল তৈরি হয়েছে। আইডি: ${newId}` : `Order placed! Your profile has been created. ID: ${newId}`),
       'success'
@@ -1177,6 +1276,9 @@ export const ShopProvider = ({ children }) => {
 
     // Save to Firebase Cloud immediately
     saveCloudPrescription(newPrescription);
+
+    // Broadcast instant real-time event to all devices
+    publishLiveSync({ type: 'PRESCRIPTION_UPLOADED', prescription: newPrescription });
 
     if (autoClose) {
       setIsPrescriptionModalOpen(false);
@@ -1215,53 +1317,65 @@ export const ShopProvider = ({ children }) => {
 
   // Admin & Customer Order Actions
   const updateOrderStatus = (orderId, newStatus) => {
-    let orderToCancel = null;
+    let orderToDeduct = null;
+    let orderToRestore = null;
+    let updatedOrder = null;
+
     setOrders(prev => {
-      const target = prev.find(o => o.id === orderId);
-      if (target && target.status !== 'Cancelled' && newStatus === 'Cancelled') {
-        orderToCancel = target;
-      }
-      const next = prev.map(o => o.id === orderId ? { ...o, status: newStatus } : o);
+      const next = prev.map(o => {
+        if (o.id === orderId) {
+          let stockDeducted = !!o.stockDeducted;
+
+          // If changing to Delivered and stock was NOT yet deducted -> deduct now!
+          if (newStatus === 'Delivered' && !stockDeducted) {
+            orderToDeduct = o;
+            stockDeducted = true;
+          }
+          // If was Delivered (stock was deducted) and now changing to Cancelled or Pending -> restore stock!
+          else if ((newStatus === 'Cancelled' || newStatus === 'Pending') && stockDeducted) {
+            orderToRestore = o;
+            stockDeducted = false;
+          }
+
+          updatedOrder = { ...o, status: newStatus, stockDeducted };
+          return updatedOrder;
+        }
+        return o;
+      });
+
       safeSetItem('beli_orders', JSON.stringify(next));
-      const updatedTarget = next.find(o => o.id === orderId);
-      if (updatedTarget) saveCloudOrder(updatedTarget);
+      if (updatedOrder) {
+        saveCloudOrder(updatedOrder);
+        publishLiveSync({
+          type: 'ORDER_STATUS_CHANGED',
+          orderId: updatedOrder.id,
+          status: updatedOrder.status,
+          stockDeducted: updatedOrder.stockDeducted,
+          order: updatedOrder
+        });
+      }
       return next;
     });
 
-    // If order was cancelled, restore items back to stock
-    if (orderToCancel && orderToCancel.items && Array.isArray(orderToCancel.items)) {
-      setMedicines(prev => {
-        const idMap = new Map();
-        const nameMap = new Map();
-        orderToCancel.items.forEach(it => {
-          const medId = it.medicineId || it.id;
-          const qty = Math.max(1, Number(it.quantity) || 1);
-          const isStrip = it.unitType === 'strip' || (it.unitLabel && (it.unitLabel.includes('পাতা') || it.unitLabel.toLowerCase().includes('strip')));
-          const stripSize = Number(it.stripSize) || 10;
-          const pieces = isStrip ? qty * stripSize : qty;
-
-          if (medId) idMap.set(medId, (idMap.get(medId) || 0) + pieces);
-          if (it.name) nameMap.set(it.name.trim().toLowerCase(), (nameMap.get(it.name.trim().toLowerCase()) || 0) + pieces);
-        });
-
-        const restoredMeds = prev.map(m => {
-          let piecesToRestore = 0;
-          if (idMap.has(m.id)) piecesToRestore = idMap.get(m.id);
-          else if (nameMap.has((m.name || '').trim().toLowerCase())) piecesToRestore = nameMap.get((m.name || '').trim().toLowerCase());
-
-          if (piecesToRestore > 0) {
-            const currentStock = typeof m.stock === 'number' ? m.stock : 0;
-            return { ...m, stock: currentStock + piecesToRestore };
-          }
-          return m;
-        });
-
-        safeSetItem('beli_medicines', JSON.stringify(restoredMeds));
-        return restoredMeds;
-      });
+    if (orderToDeduct && orderToDeduct.items && Array.isArray(orderToDeduct.items)) {
+      deductItemsFromStock(orderToDeduct.items);
+      showToast(
+        lang === 'bn' 
+          ? `অর্ডার সম্পন্ন হয়েছে এবং ইনভেন্টরি স্টক থেকে ওষুধ কাটা হয়েছে!` 
+          : `Order delivered! Stock deducted from inventory.`,
+        'success'
+      );
+    } else if (orderToRestore && orderToRestore.items && Array.isArray(orderToRestore.items)) {
+      restoreItemsToStock(orderToRestore.items);
+      showToast(
+        lang === 'bn' 
+          ? `অর্ডার স্ট্যাটাস পরিবর্তনের কারণে স্টক পুনঃসংরক্ষণ (Restore) করা হয়েছে!` 
+          : `Order status reverted! Stock restored to inventory.`,
+        'info'
+      );
+    } else {
+      showToast(`Order ${orderId} status updated to ${newStatus}`, 'info');
     }
-
-    showToast(`Order ${orderId} status updated to ${newStatus}`, 'info');
   };
 
   const updateOrderPaymentMethod = (orderId, paymentMethod, trxId = 'N/A', isConfirmed = true) => {
@@ -1386,13 +1500,14 @@ export const ShopProvider = ({ children }) => {
     const medName = (newMed.name || '').trim().toLowerCase();
     const existing = medicines.find(m => (newMed.id && m.id === newMed.id) || (medName && m.name.toLowerCase().trim() === medName));
 
+    let finalMed;
     if (existing) {
       // Medicine already exists in catalog! Add the stock to existing stock!
       const oldStock = typeof existing.stock === 'number' ? existing.stock : 0;
       const incomingStock = Math.max(0, Number(newMed.stock) || 0);
       const newStock = oldStock + incomingStock;
 
-      const mergedMed = {
+      finalMed = {
         ...existing,
         ...newMed,
         id: existing.id,
@@ -1401,7 +1516,7 @@ export const ShopProvider = ({ children }) => {
       };
 
       setMedicines(prev => {
-        const updated = prev.map(m => m.id === existing.id ? mergedMed : m);
+        const updated = prev.map(m => m.id === existing.id ? finalMed : m);
         safeSetItem('beli_medicines', JSON.stringify(updated));
         return updated;
       });
@@ -1436,22 +1551,26 @@ export const ShopProvider = ({ children }) => {
           : `✓ Added ${incomingStock} pcs to ${existing.name}! Total stock: ${newStock} pcs`,
         'success'
       );
-      return mergedMed;
     } else {
-      const med = {
+      finalMed = {
         ...newMed,
         id: newMed.id || `med-${Date.now()}`,
         stock: Math.max(0, Number(newMed.stock) || 0),
         createdAt: new Date().toISOString()
       };
       setMedicines(prev => {
-        const next = [med, ...prev];
+        const next = [finalMed, ...prev];
         safeSetItem('beli_medicines', JSON.stringify(next));
         return next;
       });
       showToast(lang === 'bn' ? 'নতুন ওষুধ সফলভাবে যুক্ত হয়েছে' : 'New medicine added', 'success');
-      return med;
     }
+
+    // Persist to cloud and broadcast to all devices in real time
+    saveCloudMedicine(finalMed);
+    publishLiveSync({ type: 'MEDICINE_UPDATED', medicine: finalMed });
+
+    return finalMed;
   };
 
   const updateMedicine = (updatedMed) => {
@@ -1459,13 +1578,18 @@ export const ShopProvider = ({ children }) => {
       const exists = prev.some(m => m.id === updatedMed.id);
       let next;
       if (exists) {
-        next = prev.map(m => m.id === updatedMed.id ? updatedMed : m);
+        next = prev.map(m => m.id === updatedMed.id ? { ...m, ...updatedMed } : m);
       } else {
         next = [updatedMed, ...prev];
       }
       safeSetItem('beli_medicines', JSON.stringify(next));
       return next;
     });
+
+    // Save to Cloud and broadcast updated image/details to all other devices live
+    saveCloudMedicine(updatedMed);
+    publishLiveSync({ type: 'MEDICINE_UPDATED', medicine: updatedMed });
+
     showToast(lang === 'bn' ? 'ওষুধের তথ্য আপডেট হয়েছে' : 'Medicine updated', 'success');
   };
 
@@ -1498,6 +1622,10 @@ export const ShopProvider = ({ children }) => {
       safeSetItem('beli_medicines', JSON.stringify(updated));
       return updated;
     });
+
+    // Save to Cloud and broadcast live stock update to all devices
+    saveCloudMedicine(targetMed);
+    publishLiveSync({ type: 'STOCK_UPDATED', medicineId: targetMed.id, stock: newStockVal, medicine: targetMed });
 
     const logEntry = {
       id: `rstk-${Date.now()}-${Math.floor(Math.random() * 1000)}`,

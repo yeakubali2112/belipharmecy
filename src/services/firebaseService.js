@@ -176,3 +176,34 @@ export const deleteCloudCustomer = async (phone) => {
   }
 };
 
+// ==========================================
+// MEDICINES CLOUD SYNC
+// ==========================================
+
+export const fetchCloudMedicines = async () => {
+  try {
+    const res = await fetch(`${BASE_URL}/medicines?key=${API_KEY}&pageSize=100`, { cache: 'no-store' });
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (!data.documents) return [];
+    return data.documents.map(fromFirestoreDoc).filter(Boolean);
+  } catch (err) {
+    return null;
+  }
+};
+
+export const saveCloudMedicine = async (medicine) => {
+  if (!medicine || !medicine.id) return false;
+  try {
+    const docId = encodeURIComponent(medicine.id);
+    const res = await fetch(`${BASE_URL}/medicines/${docId}?key=${API_KEY}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(toFirestoreDoc(medicine))
+    });
+    return res.ok;
+  } catch (err) {
+    return false;
+  }
+};
+
