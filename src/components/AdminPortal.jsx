@@ -330,6 +330,7 @@ export const AdminPortal = () => {
   const [previewRxImage, setPreviewRxImage] = useState(null);
   const [rxZoom, setRxZoom] = useState(1);
   const [rxRotation, setRxRotation] = useState(0);
+  const [isRxEnlargedOnLeft, setIsRxEnlargedOnLeft] = useState(false);
 
   const handleOpenRxPreview = (img) => {
     setPreviewRxImage(img);
@@ -393,6 +394,9 @@ export const AdminPortal = () => {
     setSelectedMedToAdd(null);
     setRxAddUnitType('strip');
     setRxAddQuantity(1);
+    setRxZoom(1);
+    setRxRotation(0);
+    setIsRxEnlargedOnLeft(false);
   };
 
   const handleAddMedicineToRx = () => {
@@ -5164,21 +5168,21 @@ export const AdminPortal = () => {
           onClick={() => setActiveRxForMedicines(null)}
         >
           <div 
-            className="bg-white rounded-none max-w-5xl w-full my-6 shadow-2xl border border-slate-100 overflow-hidden flex flex-col max-h-[92vh] animate-in zoom-in-95 duration-150"
+            className="bg-white rounded-none w-[98vw] max-w-[1720px] my-2 shadow-2xl border border-slate-100 overflow-hidden flex flex-col max-h-[96vh] animate-in zoom-in-95 duration-150"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
-            <div className="p-4 sm:p-5 border-b border-[#0d2463] flex items-center justify-between bg-gradient-to-r from-[#123184] to-[#02975E] text-white">
+            <div className="p-3.5 sm:p-4 border-b border-[#0d2463] flex items-center justify-between bg-gradient-to-r from-[#123184] to-[#02975E] text-white">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center text-white backdrop-blur-xs shadow-xs">
+                <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center text-white backdrop-blur-xs shadow-xs">
                   <Pill className="w-5 h-5 text-emerald-200" />
                 </div>
                 <div>
-                  <h3 className="font-extrabold text-base sm:text-lg flex items-center gap-2">
+                  <h3 className="font-extrabold text-sm sm:text-base flex items-center gap-2">
                     <span>প্রেসক্রিপশন অনুযায়ী ওষুধ এন্ট্রি ও মূল্য নির্ধারণ</span>
                     <span className="text-xs bg-white/20 px-2 py-0.5 rounded-full font-mono">#{activeRxForMedicines.id}</span>
                   </h3>
-                  <p className="text-xs text-blue-100">
+                  <p className="text-[11px] text-blue-100 line-clamp-1">
                     রোগী: <b className="text-white">{activeRxForMedicines.customerName}</b> ({activeRxForMedicines.customerPhone}) • ঠিকানা: {activeRxForMedicines.deliveryAddress}
                   </p>
                 </div>
@@ -5192,60 +5196,125 @@ export const AdminPortal = () => {
               </button>
             </div>
 
-            {/* Modal Body: Two column layout (Left: Prescription Image, Right: Medicine Selector & List) */}
+            {/* Modal Body: Two column layout (Left: Prescription Image (50%), Right: Medicine Selector & List (50%)) */}
             <div className="grid grid-cols-1 lg:grid-cols-12 flex-1 overflow-y-auto divide-y lg:divide-y-0 lg:divide-x divide-slate-200">
               
-              {/* Left Column: Prescription Image */}
-              <div className="lg:col-span-5 p-4 bg-slate-50 flex flex-col items-center justify-between space-y-3">
-                <div className="w-full">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+              {/* Left Column: Prescription Image (lg:col-span-6) */}
+              <div className="lg:col-span-6 p-4 bg-slate-50 flex flex-col justify-between space-y-3">
+                <div className="w-full flex-1 flex flex-col">
+                  {/* Image Toolbar */}
+                  <div className="flex flex-wrap items-center justify-between gap-2 mb-2 pb-2 border-b border-slate-200">
+                    <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
                       <FileText className="w-4 h-4 text-[#123184]" />
                       <span>প্রেসক্রিপশন কপি</span>
                     </span>
+
                     {activeRxForMedicines.image && (
-                      <button
-                        type="button"
-                        onClick={() => handleOpenRxPreview(activeRxForMedicines.image)}
-                        className="text-[11px] text-[#123184] hover:underline font-bold flex items-center gap-1 cursor-pointer bg-blue-50 px-2.5 py-1 rounded border border-blue-200 shadow-2xs hover:bg-blue-100 transition-colors"
-                      >
-                        <Eye className="w-3.5 h-3.5 text-[#123184]" />
-                        <span>বড় করে দেখুন</span>
-                      </button>
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsRxEnlargedOnLeft(prev => !prev);
+                            setRxZoom(prev => prev > 1 ? 1 : 1.6);
+                          }}
+                          className={`text-[11px] font-bold flex items-center gap-1 cursor-pointer px-3 py-1 rounded transition-colors ${
+                            isRxEnlargedOnLeft || rxZoom > 1
+                              ? 'bg-[#123184] text-white shadow-xs'
+                              : 'bg-blue-50 text-[#123184] hover:bg-blue-100 border border-blue-200 shadow-2xs'
+                          }`}
+                          title="বাম পাশে প্রেসক্রিপশন বড় জুম করে দেখুন"
+                        >
+                          <Eye className="w-3.5 h-3.5" />
+                          <span>{isRxEnlargedOnLeft || rxZoom > 1 ? 'স্বাভাবিক সাইজ' : 'বড় করে দেখুন'}</span>
+                        </button>
+
+                        <div className="flex items-center bg-white border border-slate-200 rounded px-1 text-xs">
+                          <button
+                            type="button"
+                            onClick={() => setRxZoom(z => Math.max(0.6, Number((z - 0.2).toFixed(2))))}
+                            className="px-1.5 py-0.5 text-slate-600 hover:bg-slate-100 font-bold cursor-pointer"
+                            title="জুম আউট"
+                          >
+                            -
+                          </button>
+                          <span className="px-1 text-[10px] font-mono font-bold text-[#02975E]">
+                            {Math.round(rxZoom * 100)}%
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setRxZoom(z => Math.min(3, Number((z + 0.2).toFixed(2))))}
+                            className="px-1.5 py-0.5 text-slate-600 hover:bg-slate-100 font-bold cursor-pointer"
+                            title="জুম ইন"
+                          >
+                            +
+                          </button>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => setRxRotation(r => (r + 90) % 360)}
+                          className="p-1 text-slate-600 hover:bg-white border border-slate-200 rounded cursor-pointer transition-colors"
+                          title="ছবি ঘোরান (Rotate 90°)"
+                        >
+                          <RotateCcw className="w-3.5 h-3.5" />
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => { setRxZoom(1); setRxRotation(0); setIsRxEnlargedOnLeft(false); }}
+                          className="px-2 py-0.5 text-[10px] text-slate-500 hover:bg-white border border-slate-200 rounded cursor-pointer"
+                          title="রিসেট"
+                        >
+                          রিসেট
+                        </button>
+                      </div>
                     )}
                   </div>
 
+                  {/* Prescription High-Resolution Image Box */}
                   {activeRxForMedicines.image ? (
-                    <div className="w-full bg-white border border-slate-200 rounded-none overflow-hidden max-h-[380px] flex items-center justify-center p-2 shadow-inner">
-                      <img
-                        src={activeRxForMedicines.image}
-                        alt="Prescription Large"
-                        className="max-h-[360px] w-full object-contain cursor-zoom-in hover:scale-105 transition-transform"
-                        onClick={() => handleOpenRxPreview(activeRxForMedicines.image)}
-                      />
+                    <div className="w-full bg-slate-900/5 border border-slate-300 rounded-none overflow-auto flex-1 min-h-[460px] max-h-[66vh] flex items-center justify-center p-2 shadow-inner relative group select-none">
+                      <div 
+                        className="transition-transform duration-200 ease-out flex items-center justify-center"
+                        style={{
+                          transform: `scale(${rxZoom}) rotate(${rxRotation}deg)`,
+                          transformOrigin: 'center center'
+                        }}
+                      >
+                        <img
+                          src={activeRxForMedicines.image}
+                          alt="Prescription Large"
+                          className="max-h-[64vh] max-w-full object-contain cursor-zoom-in rounded shadow-md bg-white border border-slate-200"
+                          onClick={() => {
+                            setRxZoom(z => z > 1 ? 1 : 1.6);
+                            setIsRxEnlargedOnLeft(prev => !prev);
+                          }}
+                          title="ক্লিক করে বড় বা স্বাভাবিক সাইজ করুন"
+                        />
+                      </div>
                     </div>
                   ) : (
-                    <div className="h-48 w-full bg-slate-200 flex items-center justify-center text-slate-400 text-xs">
+                    <div className="h-64 w-full bg-slate-200 flex items-center justify-center text-slate-400 text-xs">
                       ছবি পাওয়া যায়নি
                     </div>
                   )}
 
                   {activeRxForMedicines.notes && (
-                    <div className="mt-3 p-2.5 bg-amber-50 border border-amber-200 text-xs text-amber-900 rounded-none">
+                    <div className="mt-2.5 p-2.5 bg-amber-50 border border-amber-200 text-xs text-amber-900 rounded-none">
                       <span className="font-bold block">রোগীর নোট:</span>
                       <span>"{activeRxForMedicines.notes}"</span>
                     </div>
                   )}
                 </div>
 
-                <div className="w-full text-xs text-slate-500 bg-white p-3 border border-slate-200">
-                  <span className="font-bold block text-slate-700 mb-1">💡 ফার্মাসিস্ট নির্দেশিকা:</span>
-                  প্রেসক্রিপশন দেখে ডানপাশে ওষুধ সার্চ করে যোগ করুন। ওষুধের দাম অটোমেটিক ওয়েবসাইট মূল্যের সাথে মিলে হিসাব হবে।
+                <div className="w-full text-xs text-slate-500 bg-white p-2.5 border border-slate-200">
+                  <span className="font-bold block text-slate-700 mb-0.5">💡 ফার্মাসিস্ট টিপস:</span>
+                  বামপাশে বড় প্রেসক্রিপশন দেখে সরাসরি ডানপাশে ওষুধ সার্চ করে যোগ করুন।
                 </div>
               </div>
 
-              {/* Right Column: Search Medicines & Prescribed List */}
-              <div className="lg:col-span-7 p-4 sm:p-5 flex flex-col justify-between space-y-4">
+              {/* Right Column: Search Medicines & Prescribed List (lg:col-span-6) */}
+              <div className="lg:col-span-6 p-4 sm:p-5 flex flex-col justify-between space-y-4">
                 
                 {/* 1. Add Medicine Box */}
                 <div className="bg-slate-50 border border-slate-200 p-3.5 rounded-none space-y-3">
