@@ -15,7 +15,7 @@ import {
   batchSaveCloudMedicines
 } from '../services/firebaseService';
 import { subscribeLiveSync, publishLiveSync, fetchRecentSyncEvents } from '../services/liveSyncService';
-import { fetchMedexSearchResults } from '../utils/medicineSearch';
+import { fetchMedexSearchResults, deduplicateMedicines } from '../utils/medicineSearch';
 
 const ShopContext = createContext();
 
@@ -201,13 +201,13 @@ export const ShopProvider = ({ children }) => {
     expressDeliveryFee: Number(deliverySettings.expressDeliveryFee),
   };
 
-  // Medicines (saved in localStorage so admin edits persist, merged with full INITIAL_MEDICINES catalog)
+  // Medicines (saved in localStorage so admin edits persist, merged with full INITIAL_MEDICINES catalog, automatically deduplicated)
   const [medicines, setMedicines] = useState(() => {
     const saved = localStorage.getItem('beli_medicines');
-    if (!saved) return INITIAL_MEDICINES;
+    if (!saved) return deduplicateMedicines(INITIAL_MEDICINES);
     try {
       const parsed = JSON.parse(saved);
-      if (!Array.isArray(parsed) || parsed.length === 0) return INITIAL_MEDICINES;
+      if (!Array.isArray(parsed) || parsed.length === 0) return deduplicateMedicines(INITIAL_MEDICINES);
       
       // Map of saved admin edits by ID
       const savedMap = new Map(parsed.map(m => [m.id, m]));
@@ -228,9 +228,9 @@ export const ShopProvider = ({ children }) => {
       const initialIds = new Set(INITIAL_MEDICINES.map(m => m.id));
       const customAdded = parsed.filter(m => !initialIds.has(m.id));
       
-      return [...merged, ...customAdded];
+      return deduplicateMedicines([...merged, ...customAdded]);
     } catch {
-      return INITIAL_MEDICINES;
+      return deduplicateMedicines(INITIAL_MEDICINES);
     }
   });
 
@@ -1134,8 +1134,9 @@ export const ShopProvider = ({ children }) => {
             cloudMeds.forEach(cm => {
               if (!next.some(m => m.id === cm.id)) next.unshift(cm);
             });
-            safeSetItem('beli_medicines', JSON.stringify(next));
-            return next;
+            const deduped = deduplicateMedicines(next);
+            safeSetItem('beli_medicines', JSON.stringify(deduped));
+            return deduped;
           });
         }
       });
@@ -1209,8 +1210,9 @@ export const ShopProvider = ({ children }) => {
               cloudMeds.forEach(cm => {
                 if (!next.some(m => m.id === cm.id)) next.unshift(cm);
               });
-              safeSetItem('beli_medicines', JSON.stringify(next));
-              return next;
+              const deduped = deduplicateMedicines(next);
+              safeSetItem('beli_medicines', JSON.stringify(deduped));
+              return deduped;
             });
           }
 

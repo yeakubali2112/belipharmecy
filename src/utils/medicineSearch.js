@@ -124,13 +124,16 @@ export const BANGLA_SYNONYM_MAP = {
 };
 
 /**
- * Normalizes text by trimming, lowercasing, and stripping special punctuation
+ * Normalizes text by trimming, lowercasing, converting Bengali numerals, and stripping special punctuation
  */
 export function normalizeText(text) {
   if (!text) return '';
-  return text
-    .toString()
-    .toLowerCase()
+  const bnDigits = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
+  let str = text.toString().toLowerCase();
+  for (let i = 0; i < 10; i++) {
+    str = str.replaceAll(bnDigits[i], String(i));
+  }
+  return str
     .replace(/[,\/\-_+()]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
@@ -181,6 +184,62 @@ export function expandQueryTokens(query) {
 }
 
 /**
+ * Normalizes a medicine name for deduplication.
+ * E.g. "Ciprocin 500" and "Ciprocin 500mg" map to the same key
+ * E.g. "Maxpro 20" and "Maxpro 20mg" map to the same key
+ * E.g. "Seclo 20" and "Seclo 20mg" map to the same key
+ */
+export function getMedicineDedupeKey(med) {
+  if (!med || !med.name) return '';
+  return (med.name || '')
+    .toLowerCase()
+    .replace(/\([^)]*\)/g, '')
+    .replace(/(?:mg|ml|gm|mcg|iu|µg)\b/gi, '')
+    .replace(/[^a-z0-9\u0980-\u09ff]/g, '');
+}
+
+/**
+ * Deduplicates a list of medicines to remove identical items (e.g. "Ciprocin 500" vs "Ciprocin 500mg").
+ * Always keeps the canonical item with standard dosage suffix (e.g. "500mg") and custom photo.
+ */
+export function deduplicateMedicines(arr) {
+  if (!Array.isArray(arr) || arr.length <= 1) return arr || [];
+  const map = new Map();
+  const result = [];
+
+  for (const med of arr) {
+    if (!med || !med.name) continue;
+    const dedupeKey = getMedicineDedupeKey(med);
+
+    if (map.has(dedupeKey)) {
+      const existing = map.get(dedupeKey);
+      const existingHasMg = /\d+\s*mg\b/i.test(existing.name);
+      const currentHasMg = /\d+\s*mg\b/i.test(med.name);
+      const currentHasImage = med.image && med.image.startsWith('data:image/');
+      const existingHasImage = existing.image && existing.image.startsWith('data:image/');
+
+      if ((!existingHasMg && currentHasMg) || (currentHasImage && !existingHasImage)) {
+        const idx = result.indexOf(existing);
+        if (idx !== -1) {
+          result[idx] = {
+            ...existing,
+            ...med,
+            image: currentHasImage ? med.image : (existingHasImage ? existing.image : med.image),
+            stock: Math.max(existing.stock || 0, med.stock || 0)
+          };
+          map.set(dedupeKey, result[idx]);
+        }
+      }
+    } else {
+      map.set(dedupeKey, med);
+      result.push(med);
+    }
+  }
+
+  return result;
+}
+
+/**
  * Calculates a match score for a medicine given the search query
  * Higher score = higher relevance
  */
@@ -189,6 +248,8 @@ export function scoreMedicine(med, query, expandedTokens = []) {
 
   const rawQ = query.trim().toLowerCase();
   const normQ = normalizeText(query);
+  const rawTokens = normQ.split(' ').filter(Boolean);
+  const significantTokens = rawTokens.filter(t => !/^\d+$/.test(t) && !['mg', 'ml', 'gm', 'mcg', 'iu', 'tablet', 'tab', 'capsule', 'cap', 'syrup', 'drop', 'suspension'].includes(t));
 
   const name = (med.name || '').toLowerCase();
   const normName = normalizeText(med.name);
@@ -202,11 +263,42 @@ export function scoreMedicine(med, query, expandedTokens = []) {
   const category = (med.category || '').toLowerCase();
   const keywords = Array.isArray(med.keywords) ? med.keywords.map(k => k.toLowerCase()) : [];
 
+  // CRITICAL EXACTNESS RULE:
+  // If user searched for significant brand/generic words (e.g. "ciprocin" in "ciprocin 500"):
+  // The candidate medicine MUST match at least one significant token in name, generic or keywords!
+  // Prevents unrelated medicines (like Savlon 500ml, Cerox 500mg) from appearing when searching "Ciprocin 500"
+  if (significantTokens.length > 0) {
+    const matchesSig = significantTokens.some(st => 
+      normName.includes(st) || 
+      name.includes(st) || 
+      (nameBn && nameBn.includes(st)) ||
+      normGeneric.includes(st) || 
+      generic.includes(st) || 
+      (genericBn && genericBn.includes(st)) ||
+      keywords.some(k => k.includes(st)) ||
+      (BANGLA_SYNONYM_MAP[st] && BANGLA_SYNONYM_MAP[st].some(syn => normName.includes(syn) || normGeneric.includes(syn)))
+    );
+    if (!matchesSig) {
+      return 0; // Disqualify immediately!
+    }
+  }
+
   let score = 0;
 
   // 1. Exact Name Matches (Highest Priority)
   if (normName === normQ || name === rawQ || nameBn === rawQ) {
     return 1000;
+  }
+  if (BANGLA_SYNONYM_MAP[normQ] && BANGLA_SYNONYM_MAP[normQ].length > 0) {
+    const primarySyn = normalizeText(BANGLA_SYNONYM_MAP[normQ][0]);
+    if (normName === primarySyn) {
+      return 1000;
+    }
+  } else if (BANGLA_SYNONYM_MAP[rawQ] && BANGLA_SYNONYM_MAP[rawQ].length > 0) {
+    const primarySyn = normalizeText(BANGLA_SYNONYM_MAP[rawQ][0]);
+    if (normName === primarySyn) {
+      return 1000;
+    }
   }
 
   // 2. Name Starts With Query
@@ -287,9 +379,15 @@ export function scoreMedicine(med, query, expandedTokens = []) {
     if (tokenHit) tokenMatches++;
   }
 
-  // Boost if all tokens in query matched
-  if (expandedTokens.length > 1 && tokenMatches >= expandedTokens.length) {
-    score += 100;
+  // Major boost if all tokens in query matched
+  if (rawTokens.length > 1) {
+    let rawHits = 0;
+    for (const t of rawTokens) {
+      if (normName.includes(t) || normGeneric.includes(t) || keywords.some(k => k.includes(t))) rawHits++;
+    }
+    if (rawHits === rawTokens.length) {
+      score += 400; // Multi-token exact match boost (e.g. both "ciprocin" AND "500" matched)
+    }
   }
 
   return score;
@@ -315,13 +413,32 @@ export function searchMedicines(medicinesList = [], query = '', options = {}) {
 
   // If no query, apply standard filters only
   if (!cleanQ) {
-    return medicinesList.filter(med => {
+    return deduplicateMedicines(medicinesList.filter(med => {
       const matchCat = category === 'all' || med.category === category;
       let matchRx = true;
       if (filterRx === 'otc') matchRx = !med.requiresPrescription;
       if (filterRx === 'rx') matchRx = !!med.requiresPrescription;
       return matchCat && matchRx;
-    });
+    }));
+  }
+
+  const normQ = normalizeText(cleanQ);
+  const rawTokens = normQ.split(' ').filter(Boolean);
+  const numberTokens = rawTokens.filter(t => /^\d+$/.test(t));
+  const significantTokens = rawTokens.filter(t => 
+    !/^\d+$/.test(t) && 
+    !['mg', 'ml', 'gm', 'mcg', 'iu', 'tablet', 'tab', 'capsule', 'cap', 'syrup', 'drop', 'suspension'].includes(t)
+  );
+
+  // Significant translated / English tokens for Bangla brand queries
+  const sigTokens = [];
+  for (const t of rawTokens) {
+    if (/^\d+$/.test(t)) continue;
+    if (BANGLA_SYNONYM_MAP[t]) {
+      sigTokens.push(BANGLA_SYNONYM_MAP[t][0].toLowerCase());
+    } else {
+      sigTokens.push(t.toLowerCase());
+    }
   }
 
   const expandedTokens = expandQueryTokens(cleanQ);
@@ -339,13 +456,18 @@ export function searchMedicines(medicinesList = [], query = '', options = {}) {
 
     const s = scoreMedicine(med, cleanQ, expandedTokens);
     if (s > 0) {
-      scored.push({ med, score: s + 40 }); // curated boost
+      scored.push({ med, score: s + 50, isCurated: true }); // curated boost
       seenIds.add(med.id);
     }
   }
 
+  // Check if curated catalog already has strong matches (e.g. score >= 700)
+  scored.sort((a, b) => b.score - a.score);
+  const hasStrongCurated = scored.length > 0 && scored[0].score >= 700;
+
   // 2. Search in the 50,000+ Bangladesh registered medicines database
-  if (Array.isArray(BANGLADESH_50K_MEDICINES)) {
+  // If we already have strong curated matches, avoid bloating results with synthetic items
+  if (!hasStrongCurated && Array.isArray(BANGLADESH_50K_MEDICINES)) {
     for (let i = 0; i < BANGLADESH_50K_MEDICINES.length; i++) {
       const t = BANGLADESH_50K_MEDICINES[i];
       const id = t[0];
@@ -362,6 +484,23 @@ export function searchMedicines(medicinesList = [], query = '', options = {}) {
       const genericLower = t[3].toLowerCase();
       const nameBn = t[2] || '';
       const compLower = t[4].toLowerCase();
+
+      // If significant tokens exist, the 50K item MUST match at least one significant token
+      if (significantTokens.length > 0) {
+        const matchesSig = significantTokens.some(st => 
+          nameLower.includes(st) || 
+          genericLower.includes(st) || 
+          (nameBn && nameBn.includes(st)) ||
+          (BANGLA_SYNONYM_MAP[st] && BANGLA_SYNONYM_MAP[st].some(syn => nameLower.includes(syn) || genericLower.includes(syn)))
+        );
+        if (!matchesSig) continue;
+      }
+
+      // If number tokens exist (e.g. 500), must match the number
+      if (numberTokens.length > 0) {
+        const matchesNum = numberTokens.some(nt => nameLower.includes(nt));
+        if (!matchesNum) continue;
+      }
 
       let matches = false;
       if (nameLower.includes(rawQLower) || genericLower.includes(rawQLower)) {
@@ -383,7 +522,7 @@ export function searchMedicines(medicinesList = [], query = '', options = {}) {
         const fullMed = expandCompactMedicine(t);
         const s = scoreMedicine(fullMed, cleanQ, expandedTokens);
         if (s > 0) {
-          scored.push({ med: fullMed, score: s });
+          scored.push({ med: fullMed, score: s, isCurated: false });
           seenIds.add(id);
         }
       }
@@ -403,7 +542,59 @@ export function searchMedicines(medicinesList = [], query = '', options = {}) {
     return (a.med.name || '').localeCompare(b.med.name || '');
   });
 
-  return scored.map(item => item.med);
+  let finalMeds = scored.map(item => item.med);
+
+  // EXACT FILTERING & PRUNING:
+  // 1. If number tokens exist (e.g. "500" in "Ciprocin 500"):
+  // Any candidate MUST contain every number token in its name
+  if (numberTokens.length > 0) {
+    finalMeds = finalMeds.filter(m => {
+      const n = (m.name || '').toLowerCase();
+      return numberTokens.every(num => n.includes(num));
+    });
+  }
+
+  // 2. If user searched brand + strength (e.g. "Ciprocin 500" or "সিপ্রোসিন ৫০০"):
+  // Candidates must match the brand/significant token
+  if (sigTokens.length > 0 && numberTokens.length > 0) {
+    finalMeds = finalMeds.filter(m => {
+      const n = (m.name || '').toLowerCase();
+      return sigTokens.some(st => n.includes(st));
+    });
+    // Prefer curated items if any exist
+    const curatedMatches = finalMeds.filter(m => !m.id?.startsWith('med_bd_'));
+    if (curatedMatches.length > 0) {
+      finalMeds = curatedMatches;
+    }
+  }
+
+  // 3. Multi-word queries like "Napa Extra":
+  // If candidates exist that match ALL significant tokens, prune partial matches
+  if (significantTokens.length > 1) {
+    const allSigMatches = finalMeds.filter(m => {
+      const n = (m.name || '').toLowerCase();
+      return significantTokens.every(st => n.includes(st));
+    });
+    if (allSigMatches.length > 0) {
+      finalMeds = allSigMatches;
+    }
+  }
+
+  // 4. Exact Name Match Isolation:
+  // If top candidate is an exact match for query or synonym (e.g. "Napa Extra", "Ciprocin 500mg"):
+  // Isolate exact match
+  if (finalMeds.length > 0) {
+    const topMed = finalMeds[0];
+    const topNorm = (topMed.name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    const qNorm = normQ.replace(/[^a-z0-9]/g, '');
+    const firstSyn = BANGLA_SYNONYM_MAP[normQ] ? BANGLA_SYNONYM_MAP[normQ][0].replace(/[^a-z0-9]/g, '') : '';
+    if (topNorm === qNorm || (firstSyn && topNorm === firstSyn)) {
+      finalMeds = [topMed];
+    }
+  }
+
+  // 5. Deduplicate identical items (merges "Ciprocin 500" and "Ciprocin 500mg", etc.)
+  return deduplicateMedicines(finalMeds);
 }
 
 // In-memory cache for live MedEx searches
@@ -466,29 +657,29 @@ export async function fetchMedexSearchResults(query) {
  */
 export function mergeSearchResults(localResults = [], medexResults = []) {
   if (!Array.isArray(medexResults) || medexResults.length === 0) {
-    return localResults || [];
+    return deduplicateMedicines(localResults || []);
   }
   if (!Array.isArray(localResults) || localResults.length === 0) {
-    return medexResults || [];
+    return deduplicateMedicines(medexResults || []);
   }
 
   const seen = new Set();
   const merged = [];
 
   for (const item of localResults) {
-    const key = (item.name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    const key = getMedicineDedupeKey(item);
     if (key) seen.add(key);
     merged.push(item);
   }
 
   for (const item of medexResults) {
-    const key = (item.name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    const key = getMedicineDedupeKey(item);
     if (!key || !seen.has(key)) {
       if (key) seen.add(key);
       merged.push(item);
     }
   }
 
-  return merged;
+  return deduplicateMedicines(merged);
 }
 
