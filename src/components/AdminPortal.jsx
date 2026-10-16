@@ -3969,25 +3969,25 @@ export const AdminPortal = () => {
                     return (
                       <div 
                         key={order.id} 
-                        className={`bg-white rounded-xl border border-slate-200/90 shadow-xs hover:shadow-md transition-all overflow-hidden ${statusMeta.cardBorder}`}
+                        className={`bg-white rounded-lg border border-slate-200/90 shadow-2xs hover:shadow-xs transition-all overflow-hidden ${statusMeta.cardBorder}`}
                       >
-                        {/* 1. Header Bar: Order ID, Timestamp, Status & Action Buttons */}
-                        <div className="bg-slate-50/80 px-4 sm:px-5 py-3 border-b border-slate-200/80 flex flex-wrap items-center justify-between gap-3">
-                          <div className="flex items-center gap-2.5 sm:gap-3.5 flex-wrap">
+                        {/* 1. Slim Header Bar: Order ID, Timestamp, Status & Actions */}
+                        <div className="bg-slate-50/70 px-3.5 py-1.5 sm:py-2 border-b border-slate-100 flex flex-wrap items-center justify-between gap-2">
+                          <div className="flex items-center gap-2 sm:gap-2.5 flex-wrap">
                             {order.status === 'Pending' ? (
                               <button
                                 type="button"
                                 onClick={() => setActiveInvoiceOrder(order)}
-                                className="group text-left cursor-pointer inline-flex items-center gap-1.5 focus:outline-none"
+                                className="group text-left cursor-pointer inline-flex items-center gap-1 focus:outline-none"
                                 title="ইনভয়েস ও বিস্তারিত দেখতে ক্লিক করুন"
                               >
-                                <span className="bp-number-lighting text-sm font-black group-hover:underline">
-                                  <span className="relative flex h-2 w-2">
+                                <span className="bp-number-lighting text-xs font-black group-hover:underline">
+                                  <span className="relative flex h-1.5 w-1.5">
                                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-current opacity-75"></span>
-                                    <span className="relative inline-flex rounded-full h-2 w-2 bg-current"></span>
+                                    <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-current"></span>
                                   </span>
                                   <span>#{order.id}</span>
-                                  <span className="text-[9px] uppercase font-black px-1.5 py-0.2 rounded bg-rose-200/50 text-rose-900 border border-rose-300">
+                                  <span className="text-[8px] uppercase font-black px-1 py-0.1 rounded bg-rose-200/60 text-rose-900 border border-rose-300">
                                     NEW
                                   </span>
                                 </span>
@@ -3996,60 +3996,59 @@ export const AdminPortal = () => {
                               <button
                                 type="button"
                                 onClick={() => setActiveInvoiceOrder(order)}
-                                className="text-sm sm:text-base font-black text-[#123184] hover:text-[#02975E] hover:underline decoration-dotted underline-offset-2 cursor-pointer transition-colors focus:outline-none flex items-center gap-1"
+                                className="text-xs font-black text-[#123184] hover:text-[#02975E] hover:underline cursor-pointer transition-colors focus:outline-none flex items-center gap-0.5"
                                 title="ইনভয়েস ও বিস্তারিত দেখতে ক্লিক করুন"
                               >
-                                <span className="text-slate-400 font-semibold text-xs">#</span>
+                                <span className="text-slate-400 font-semibold text-[11px]">#</span>
                                 <span>{order.id}</span>
                               </button>
                             )}
 
-                            <span className="inline-flex items-center gap-1 text-[11px] text-slate-500 font-medium">
-                              <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                            <span className="inline-flex items-center gap-1 text-[11px] text-slate-400 font-medium">
+                              <Calendar className="w-3 h-3 text-slate-400" />
                               {order.createdAt}
                             </span>
 
-                            <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${statusMeta.badge}`}>
+                            <span className={`inline-flex items-center gap-1 px-2 py-0.2 rounded-full text-[10px] font-bold border ${statusMeta.badge}`}>
                               <span className={`w-1.5 h-1.5 rounded-full ${statusMeta.dot}`}></span>
                               {order.status}
                             </span>
                           </div>
 
-                          {/* Top-Right: Status dropdown + Invoice Print button */}
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <div className="relative">
-                              <select
-                                value={order.status}
-                                onChange={(e) => updateOrderStatus(order.id, e.target.value)}
-                                className="text-xs font-bold border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-800 outline-none focus:border-[#123184] focus:ring-1 focus:ring-[#123184] cursor-pointer shadow-2xs hover:border-slate-400 transition-colors"
-                              >
-                                <option value="Pending">Pending (অপেক্ষমান)</option>
-                                <option value="Processing">Processing (প্রক্রিয়াধীন)</option>
-                                <option value="Dispatched">Dispatched (প্যাকড)</option>
-                                <option value="Out for Delivery">Out for Delivery (পথে)</option>
-                                <option value="Delivered">Delivered (সম্পন্ন)</option>
-                                <option value="Cancelled">Cancelled (বাতিল)</option>
-                              </select>
-                            </div>
+                          {/* Top Right: Status dropdown + Invoice button */}
+                          <div className="flex items-center gap-1.5">
+                            <select
+                              value={order.status}
+                              onChange={(e) => updateOrderStatus(order.id, e.target.value)}
+                              className="text-[11px] font-bold border border-slate-200 rounded px-2 py-1 bg-white text-slate-700 outline-none focus:border-[#123184] cursor-pointer hover:border-slate-300 transition-colors shadow-2xs"
+                            >
+                              <option value="Pending">Pending (অপেক্ষমান)</option>
+                              <option value="Processing">Processing (প্রক্রিয়াধীন)</option>
+                              <option value="Dispatched">Dispatched (প্যাকড)</option>
+                              <option value="Out for Delivery">Out for Delivery (পথে)</option>
+                              <option value="Delivered">Delivered (সম্পন্ন)</option>
+                              <option value="Cancelled">Cancelled (বাতিল)</option>
+                            </select>
 
                             <button
                               type="button"
                               onClick={() => setActiveInvoiceOrder(order)}
-                              className="inline-flex items-center gap-1.5 bg-[#123184] hover:bg-[#0d2463] text-white font-bold text-xs px-3 py-1.5 rounded-lg cursor-pointer transition-colors shadow-2xs"
-                              title="ইনভয়েস ও বিস্তারিত দেখতে ক্লিক করুন"
+                              className="inline-flex items-center gap-1 bg-[#123184] hover:bg-[#0d2463] text-white font-bold text-[11px] px-2.5 py-1 rounded cursor-pointer transition-colors shadow-2xs"
+                              title="ইনভয়েস দেখুন / প্রিন্ট করুন"
                             >
-                              <Printer className="w-3.5 h-3.5" />
+                              <Printer className="w-3 h-3" />
                               <span>ইনভয়েস</span>
                             </button>
                           </div>
                         </div>
 
-                        {/* 2. Body: Customer & Delivery Box */}
-                        <div className="p-4 sm:p-5 space-y-4">
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-                            {/* Customer Profile Box */}
-                            <div className="bg-slate-50/70 rounded-xl p-3 sm:p-3.5 border border-slate-200/80 flex items-start gap-3">
-                              <div className="w-11 h-11 rounded-full ring-2 ring-emerald-500/30 p-0.5 bg-white shrink-0 shadow-xs flex items-center justify-center overflow-hidden">
+                        {/* 2. Compact Body */}
+                        <div className="p-3 sm:p-3.5 space-y-2.5">
+                          {/* Top Row: Customer & Delivery details */}
+                          <div className="flex flex-wrap lg:flex-nowrap items-start justify-between gap-3 text-xs">
+                            {/* Customer Info */}
+                            <div className="flex items-center gap-2.5 min-w-[210px]">
+                              <div className="w-8 h-8 rounded-full ring-1 ring-slate-200 p-0.5 bg-white shrink-0 flex items-center justify-center overflow-hidden">
                                 {avatarSrc ? (
                                   <img 
                                     src={avatarSrc} 
@@ -4057,41 +4056,33 @@ export const AdminPortal = () => {
                                     className="w-full h-full object-cover rounded-full" 
                                   />
                                 ) : (
-                                  <div className="w-full h-full rounded-full bg-gradient-to-tr from-[#123184] to-[#02975E] text-white flex items-center justify-center text-sm font-black uppercase">
-                                    {order.customerName ? order.customerName.slice(0, 1) : <User className="w-5 h-5" />}
+                                  <div className="w-full h-full rounded-full bg-gradient-to-tr from-[#123184] to-[#02975E] text-white flex items-center justify-center text-xs font-black uppercase">
+                                    {order.customerName ? order.customerName.slice(0, 1) : <User className="w-3.5 h-3.5" />}
                                   </div>
                                 )}
                               </div>
-
-                              <div className="min-w-0 flex-1 space-y-1">
-                                <div className="flex items-center justify-between gap-2">
-                                  <span className="font-black text-slate-900 text-sm truncate">
-                                    {order.customerName || 'গ্রাহকের নাম নেই'}
-                                  </span>
-                                  <span className="text-[10px] font-bold text-[#123184] bg-[#123184]/10 px-2 py-0.5 rounded-full shrink-0">
-                                    গ্রাহক
-                                  </span>
+                              <div className="leading-tight">
+                                <div className="flex items-center gap-1.5">
+                                  <span className="font-extrabold text-slate-900 text-xs">{order.customerName || 'নাম নেই'}</span>
                                 </div>
-
-                                <div className="flex items-center gap-2 flex-wrap text-xs">
+                                <div className="flex items-center gap-1.5 mt-0.5">
                                   <a 
                                     href={`tel:${order.customerPhone}`} 
-                                    className="inline-flex items-center gap-1 font-bold text-[#02975E] hover:underline"
-                                    title="সরাসরি কল করতে ক্লিক করুন"
+                                    className="text-[#02975E] hover:underline font-bold text-[11px] inline-flex items-center gap-0.5"
+                                    title="কল করুন"
                                   >
-                                    <PhoneCall className="w-3.5 h-3.5" />
-                                    <span>{order.customerPhone || 'ফোন নম্বর নেই'}</span>
+                                    <PhoneCall className="w-2.5 h-2.5" />
+                                    <span>{order.customerPhone}</span>
                                   </a>
-
                                   {order.customerPhone && (
                                     <a
                                       href={`https://wa.me/880${cleanPhone}?text=${encodeURIComponent(`আসসালামু আলাইকুম ${order.customerName || ''}, বেলি ফার্মেসি থেকে আপনার অর্ডার (${order.id}) সংক্রান্ত যোগাযোগ করছি।`)}`}
                                       target="_blank"
                                       rel="noopener noreferrer"
-                                      className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-100/70 hover:bg-emerald-200/80 px-2 py-0.5 rounded-md border border-emerald-300 transition-colors"
-                                      title="হোয়াটসঅ্যাপে মেসেজ পাঠান"
+                                      className="text-[10px] text-emerald-700 bg-emerald-50 hover:bg-emerald-100 font-bold px-1.5 py-0.2 rounded border border-emerald-200 inline-flex items-center gap-0.5 transition-colors"
+                                      title="WhatsApp এ মেসেজ পাঠান"
                                     >
-                                      <span>💬 WhatsApp</span>
+                                      <span>💬 WA</span>
                                     </a>
                                   )}
                                 </div>
@@ -4099,194 +4090,150 @@ export const AdminPortal = () => {
                             </div>
 
                             {/* Delivery Address Box */}
-                            <div className="bg-slate-50/70 rounded-xl p-3 sm:p-3.5 border border-slate-200/80 flex flex-col justify-between space-y-1.5">
-                              <div>
-                                <div className="flex items-center justify-between gap-2 text-xs">
-                                  <span className="font-extrabold text-slate-700 inline-flex items-center gap-1.5">
-                                    <MapPin className="w-3.5 h-3.5 text-[#123184]" />
-                                    ডেলিভারি ঠিকানা
+                            <div className="flex-1 min-w-[240px] bg-slate-50/70 rounded px-2.5 py-1.5 border border-slate-100 text-[11px]">
+                              <div className="flex items-center justify-between gap-1 text-[10px] text-slate-400 font-semibold mb-0.5">
+                                <span className="inline-flex items-center gap-1 text-slate-600 font-bold">
+                                  <MapPin className="w-3 h-3 text-[#123184]" />
+                                  ডেলিভারি ঠিকানা
+                                </span>
+                                {order.deliveryType && (
+                                  <span className="bg-white border border-slate-200 px-1.5 py-0.2 rounded text-[9px] font-bold text-slate-600">
+                                    {order.deliveryType}
                                   </span>
-                                  <span className="text-[10px] font-bold text-slate-600 bg-white border border-slate-200 px-2 py-0.5 rounded-full">
-                                    {order.deliveryType || 'হোম ডেলিভারি'}
-                                  </span>
-                                </div>
-                                <p className="text-xs text-slate-700 font-medium leading-relaxed mt-1.5 break-words">
-                                  {order.deliveryAddress || 'কোনো ঠিকানা দেওয়া হয়নি'}
-                                </p>
+                                )}
                               </div>
-
+                              <p className="text-slate-700 leading-snug break-words">
+                                {order.deliveryAddress || 'কোনো ঠিকানা দেওয়া হয়নি'}
+                              </p>
                               {order.patientNote && (
-                                <div className="text-xs text-amber-900 bg-amber-50/90 border border-amber-200 rounded-lg p-2 flex items-start gap-1.5 mt-1.5">
-                                  <span className="shrink-0 text-amber-600 font-bold">📝 নোট:</span>
-                                  <span className="italic">"{order.patientNote}"</span>
-                                </div>
+                                <p className="mt-1 text-[10px] text-amber-800 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200/70 inline-block font-medium">
+                                  📝 "{order.patientNote}"
+                                </p>
                               )}
                             </div>
                           </div>
 
-                          {/* 3. Ordered Medicines Grid */}
-                          <div className="space-y-2 pt-1">
-                            <div className="flex items-center justify-between">
-                              <span className="text-xs font-black text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
-                                <Pill className="w-3.5 h-3.5 text-purple-600" />
-                                <span>অর্ডারকৃত ওষুধের তালিকা</span>
+                          {/* Middle Row: Medicines Chips */}
+                          <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1 shrink-0 mr-0.5">
+                              <Pill className="w-3 h-3 text-purple-600" />
+                              ওষুধ ({order.items?.length || 0}):
+                            </span>
+                            {order.items?.map((it, idx) => (
+                              <span 
+                                key={idx} 
+                                className="inline-flex items-center gap-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded px-2 py-0.5 text-xs text-slate-800 transition-colors"
+                              >
+                                <span className="font-bold text-slate-900 text-[11px]">{it.name}</span>
+                                <span className="text-slate-500 text-[10px]">({it.unitLabel || 'ইউনিট'} × {it.quantity})</span>
+                                {it.price && (
+                                  <span className="font-black text-[#123184] text-[10px] ml-0.5">
+                                    ৳{(Number(it.price) * Number(it.quantity)).toFixed(2)}
+                                  </span>
+                                )}
                               </span>
-                              <span className="text-[11px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full border border-slate-200">
-                                মোট {order.items?.length || 0} প্রকার
-                              </span>
-                            </div>
+                            ))}
+                          </div>
 
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-                              {order.items?.map((it, idx) => (
-                                <div 
-                                  key={idx} 
-                                  className="bg-slate-50/60 hover:bg-white border border-slate-200/90 hover:border-slate-300 rounded-lg p-2.5 flex items-center justify-between gap-2 transition-all shadow-2xs"
-                                >
-                                  <div className="min-w-0 flex items-center gap-2">
-                                    <div className="w-6 h-6 rounded-md bg-purple-100 text-purple-800 flex items-center justify-center shrink-0">
-                                      <Pill className="w-3.5 h-3.5" />
-                                    </div>
-                                    <div className="min-w-0">
-                                      <span className="font-bold text-xs text-slate-900 block truncate" title={it.name}>
-                                        {it.name}
+                          {/* Delivered Payment Status / Settlement options (Compact) */}
+                          {order.status === 'Delivered' && (
+                            order.paymentConfirmed ? (
+                              <div className="bg-emerald-50/70 border border-emerald-200 px-2.5 py-1.5 rounded flex flex-wrap items-center justify-between gap-1.5 text-xs">
+                                <div className="flex items-center gap-1.5">
+                                  <span className="w-4 h-4 rounded-full bg-[#02975E] text-white flex items-center justify-center text-[10px] font-black shrink-0">
+                                    ✓
+                                  </span>
+                                  <span className="font-bold text-slate-700 text-[11px]">সংরক্ষিত পেমেন্ট:</span>
+                                  <span className="font-black text-[11px]">
+                                    {(order.paymentMethod === 'bKash' || order.paymentMethod === 'bkash') ? (
+                                      <span className="text-[#D12053] inline-flex items-center gap-1">
+                                        <img src="/bkash-logo.png" alt="bKash" className="h-3 object-contain" /> bKash
                                       </span>
-                                      <span className="text-[10px] text-slate-500 font-medium">
-                                        {it.unitLabel || 'ইউনিট'} × <strong className="text-slate-800 font-bold">{it.quantity}</strong>
+                                    ) : (order.paymentMethod === 'Nagad' || order.paymentMethod === 'nagad') ? (
+                                      <span className="text-[#E31B23] inline-flex items-center gap-1">
+                                        <img src="/nagad-logo.png" alt="Nagad" className="h-3 object-contain" /> Nagad
                                       </span>
-                                    </div>
-                                  </div>
-                                  {it.price && (
-                                    <span className="font-black text-xs text-[#123184] bg-white px-2 py-0.5 rounded border border-slate-200 shrink-0">
-                                      ৳{(Number(it.price) * Number(it.quantity)).toFixed(2)}
+                                    ) : (
+                                      <span className="text-slate-900 font-bold">💵 Cash on Hand</span>
+                                    )}
+                                  </span>
+                                  {order.trxId && order.trxId !== 'N/A' && (
+                                    <span className="font-mono text-emerald-900 bg-white px-1.5 py-0.2 rounded border border-emerald-300 font-bold text-[10px]">
+                                      Trx: {order.trxId}
                                     </span>
                                   )}
                                 </div>
-                              ))}
-                            </div>
-                          </div>
-
-                          {/* 4. Payment Settlement Option (when Delivered) */}
-                          {order.status === 'Delivered' && (
-                            order.paymentConfirmed ? (
-                              <div className="bg-emerald-50/80 border border-emerald-200 p-2.5 sm:p-3 rounded-xl flex flex-wrap items-center justify-between gap-2 shadow-2xs">
-                                <div className="flex items-center gap-2.5">
-                                  <span className="w-6 h-6 rounded-full bg-[#02975E] text-white flex items-center justify-center text-xs font-black shrink-0">
-                                    ✓
-                                  </span>
-                                  <div className="text-xs">
-                                    <span className="font-bold text-slate-700">গ্রাহকের সংরক্ষিত পেমেন্ট:</span>
-                                    <span className="ml-1.5 font-black">
-                                      {(order.paymentMethod === 'bKash' || order.paymentMethod === 'bkash') ? (
-                                        <span className="text-[#D12053] inline-flex items-center gap-1 font-bold">
-                                          <img src="/bkash-logo.png" alt="bKash" className="h-3.5 object-contain" /> bKash
-                                        </span>
-                                      ) : (order.paymentMethod === 'Nagad' || order.paymentMethod === 'nagad') ? (
-                                        <span className="text-[#E31B23] inline-flex items-center gap-1 font-bold">
-                                          <img src="/nagad-logo.png" alt="Nagad" className="h-3.5 object-contain" /> Nagad
-                                        </span>
-                                      ) : (
-                                        <span className="text-slate-900 font-bold">💵 Cash on Hand</span>
-                                      )}
-                                    </span>
-                                    {order.trxId && order.trxId !== 'N/A' && (
-                                      <span className="ml-2 font-mono text-emerald-900 bg-white px-2 py-0.5 rounded border border-emerald-300 font-bold text-[11px]">
-                                        TrxID: {order.trxId}
-                                      </span>
-                                    )}
-                                  </div>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                  <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 border border-emerald-300 px-2.5 py-0.5 rounded-full">
-                                    🔒 গ্রাহক কর্তৃক সংরক্ষিত
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-[9px] font-bold text-emerald-800 bg-emerald-100 border border-emerald-300 px-1.5 py-0.2 rounded-full">
+                                    🔒 কনফার্মড
                                   </span>
                                   <button
                                     type="button"
                                     onClick={() => updateOrderPaymentMethod(order.id, order.paymentMethod, order.trxId, false)}
-                                    className="text-[11px] font-bold text-slate-600 hover:text-slate-900 underline cursor-pointer"
-                                    title="এডমিন এডিট মোড"
+                                    className="text-[10px] font-bold text-slate-500 hover:text-slate-800 underline cursor-pointer"
                                   >
                                     পরিবর্তন
                                   </button>
                                 </div>
                               </div>
                             ) : (
-                              <div className="bg-slate-50 border border-slate-200 p-2.5 sm:p-3 rounded-xl space-y-2 shadow-2xs">
-                                <div className="flex flex-wrap items-center justify-between gap-2">
-                                  <div className="flex flex-wrap items-center gap-2">
-                                    <span className="text-[11px] font-black text-slate-800 flex items-center gap-1 shrink-0">
-                                      💳 পেমেন্ট পদ্ধতি নির্ধারণ করুন:
-                                    </span>
-                                    <div className="flex flex-wrap items-center gap-1.5">
-                                      {/* Cash on Hand */}
-                                      <button
-                                        type="button"
-                                        onClick={() => updateOrderPaymentMethod(order.id, 'Cash on Hand', 'N/A', true)}
-                                        className={`px-2.5 py-1 border rounded-lg flex items-center gap-1 text-[11px] font-bold transition-all cursor-pointer ${
-                                          order.paymentMethod === 'Cash on Hand' || order.paymentMethod === 'cod'
-                                            ? 'border-[#02975E] bg-emerald-50 text-[#02975E] shadow-2xs font-black ring-1 ring-[#02975E]'
-                                            : 'border-slate-300 bg-white text-slate-600 hover:bg-slate-100'
-                                        }`}
-                                      >
-                                        <span>💵</span>
-                                        <span>Cash on Hand</span>
-                                        {(order.paymentMethod === 'Cash on Hand' || order.paymentMethod === 'cod') && (
-                                          <span className="text-[10px] text-[#02975E] font-black">✓</span>
-                                        )}
-                                      </button>
+                              <div className="bg-slate-50 border border-slate-200 px-2.5 py-1.5 rounded flex flex-wrap items-center justify-between gap-2 text-xs">
+                                <div className="flex flex-wrap items-center gap-1.5">
+                                  <span className="text-[10px] font-black text-slate-700 shrink-0">💳 পেমেন্ট:</span>
+                                  
+                                  {/* Cash on Hand */}
+                                  <button
+                                    type="button"
+                                    onClick={() => updateOrderPaymentMethod(order.id, 'Cash on Hand', 'N/A', true)}
+                                    className={`px-2 py-0.5 border rounded flex items-center gap-1 text-[10px] font-bold cursor-pointer transition-all ${
+                                      order.paymentMethod === 'Cash on Hand' || order.paymentMethod === 'cod'
+                                        ? 'border-[#02975E] bg-emerald-50 text-[#02975E] font-black ring-1 ring-[#02975E]'
+                                        : 'border-slate-300 bg-white text-slate-600 hover:bg-slate-100'
+                                    }`}
+                                  >
+                                    <span>💵 Cash</span>
+                                    {(order.paymentMethod === 'Cash on Hand' || order.paymentMethod === 'cod') && <span className="text-[9px]">✓</span>}
+                                  </button>
 
-                                      {/* bKash */}
-                                      <button
-                                        type="button"
-                                        onClick={() => updateOrderPaymentMethod(order.id, 'bKash', order.trxId, false)}
-                                        className={`px-2.5 py-1 border rounded-lg flex items-center gap-1 text-[11px] font-bold transition-all cursor-pointer ${
-                                          order.paymentMethod === 'bKash' || order.paymentMethod === 'bkash'
-                                            ? 'border-[#D12053] bg-pink-50 text-[#D12053] shadow-2xs font-black ring-1 ring-[#D12053]'
-                                            : 'border-slate-300 bg-white text-slate-600 hover:bg-slate-100'
-                                        }`}
-                                      >
-                                        <img src="/bkash-logo.png" alt="bKash" className="h-3 object-contain" />
-                                        <span>bKash</span>
-                                        {(order.paymentMethod === 'bKash' || order.paymentMethod === 'bkash') && (
-                                          <span className="text-[10px] text-[#D12053] font-black">✓</span>
-                                        )}
-                                      </button>
+                                  {/* bKash */}
+                                  <button
+                                    type="button"
+                                    onClick={() => updateOrderPaymentMethod(order.id, 'bKash', order.trxId, false)}
+                                    className={`px-2 py-0.5 border rounded flex items-center gap-1 text-[10px] font-bold cursor-pointer transition-all ${
+                                      order.paymentMethod === 'bKash' || order.paymentMethod === 'bkash'
+                                        ? 'border-[#D12053] bg-pink-50 text-[#D12053] font-black ring-1 ring-[#D12053]'
+                                        : 'border-slate-300 bg-white text-slate-600 hover:bg-slate-100'
+                                    }`}
+                                  >
+                                    <img src="/bkash-logo.png" alt="bKash" className="h-2.5 object-contain" />
+                                    <span>bKash</span>
+                                    {(order.paymentMethod === 'bKash' || order.paymentMethod === 'bkash') && <span className="text-[9px]">✓</span>}
+                                  </button>
 
-                                      {/* Nagad */}
-                                      <button
-                                        type="button"
-                                        onClick={() => updateOrderPaymentMethod(order.id, 'Nagad', order.trxId, false)}
-                                        className={`px-2.5 py-1 border rounded-lg flex items-center gap-1 text-[11px] font-bold transition-all cursor-pointer ${
-                                          order.paymentMethod === 'Nagad' || order.paymentMethod === 'nagad'
-                                            ? 'border-[#E31B23] bg-amber-50 text-[#E31B23] shadow-2xs font-black ring-1 ring-[#E31B23]'
-                                            : 'border-slate-300 bg-white text-slate-600 hover:bg-slate-100'
-                                        }`}
-                                      >
-                                        <img src="/nagad-logo.png" alt="Nagad" className="h-3 object-contain" />
-                                        <span>Nagad</span>
-                                        {(order.paymentMethod === 'Nagad' || order.paymentMethod === 'nagad') && (
-                                          <span className="text-[10px] text-[#E31B23] font-black">✓</span>
-                                        )}
-                                      </button>
-                                    </div>
-                                  </div>
-
-                                  <span className="text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full shrink-0">
-                                    অপেক্ষমান
-                                  </span>
+                                  {/* Nagad */}
+                                  <button
+                                    type="button"
+                                    onClick={() => updateOrderPaymentMethod(order.id, 'Nagad', order.trxId, false)}
+                                    className={`px-2 py-0.5 border rounded flex items-center gap-1 text-[10px] font-bold cursor-pointer transition-all ${
+                                      order.paymentMethod === 'Nagad' || order.paymentMethod === 'nagad'
+                                        ? 'border-[#E31B23] bg-amber-50 text-[#E31B23] font-black ring-1 ring-[#E31B23]'
+                                        : 'border-slate-300 bg-white text-slate-600 hover:bg-slate-100'
+                                    }`}
+                                  >
+                                    <img src="/nagad-logo.png" alt="Nagad" className="h-2.5 object-contain" />
+                                    <span>Nagad</span>
+                                    {(order.paymentMethod === 'Nagad' || order.paymentMethod === 'nagad') && <span className="text-[9px]">✓</span>}
+                                  </button>
                                 </div>
 
-                                {/* TrxID row if bKash or Nagad */}
                                 {(order.paymentMethod === 'bKash' || order.paymentMethod === 'bkash' || order.paymentMethod === 'Nagad' || order.paymentMethod === 'nagad') && (
-                                  <div className="flex items-center gap-2 pt-1 text-xs">
-                                    <span className="text-[11px] font-bold text-slate-700 shrink-0">
-                                      {(order.paymentMethod === 'bKash' || order.paymentMethod === 'bkash') ? 'bKash TrxID:' : 'Nagad TrxID:'}
-                                    </span>
+                                  <div className="flex items-center gap-1">
                                     <input
                                       type="text"
                                       id={`admin-trx-${order.id}`}
                                       defaultValue={order.trxId !== 'N/A' ? order.trxId : ''}
-                                      placeholder="ট্রানজেকশন আইডি দিন"
-                                      className="w-40 sm:w-48 px-2.5 py-1 text-xs border border-slate-300 rounded-md bg-white font-mono uppercase font-bold outline-none focus:border-[#123184]"
+                                      placeholder="TrxID দিন"
+                                      className="w-28 px-2 py-0.5 text-[10px] border border-slate-300 rounded bg-white font-mono uppercase font-bold outline-none focus:border-[#123184]"
                                     />
                                     <button
                                       type="button"
@@ -4296,9 +4243,9 @@ export const AdminPortal = () => {
                                           updateOrderPaymentMethod(order.id, order.paymentMethod || 'Cash on Hand', val, true);
                                         }
                                       }}
-                                      className="bg-[#123184] hover:bg-[#0d2463] text-white px-3 py-1 rounded-md text-xs font-bold cursor-pointer transition-colors shadow-2xs"
+                                      className="bg-[#123184] hover:bg-[#0d2463] text-white px-2 py-0.5 rounded text-[10px] font-bold cursor-pointer"
                                     >
-                                      সংরক্ষণ করুন
+                                      সেভ
                                     </button>
                                   </div>
                                 )}
@@ -4307,33 +4254,33 @@ export const AdminPortal = () => {
                           )}
                         </div>
 
-                        {/* 5. Footer Strip: Payment Details & Grand Total */}
-                        <div className="bg-slate-50/90 px-4 sm:px-5 py-3 border-t border-slate-200/90 flex flex-wrap items-center justify-between gap-3">
-                          <div className="flex items-center gap-2 text-xs text-slate-600 flex-wrap">
-                            <span className="inline-flex items-center gap-1.5 font-bold text-slate-700">
-                              <Banknote className="w-4 h-4 text-emerald-600" />
-                              পেমেন্ট মেথড:
+                        {/* 3. Slim Footer: Payment Method & Total */}
+                        <div className="bg-slate-50/70 px-3.5 py-1.5 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2 text-xs">
+                          <div className="flex items-center gap-1.5 text-slate-500 text-[11px] flex-wrap">
+                            <span className="font-bold text-slate-600 inline-flex items-center gap-1">
+                              <Banknote className="w-3 h-3 text-emerald-600" />
+                              পদ্ধতি:
                             </span>
-                            <span className="uppercase font-black text-slate-900 bg-white border border-slate-200 px-2 py-0.5 rounded text-[11px]">
+                            <span className="uppercase font-extrabold text-slate-800 bg-white border border-slate-200 px-1.5 py-0.2 rounded text-[10px]">
                               {order.paymentMethod || 'Cash on Hand'}
                             </span>
                             {order.trxId && order.trxId !== 'N/A' && (
-                              <span className="text-[11px] font-mono text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded">
+                              <span className="font-mono text-[10px] text-slate-600 bg-slate-100 px-1 py-0.2 rounded">
                                 Trx: {order.trxId}
                               </span>
                             )}
                             {order.deliveryFee > 0 && (
-                              <span className="text-[11px] text-slate-500 font-medium">
-                                (ডেলিভারি চার্জ: ৳{order.deliveryFee})
+                              <span className="text-[10px] text-slate-400">
+                                (ডেলিভারি: ৳{order.deliveryFee})
                               </span>
                             )}
                           </div>
 
-                          <div className="flex items-baseline gap-2">
-                            <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                          <div className="flex items-baseline gap-1.5">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
                               মোট প্রদেয়:
                             </span>
-                            <span className="text-xl sm:text-2xl font-black text-[#123184] tracking-tight">
+                            <span className="text-base sm:text-lg font-black text-[#123184] tracking-tight">
                               ৳{Number(order.grandTotal || 0).toFixed(2)}
                             </span>
                           </div>
