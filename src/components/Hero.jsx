@@ -130,54 +130,13 @@ export const Hero = () => {
             return (
               <div
                 key={slide.id || index}
-                className={`absolute inset-0 bg-cover bg-center transition-all duration-700 ease-in-out flex items-center ${
+                className={`absolute inset-0 bg-cover bg-center transition-all duration-700 ease-in-out ${
                   isActive 
                     ? 'opacity-100 z-10 scale-100 pointer-events-auto' 
                     : 'opacity-0 z-0 scale-[1.02] pointer-events-none'
                 }`}
                 style={{ backgroundImage: `url(${slide.imageUrl})` }}
-              >
-                {/* Dark gradient overlay for text readability */}
-                {slide.showOverlay !== false && (
-                  <div className="absolute inset-0 bg-gradient-to-r from-slate-950/85 via-slate-900/70 to-slate-900/30 pointer-events-none"></div>
-                )}
-
-                {/* Slide Text Content */}
-                {slide.showText !== false && (
-                  <div className="relative z-10 px-6 sm:px-10 py-8 sm:py-10 max-w-3xl space-y-4 text-white">
-                    <h1 className="text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight leading-tight">
-                      {lang === 'bn' ? (
-                        <>
-                          <span className="hero-animated-title-line1">
-                            {slide.titleLine1 || 'প্রয়োজনে দ্রুত আসল ওষুধ'}
-                          </span>
-                          <br />
-                          <span className="hero-animated-title-line2">
-                            {slide.titleLine2 || 'পৌঁছে যাবে আপনার দোরগোড়ায়'}
-                          </span>
-                        </>
-                      ) : (
-                        <>
-                          <span className="hero-animated-title-line1">
-                            Genuine Medicines Delivered
-                          </span>
-                          <br />
-                          <span className="hero-animated-title-line2">
-                            Fast & Safe To Your Doorstep
-                          </span>
-                        </>
-                      )}
-                    </h1>
-
-                    <p className="text-blue-100/90 text-sm md:text-base max-w-2xl font-normal leading-relaxed">
-                      {lang === 'bn' 
-                        ? (slide.subtitle || 'প্রেসক্রিপশন আপলোড করুন অথবা নাম দিয়ে ওষুধ খুঁজুন। আমাদের রেজিস্টার্ড ফার্মাসিস্টের তত্ত্বাবধানে যাচাইকৃত ১০০% জেনুইন ওষুধ দ্রুততম সময়ে ডেলিভারি করা হয়।')
-                        : 'Upload your prescription or search by medicine name. Verified by registered pharmacists, delivered genuine to your home 24/7.'
-                      }
-                    </p>
-                  </div>
-                )}
-              </div>
+              />
             );
           })}
 

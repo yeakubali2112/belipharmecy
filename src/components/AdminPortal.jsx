@@ -285,12 +285,7 @@ export const AdminPortal = () => {
   // Active form for adding or editing a slide
   const [editingSlideId, setEditingSlideId] = useState(null); // null = new slide, string = editing that slide ID
   const [slideForm, setSlideForm] = useState({
-    imageUrl: '',
-    showText: false, // Default false so designed banners show clearly
-    showOverlay: true,
-    titleLine1: 'প্রয়োজনে দ্রুত আসল ওষুধ',
-    titleLine2: 'পৌঁছে যাবে আপনার দোরগোড়ায়',
-    subtitle: 'প্রেসক্রিপশন আপলোড করুন অথবা নাম দিয়ে ওষুধ খুঁজুন। আমাদের রেজিস্টার্ড ফার্মাসিস্টের তত্ত্বাবধানে যাচাইকৃত ১০০% জেনুইন ওষুধ দ্রুততম সময়ে ডেলিভারি করা হয়।'
+    imageUrl: ''
   });
   const [slideUploadMethod, setSlideUploadMethod] = useState('file'); // 'file' | 'url'
   const [isUploadingSlide, setIsUploadingSlide] = useState(false);
@@ -304,12 +299,7 @@ export const AdminPortal = () => {
       } else if (heroBanner.imageUrl) {
         setHeroSlides([{
           id: 'slide-1',
-          imageUrl: heroBanner.imageUrl,
-          showText: heroBanner.showText !== false,
-          showOverlay: heroBanner.showOverlay !== false,
-          titleLine1: heroBanner.titleLine1 || 'প্রয়োজনে দ্রুত আসল ওষুধ',
-          titleLine2: heroBanner.titleLine2 || 'পৌঁছে যাবে আপনার দোরগোড়ায়',
-          subtitle: heroBanner.subtitle || 'প্রেসক্রিপশন আপলোড করুন অথবা নাম দিয়ে ওষুধ খুঁজুন। আমাদের রেজিস্টার্ড ফার্মাসিস্টের তত্ত্বাবধানে যাচাইকৃত ১০০% জেনুইন ওষুধ দ্রুততম সময়ে ডেলিভারি করা হয়।'
+          imageUrl: heroBanner.imageUrl
         }]);
       } else {
         setHeroSlides([]);
@@ -366,7 +356,7 @@ export const AdminPortal = () => {
           ctx.drawImage(img, 0, 0, width, height);
           const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.80);
 
-          setSlideForm(prev => ({ ...prev, imageUrl: compressedDataUrl }));
+          setSlideForm({ imageUrl: compressedDataUrl });
           setIsUploadingSlide(false);
           if (e.target) e.target.value = '';
           showToast?.('ছবি সফলভাবে প্রসেস হয়েছে!', 'success');
@@ -395,13 +385,13 @@ export const AdminPortal = () => {
     let updatedList;
     if (editingSlideId) {
       // Editing existing slide
-      updatedList = heroSlides.map(s => s.id === editingSlideId ? { ...s, ...slideForm } : s);
+      updatedList = heroSlides.map(s => s.id === editingSlideId ? { ...s, imageUrl: slideForm.imageUrl } : s);
       showToast?.('স্লাইড সফলভাবে আপডেট করা হয়েছে!', 'success');
     } else {
       // Adding new slide
       const newSlide = {
         id: `slide_${Date.now()}`,
-        ...slideForm
+        imageUrl: slideForm.imageUrl
       };
       updatedList = [...heroSlides, newSlide];
       showToast?.('নতুন ব্যানার স্লাইড সফলভাবে যোগ করা হয়েছে!', 'success');
@@ -409,14 +399,7 @@ export const AdminPortal = () => {
 
     setHeroSlides(updatedList);
     setEditingSlideId(null);
-    setSlideForm({
-      imageUrl: '',
-      showText: false,
-      showOverlay: true,
-      titleLine1: 'প্রয়োজনে দ্রুত আসল ওষুধ',
-      titleLine2: 'পৌঁছে যাবে আপনার দোরগোড়ায়',
-      subtitle: 'প্রেসক্রিপশন আপলোড করুন অথবা নাম দিয়ে ওষুধ খুঁজুন। আমাদের রেজিস্টার্ড ফার্মাসিস্টের তত্ত্বাবধানে যাচাইকৃত ১০০% জেনুইন ওষুধ দ্রুততম সময়ে ডেলিভারি করা হয়।'
-    });
+    setSlideForm({ imageUrl: '' });
 
     // Auto save and live broadcast across all devices
     updateHeroBanner({
@@ -430,26 +413,14 @@ export const AdminPortal = () => {
   const handleEditSlide = (slide) => {
     setEditingSlideId(slide.id);
     setSlideForm({
-      imageUrl: slide.imageUrl || '',
-      showText: slide.showText !== false,
-      showOverlay: slide.showOverlay !== false,
-      titleLine1: slide.titleLine1 || 'প্রয়োজনে দ্রুত আসল ওষুধ',
-      titleLine2: slide.titleLine2 || 'পৌঁছে যাবে আপনার দোরগোড়ায়',
-      subtitle: slide.subtitle || 'প্রেসক্রিপশন আপলোড করুন অথবা নাম দিয়ে ওষুধ খুঁজুন...'
+      imageUrl: slide.imageUrl || ''
     });
   };
 
   // Cancel edit
   const handleCancelEditSlide = () => {
     setEditingSlideId(null);
-    setSlideForm({
-      imageUrl: '',
-      showText: false,
-      showOverlay: true,
-      titleLine1: 'প্রয়োজনে দ্রুত আসল ওষুধ',
-      titleLine2: 'পৌঁছে যাবে আপনার দোরগোড়ায়',
-      subtitle: 'প্রেসক্রিপশন আপলোড করুন অথবা নাম দিয়ে ওষুধ খুঁজুন...'
-    });
+    setSlideForm({ imageUrl: '' });
   };
 
   // Delete a slide
@@ -487,14 +458,7 @@ export const AdminPortal = () => {
   const handleResetAllHeroSlides = () => {
     setHeroSlides([]);
     setEditingSlideId(null);
-    setSlideForm({
-      imageUrl: '',
-      showText: false,
-      showOverlay: true,
-      titleLine1: 'প্রয়োজনে দ্রুত আসল ওষুধ',
-      titleLine2: 'পৌঁছে যাবে আপনার দোরগোড়ায়',
-      subtitle: 'প্রেসক্রিপশন আপলোড করুন অথবা নাম দিয়ে ওষুধ খুঁজুন...'
-    });
+    setSlideForm({ imageUrl: '' });
     updateHeroBanner({
       slides: [],
       imageUrl: '',
@@ -6025,28 +5989,12 @@ export const AdminPortal = () => {
 
                                   {/* Slide Info */}
                                   <div className="flex-1 min-w-0">
-                                    <div className="flex items-center gap-1.5 flex-wrap">
-                                      <span className="text-xs font-black text-slate-800">
-                                        ব্যানার স্লাইড #{index + 1}
-                                      </span>
-                                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
-                                        slide.showText !== false 
-                                          ? 'bg-blue-100 text-blue-700' 
-                                          : 'bg-slate-200 text-slate-600'
-                                      }`}>
-                                        {slide.showText !== false ? 'টেক্সট অন' : 'টেক্সট অফ (শুধু ছবি)'}
-                                      </span>
-                                      {slide.showOverlay !== false && (
-                                        <span className="text-[10px] bg-emerald-100 text-[#02975E] font-bold px-2 py-0.5 rounded-full">
-                                          ডার্ক শেড
-                                        </span>
-                                      )}
-                                    </div>
-                                    <p className="text-[11px] text-slate-400 truncate mt-0.5">
-                                      {slide.showText !== false 
-                                        ? (slide.titleLine1 || 'প্রয়োজনে দ্রুত আসল ওষুধ') 
-                                        : 'ডিজাইন করা ফটো ব্যানার'}
-                                    </p>
+                                    <span className="text-xs font-black text-slate-800 block">
+                                      ব্যানার স্লাইড #{index + 1}
+                                    </span>
+                                    <span className="text-[11px] text-emerald-600 font-semibold block mt-0.5">
+                                      সক্রিয় ব্যানার ফটো
+                                    </span>
                                   </div>
 
                                   {/* Action Buttons */}
@@ -6127,7 +6075,7 @@ export const AdminPortal = () => {
                               </h3>
                               <p className="text-xs text-slate-500">
                                 {editingSlideId 
-                                  ? 'এই স্লাইডের ছবি বা টেক্সট পরিবর্তন করে আপডেট করুন' 
+                                  ? 'এই স্লাইডের ছবি পরিবর্তন করে আপডেট করুন' 
                                   : 'ওয়েবসাইটের স্লাইডারে প্রদর্শন করার জন্য আরও একটি নতুন ব্যানার যোগ করুন'}
                               </p>
                             </div>
@@ -6214,7 +6162,7 @@ export const AdminPortal = () => {
                                   value={slideForm.imageUrl}
                                   onChange={(e) => {
                                     const val = e.target.value;
-                                    setSlideForm(prev => ({ ...prev, imageUrl: val }));
+                                    setSlideForm({ imageUrl: val });
                                   }}
                                   placeholder="https://example.com/banner-1280x320.jpg"
                                   className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 focus:bg-white focus:border-[#123184] outline-none text-xs text-slate-900 rounded-xl transition-colors"
@@ -6238,7 +6186,7 @@ export const AdminPortal = () => {
                                 </div>
                                 <button
                                   type="button"
-                                  onClick={() => setSlideForm(prev => ({ ...prev, imageUrl: '' }))}
+                                  onClick={() => setSlideForm({ imageUrl: '' })}
                                   className="text-rose-600 hover:text-rose-800 text-[11px] font-bold underline cursor-pointer"
                                 >
                                   ছবি মুছুন
@@ -6246,93 +6194,6 @@ export const AdminPortal = () => {
                               </div>
                             )}
                           </div>
-
-                          {/* Overlay and Text Display Toggles */}
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-slate-100">
-                            {/* Toggle: Dark Overlay */}
-                            <div className="flex items-center justify-between p-3 bg-slate-50 border border-slate-200 rounded-xl">
-                              <div>
-                                <span className="text-xs font-bold text-slate-800 block">কালো রিডাবিলিটি ওভারলে</span>
-                                <span className="text-[10px] text-slate-500">লেখা স্পষ্ট পড়ার জন্য ডার্ক শেড</span>
-                              </div>
-                              <label className="relative inline-flex items-center cursor-pointer">
-                                <input
-                                  type="checkbox"
-                                  checked={slideForm.showOverlay}
-                                  onChange={(e) => setSlideForm(prev => ({ ...prev, showOverlay: e.target.checked }))}
-                                  className="sr-only peer"
-                                />
-                                <div className="w-10 h-5 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#02975E]"></div>
-                              </label>
-                            </div>
-
-                            {/* Toggle: Show Text */}
-                            <div className="flex items-center justify-between p-3 bg-slate-50 border border-slate-200 rounded-xl">
-                              <div>
-                                <span className="text-xs font-bold text-slate-800 block">ব্যানারের লেখা দেখান</span>
-                                <span className="text-[10px] text-slate-500">ছবির ভেতরে ডিজাইন করা লেখা থাকলে অফ রাখুন</span>
-                              </div>
-                              <label className="relative inline-flex items-center cursor-pointer">
-                                <input
-                                  type="checkbox"
-                                  checked={slideForm.showText}
-                                  onChange={(e) => setSlideForm(prev => ({ ...prev, showText: e.target.checked }))}
-                                  className="sr-only peer"
-                                />
-                                <div className="w-10 h-5 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#02975E]"></div>
-                              </label>
-                            </div>
-                          </div>
-
-                          {/* Text Content Inputs (Only active if showText is true) */}
-                          {slideForm.showText && (
-                            <div className="space-y-3.5 p-4 bg-slate-50/80 border border-slate-200 rounded-xl">
-                              <span className="text-xs font-extrabold text-[#123184] block border-b border-slate-200 pb-1.5">
-                                ব্যানারের শিরোনাম ও সাবটাইটেল কাস্টমাইজেশন:
-                              </span>
-
-                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                <div className="space-y-1">
-                                  <label className="text-[11px] font-bold text-slate-700 block">
-                                    শিরোনাম লাইন ১:
-                                  </label>
-                                  <input
-                                    type="text"
-                                    value={slideForm.titleLine1}
-                                    onChange={(e) => setSlideForm(prev => ({ ...prev, titleLine1: e.target.value }))}
-                                    placeholder="প্রয়োজনে দ্রুত আসল ওষুধ"
-                                    className="w-full px-3 py-2 bg-white border border-slate-200 focus:border-[#123184] outline-none text-xs rounded-xl"
-                                  />
-                                </div>
-
-                                <div className="space-y-1">
-                                  <label className="text-[11px] font-bold text-slate-700 block">
-                                    শিরোনাম লাইন ২ (হাইলাইটেড):
-                                  </label>
-                                  <input
-                                    type="text"
-                                    value={slideForm.titleLine2}
-                                    onChange={(e) => setSlideForm(prev => ({ ...prev, titleLine2: e.target.value }))}
-                                    placeholder="পৌঁছে যাবে আপনার দোরগোড়ায়"
-                                    className="w-full px-3 py-2 bg-white border border-slate-200 focus:border-[#123184] outline-none text-xs rounded-xl"
-                                  />
-                                </div>
-                              </div>
-
-                              <div className="space-y-1">
-                                <label className="text-[11px] font-bold text-slate-700 block">
-                                  সাবটাইটেল / বিবরণ:
-                                </label>
-                                <textarea
-                                  rows={2}
-                                  value={slideForm.subtitle}
-                                  onChange={(e) => setSlideForm(prev => ({ ...prev, subtitle: e.target.value }))}
-                                  placeholder="প্রেসক্রিপশন আপলোড করুন অথবা নাম দিয়ে ওষুধ খুঁজুন..."
-                                  className="w-full px-3 py-2 bg-white border border-slate-200 focus:border-[#123184] outline-none text-xs rounded-xl"
-                                />
-                              </div>
-                            </div>
-                          )}
 
                           {/* Submit Button */}
                           <div className="pt-2 flex flex-col sm:flex-row gap-3">
@@ -6393,42 +6254,11 @@ export const AdminPortal = () => {
                             return (
                               <div 
                                 key={slide.id || sIdx}
-                                className={`absolute inset-0 bg-cover bg-center transition-opacity duration-500 flex items-center ${
+                                className={`absolute inset-0 bg-cover bg-center transition-opacity duration-500 ${
                                   isCurrent ? 'opacity-100 z-10' : 'opacity-0 z-0'
                                 }`}
                                 style={{ backgroundImage: `url(${slide.imageUrl})` }}
-                              >
-                                {/* Overlay */}
-                                {slide.showOverlay !== false && (
-                                  <div className="absolute inset-0 bg-gradient-to-r from-slate-950/80 via-slate-950/60 to-slate-950/40 pointer-events-none"></div>
-                                )}
-
-                                {/* Content */}
-                                <div className="relative z-10 p-5 text-white space-y-2 w-full">
-                                  {slide.showText !== false ? (
-                                    <>
-                                      <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-white/10 backdrop-blur-md text-[10px] text-emerald-300 font-bold border border-white/10">
-                                        <span>{config.name}</span>
-                                        <span>•</span>
-                                        <span>২৪/৭ হোম ডেলিভারি</span>
-                                      </div>
-                                      <h2 className="text-base sm:text-lg font-black leading-tight drop-shadow-md">
-                                        {slide.titleLine1 || 'প্রয়োজনে দ্রুত আসল ওষুধ'} <br />
-                                        <span className="text-emerald-400">{slide.titleLine2 || 'পৌঁছে যাবে আপনার দোরগোড়ায়'}</span>
-                                      </h2>
-                                      <p className="text-[11px] text-slate-200 line-clamp-2 max-w-sm drop-shadow-xs">
-                                        {slide.subtitle || 'প্রেসক্রিপশন আপলোড করুন অথবা নাম দিয়ে ওষুধ খুঁজুন...'}
-                                      </p>
-                                    </>
-                                  ) : (
-                                    <div className="text-center py-6">
-                                      <span className="inline-block px-3 py-1 rounded-full bg-black/60 text-white text-[11px] font-bold backdrop-blur-md border border-white/20">
-                                        ব্যানার ফটোতে টেক্সট লুকানো রয়েছে (ডিজাইনের লেখা দেখা যাবে)
-                                      </span>
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
+                              />
                             );
                           })
                         )}
