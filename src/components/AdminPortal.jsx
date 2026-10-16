@@ -6469,13 +6469,6 @@ export const AdminPortal = () => {
                                 />
                               ))}
                             </div>
-
-                            {/* Slide Counter Badge */}
-                            <div className="absolute top-2 right-2 z-20">
-                              <span className="text-[10px] px-2 py-0.5 rounded-md bg-black/60 text-white font-mono font-bold">
-                                স্লাইড {adminPreviewIndex + 1} / {heroSlides.length}
-                              </span>
-                            </div>
                           </>
                         )}
                       </div>

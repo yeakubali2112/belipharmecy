@@ -223,11 +223,6 @@ export const Hero = () => {
                   );
                 })}
               </div>
-
-              {/* Slide Counter Badge */}
-              <div className="absolute top-3 right-3 sm:top-4 sm:right-4 z-20 px-2.5 py-1 rounded-full bg-black/50 backdrop-blur-md text-[10px] text-white/90 font-mono font-bold border border-white/15 pointer-events-none">
-                {currentSlideIndex + 1} / {slides.length}
-              </div>
             </>
           )}
         </div>
