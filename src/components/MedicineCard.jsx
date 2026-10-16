@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ShoppingCart, Plus, Minus, Info, Check, AlertCircle, Shield, Loader2, Package } from 'lucide-react';
+import { ShoppingCart, Plus, Minus, Info, Check, AlertCircle, Shield, Loader2 } from 'lucide-react';
 import { useShop } from '../context/ShopContext';
 
 export const MedicineCard = ({ medicine }) => {
@@ -136,25 +136,7 @@ export const MedicineCard = ({ medicine }) => {
             {medicine.generic}
           </p>
 
-          {/* Available Stock Indicator Row */}
-          <div className="flex items-center justify-between text-[11px] pt-1.5">
-            <span className="font-semibold text-slate-500 flex items-center gap-1">
-              <Package className="w-3.5 h-3.5 text-[#02975E]" />
-              <span>{lang === 'bn' ? 'মজুদ স্টক:' : 'In Stock:'}</span>
-            </span>
-            <span className={`font-black px-2 py-0.5 rounded-md flex items-center gap-1 text-[11px] ${
-              isOutOfStock 
-                ? 'bg-rose-100 text-rose-700' 
-                : stockCount <= 15 
-                ? 'bg-amber-100 text-amber-900 animate-pulse' 
-                : 'bg-emerald-50 text-emerald-800 border border-emerald-200/60'
-            }`}>
-              <span className={`w-1.5 h-1.5 rounded-full ${isOutOfStock ? 'bg-rose-500' : stockCount <= 15 ? 'bg-amber-500' : 'bg-[#02975E]'}`} />
-              {isOutOfStock 
-                ? (lang === 'bn' ? 'স্টক শেষ (০ পিস)' : 'Out of Stock') 
-                : (lang === 'bn' ? `${stockCount} পিস` : `${stockCount} pcs`)}
-            </span>
-          </div>
+
         </div>
 
         {/* Unit Selection (Strip vs Piece) */}
