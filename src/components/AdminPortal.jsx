@@ -2070,8 +2070,8 @@ export const AdminPortal = () => {
           {/* ================================================= */}
           {activeTab === 'overview' && (
             <div className="space-y-6">
-              {/* 6 Big Metrics Cards */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3.5">
+              {/* Overview Metrics Cards */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5">
                 
                 <div 
                   onClick={() => setActiveTab('sell')}
@@ -2145,20 +2145,6 @@ export const AdminPortal = () => {
                   </div>
                   <span className="text-xl font-black text-slate-900">{prescriptions.length}</span>
                   <span className="text-[11px] text-rose-600 font-bold">{pendingRx} টি রিভিউ বাকি</span>
-                </div>
-
-                <div 
-                  onClick={() => setActiveTab('medicines')}
-                  className="bg-white p-4.5 rounded-none border border-slate-200 shadow-xs flex flex-col justify-between space-y-2 cursor-pointer hover:border-purple-400 hover:shadow-sm transition-all"
-                >
-                  <div className="flex justify-between items-center">
-                    <span className="text-[11px] text-slate-500 font-bold uppercase tracking-wider">ওষুধ ক্যাটালগ</span>
-                    <span className="p-1.5 rounded-none bg-purple-100 text-purple-800">
-                      <Pill className="w-4 h-4" />
-                    </span>
-                  </div>
-                  <span className="text-xl font-black text-slate-900">{medicines.length} প্রকার</span>
-                  <span className="text-[11px] text-slate-500 font-medium">ইনভেন্টরি ক্যাটালগ &rarr;</span>
                 </div>
 
               </div>
