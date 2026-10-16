@@ -257,6 +257,8 @@ export const AdminPortal = () => {
 
   // ==========================================
   // Hero Banner / Main Page Slider State
+  // ==========================================
+  const [bannerTab, setBannerTab] = useState('hero'); // 'hero' | 'popup'
 
   const [heroSlides, setHeroSlides] = useState(() => {
     if (heroBanner?.slides && Array.isArray(heroBanner.slides) && heroBanner.slides.length > 0) {
@@ -5763,10 +5765,52 @@ export const AdminPortal = () => {
           {activeTab === 'ads' && (
             <div className="space-y-6 max-w-5xl mx-auto w-full">
               
+              {/* Sub-Tabs Switcher: Hero Banner Slider vs Popup Ads */}
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 p-1.5 bg-slate-100 rounded-2xl border border-slate-200">
+                <button
+                  type="button"
+                  onClick={() => setBannerTab('hero')}
+                  className={`flex-1 py-3 px-4 rounded-xl text-xs sm:text-sm font-black transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                    bannerTab === 'hero'
+                      ? 'bg-[#123184] text-white shadow-md'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/70'
+                  }`}
+                >
+                  <ImageIcon className="w-4 h-4 text-emerald-400" />
+                  <span>১. ওয়েবসাইটের মূল হিরো ব্যানার স্লাইডার (Hero Slider)</span>
+                  {heroSlides.length > 0 ? (
+                    <span className="text-[10px] bg-emerald-500 text-white px-2.5 py-0.5 rounded-full font-bold">
+                      {heroSlides.length}টি ব্যানার স্লাইড সক্রিয়
+                    </span>
+                  ) : (
+                    <span className="text-[10px] bg-slate-300 text-slate-700 px-2.5 py-0.5 rounded-full font-bold">ডিফল্ট গ্র্যাডিয়েন্ট</span>
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setBannerTab('popup')}
+                  className={`flex-1 py-3 px-4 rounded-xl text-xs sm:text-sm font-black transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                    bannerTab === 'popup'
+                      ? 'bg-[#123184] text-white shadow-md'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/70'
+                  }`}
+                >
+                  <Sparkles className="w-4 h-4 text-amber-400" />
+                  <span>২. অফার ও পপআপ বিজ্ঞাপন (Offer Popup)</span>
+                  {adForm.isActive ? (
+                    <span className="text-[10px] bg-emerald-500 text-white px-2 py-0.5 rounded-full font-bold">অনলাইন সক্রিয়</span>
+                  ) : (
+                    <span className="text-[10px] bg-slate-300 text-slate-700 px-2 py-0.5 rounded-full font-bold">বন্ধ রয়েছে</span>
+                  )}
+                </button>
+              </div>
+
               {/* ================================================= */}
-              {/* HERO MULTI-BANNER SLIDER MANAGEMENT */}
+              {/* SUB-SECTION 1: HERO MULTI-BANNER SLIDER MANAGEMENT */}
               {/* ================================================= */}
-              <div className="space-y-6">
+              {bannerTab === 'hero' && (
+                <div className="space-y-6">
                   {/* Banner Size & Specification Recommendation Card */}
                   <div className="bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 text-white p-5 rounded-2xl shadow-md border border-blue-800/50">
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -6274,23 +6318,13 @@ export const AdminPortal = () => {
                     </div>
                   </div>
                 </div>
+              )}
 
-              {/* Optional Offer Popup Ads Section (Collapsible Accordion) */}
-              <div className="pt-2">
-                <details className="group bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs">
-                  <summary className="p-4 cursor-pointer flex items-center justify-between text-xs sm:text-sm font-bold text-slate-700 hover:bg-slate-50 transition-colors select-none list-none">
-                    <div className="flex items-center gap-2">
-                      <Sparkles className="w-4 h-4 text-amber-500" />
-                      <span>অফার ও পপআপ বিজ্ঞাপন সেটিংস (Offer Popup Settings)</span>
-                      {adForm.isActive ? (
-                        <span className="text-[10px] bg-emerald-500 text-white px-2 py-0.5 rounded-full font-bold">অনলাইন সক্রিয়</span>
-                      ) : (
-                        <span className="text-[10px] bg-slate-200 text-slate-600 px-2 py-0.5 rounded-full font-bold">বন্ধ রয়েছে</span>
-                      )}
-                    </div>
-                    <span className="text-xs text-slate-400 group-open:rotate-180 transition-transform">▼</span>
-                  </summary>
-                  <div className="p-4 sm:p-6 border-t border-slate-100 space-y-6">
+              {/* ================================================= */}
+              {/* SUB-SECTION 2: POPUP ADS MANAGEMENT */}
+              {/* ================================================= */}
+              {bannerTab === 'popup' && (
+                <div className="space-y-6">
                   {/* Quick Status Bar */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="bg-white border border-slate-200 p-4 shadow-xs rounded-xl flex items-center justify-between">
@@ -6537,8 +6571,7 @@ export const AdminPortal = () => {
 
                   </div>
                 </div>
-              </details>
-            </div>
+              )}
 
             </div>
           )}
