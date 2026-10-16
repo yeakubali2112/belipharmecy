@@ -73,8 +73,8 @@ export const MedicineCard = ({ medicine }) => {
           className="w-full h-full flex items-center justify-center cursor-pointer group-hover:scale-105 transition-transform duration-300"
         >
           <img
-            src={medicine.image}
-            alt={medicine.name}
+            src={liveMed.image || medicine.image}
+            alt={liveMed.name || medicine.name}
             className="h-32 w-auto object-contain drop-shadow-md rounded-xl"
             loading="lazy"
             onError={(e) => {

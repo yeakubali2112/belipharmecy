@@ -11,7 +11,8 @@ import {
   saveCloudCustomer,
   deleteCloudCustomer,
   fetchCloudMedicines,
-  saveCloudMedicine
+  saveCloudMedicine,
+  batchSaveCloudMedicines
 } from '../services/firebaseService';
 import { subscribeLiveSync, publishLiveSync, fetchRecentSyncEvents } from '../services/liveSyncService';
 import { fetchMedexSearchResults } from '../utils/medicineSearch';
@@ -21,6 +22,29 @@ const ShopContext = createContext();
 // Safe localStorage helper to protect against QuotaExceededError and quota overflows
 const safeSetItem = (key, value) => {
   try {
+    if (key === 'beli_medicines') {
+      try {
+        const parsed = JSON.parse(value);
+        if (Array.isArray(parsed)) {
+          // Keep only admin-created or admin-edited medicines to conserve localStorage quota
+          const initialMap = new Map(INITIAL_MEDICINES.map(m => [m.id, m]));
+          const delta = parsed.filter(m => {
+            const init = initialMap.get(m.id);
+            if (!init) return true;
+            return m.pricePerStrip !== init.pricePerStrip || 
+                   m.stock !== init.stock || 
+                   m.discountPercent !== init.discountPercent || 
+                   m.image !== init.image || 
+                   m.name !== init.name ||
+                   m.generic !== init.generic;
+          });
+          localStorage.setItem(key, JSON.stringify(delta));
+          return true;
+        }
+      } catch (e) {
+        // Fallback to regular set
+      }
+    }
     localStorage.setItem(key, value);
     return true;
   } catch (err) {
@@ -35,18 +59,6 @@ const safeSetItem = (key, value) => {
             image: (p.image && p.image.length > 250000) ? null : p.image
           }));
           localStorage.setItem(key, JSON.stringify(trimmed));
-        }
-      } else if (key === 'beli_medicines') {
-        const parsed = JSON.parse(value);
-        if (Array.isArray(parsed)) {
-          // Keep only admin-created or admin-edited medicines to conserve localStorage quota
-          const initialMap = new Map(INITIAL_MEDICINES.map(m => [m.id, m]));
-          const delta = parsed.filter(m => {
-            const init = initialMap.get(m.id);
-            if (!init) return true;
-            return m.pricePerStrip !== init.pricePerStrip || m.stock !== init.stock || m.discountPercent !== init.discountPercent || m.image !== init.image || m.name !== init.name;
-          });
-          localStorage.setItem(key, JSON.stringify(delta));
         }
       }
     } catch (e2) {
@@ -1113,6 +1125,20 @@ export const ShopProvider = ({ children }) => {
         safeSetItem('beli_medicines', JSON.stringify(next));
         return next;
       });
+    } else if (event.type === 'ALL_MEDICINES_SYNCED' || event.type === 'MEDICINES_SYNCED') {
+      fetchCloudMedicines().then(cloudMeds => {
+        if (cloudMeds && Array.isArray(cloudMeds) && cloudMeds.length > 0) {
+          setMedicines(prev => {
+            const cloudMap = new Map(cloudMeds.map(m => [m.id, m]));
+            const next = prev.map(m => cloudMap.has(m.id) ? { ...m, ...cloudMap.get(m.id) } : m);
+            cloudMeds.forEach(cm => {
+              if (!next.some(m => m.id === cm.id)) next.unshift(cm);
+            });
+            safeSetItem('beli_medicines', JSON.stringify(next));
+            return next;
+          });
+        }
+      });
     } else if (event.type === 'PRESCRIPTION_UPLOADED' && event.prescription) {
       setPrescriptions(prev => {
         if (prev.some(p => p.id === event.prescription.id)) return prev;
@@ -1175,16 +1201,59 @@ export const ShopProvider = ({ children }) => {
         }
 
         const cloudMeds = await fetchCloudMedicines();
-        if (cloudMeds && Array.isArray(cloudMeds) && isMounted && cloudMeds.length > 0) {
-          setMedicines(prev => {
-            const cloudMap = new Map(cloudMeds.map(m => [m.id, m]));
-            const next = prev.map(m => cloudMap.has(m.id) ? { ...m, ...cloudMap.get(m.id) } : m);
-            cloudMeds.forEach(cm => {
-              if (!next.some(m => m.id === cm.id)) next.unshift(cm);
+        if (cloudMeds && Array.isArray(cloudMeds) && isMounted) {
+          if (cloudMeds.length > 0) {
+            setMedicines(prev => {
+              const cloudMap = new Map(cloudMeds.map(m => [m.id, m]));
+              const next = prev.map(m => cloudMap.has(m.id) ? { ...m, ...cloudMap.get(m.id) } : m);
+              cloudMeds.forEach(cm => {
+                if (!next.some(m => m.id === cm.id)) next.unshift(cm);
+              });
+              safeSetItem('beli_medicines', JSON.stringify(next));
+              return next;
             });
-            safeSetItem('beli_medicines', JSON.stringify(next));
-            return next;
+          }
+
+          // Automatic bi-directional cloud sync:
+          // If this device has local custom medicine photos/edits that are not yet in Firestore,
+          // auto-upload them to Firestore so other devices (mobile, other computers) can see them!
+          const cloudMap = new Map(cloudMeds.map(m => [m.id, m]));
+          const initialMap = new Map(INITIAL_MEDICINES.map(m => [m.id, m]));
+
+          const localSaved = localStorage.getItem('beli_medicines');
+          let localDelta = [];
+          if (localSaved) {
+            try {
+              const parsed = JSON.parse(localSaved);
+              if (Array.isArray(parsed)) localDelta = parsed;
+            } catch {}
+          }
+
+          const unpushed = localDelta.filter(m => {
+            if (!m || !m.id) return false;
+            const inCloud = cloudMap.get(m.id);
+            if (!inCloud) {
+              const init = initialMap.get(m.id);
+              if (!init) return true;
+              return (m.image && m.image !== init.image) || 
+                     m.pricePerStrip !== init.pricePerStrip || 
+                     m.stock !== init.stock;
+            }
+            if (m.image && m.image.startsWith('data:image/') && (!inCloud.image || inCloud.image !== m.image)) {
+              return true;
+            }
+            return false;
           });
+
+          if (unpushed.length > 0) {
+            console.log(`[Beli Sync] Auto-uploading ${unpushed.length} local custom medicines to Cloud...`);
+            batchSaveCloudMedicines(unpushed).then(res => {
+              if (res.count > 0) {
+                console.log(`[Beli Sync] Uploaded ${res.count} custom medicines to Cloud!`);
+                publishLiveSync({ type: 'ALL_MEDICINES_SYNCED', count: res.count });
+              }
+            });
+          }
         }
 
         const cloudPresc = await fetchCloudPrescriptions();
@@ -1747,12 +1816,53 @@ export const ShopProvider = ({ children }) => {
     showToast('Default catalog restored', 'info');
   };
 
+  const syncAllMedicinesToCloud = async (onProgress) => {
+    const initialMap = new Map(INITIAL_MEDICINES.map(m => [m.id, m]));
+    const customList = medicines.filter(m => {
+      if (!m || !m.id) return false;
+      const init = initialMap.get(m.id);
+      if (!init) return true;
+      const hasCustomPhoto = m.image && (m.image.startsWith('data:image/') || m.image !== init.image);
+      const isEdited = m.pricePerStrip !== init.pricePerStrip || 
+                       m.stock !== init.stock || 
+                       m.discountPercent !== init.discountPercent || 
+                       m.name !== init.name ||
+                       m.generic !== init.generic;
+      return hasCustomPhoto || isEdited;
+    });
+
+    if (customList.length === 0) {
+      showToast(lang === 'bn' ? 'সব ওষুধের ফটো ও তথ্য ইতিমধ্যে ক্লাউডে আপ-টু-ডেট রয়েছে!' : 'All medicines are already synced to cloud!', 'info');
+      return { success: true, count: 0 };
+    }
+
+    showToast(
+      lang === 'bn' 
+        ? `${customList.length}টি ওষুধের ফটো ক্লাউড ডাটাবেজে সিঙ্ক হচ্ছে...` 
+        : `Syncing ${customList.length} medicines to cloud...`, 
+      'info'
+    );
+
+    const res = await batchSaveCloudMedicines(customList, onProgress);
+    if (res.success) {
+      publishLiveSync({ type: 'ALL_MEDICINES_SYNCED', count: res.count });
+      showToast(
+        lang === 'bn' 
+          ? `✓ সফলভাবে ${res.count}টি ওষুধের ফটো ও তথ্য ক্লাউডে সেভ হয়েছে! এখন যেকোনো মোবাইল বা ডিভাইসে দেখা যাবে।` 
+          : `✓ Successfully synced ${res.count} medicines to cloud! Visible across all devices now.`, 
+        'success'
+      );
+    }
+    return res;
+  };
+
   return (
     <ShopContext.Provider value={{
       config,
       deliverySettings,
       updateDeliverySettings,
       medicines,
+      syncAllMedicinesToCloud,
       cart,
       orders,
       prescriptions,

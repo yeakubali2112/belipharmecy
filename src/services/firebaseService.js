@@ -182,12 +182,24 @@ export const deleteCloudCustomer = async (phone) => {
 
 export const fetchCloudMedicines = async () => {
   try {
-    const res = await fetch(`${BASE_URL}/medicines?key=${API_KEY}&pageSize=100`, { cache: 'no-store' });
-    if (!res.ok) return null;
-    const data = await res.json();
-    if (!data.documents) return [];
-    return data.documents.map(fromFirestoreDoc).filter(Boolean);
+    let allDocs = [];
+    let pageToken = '';
+    let loopCount = 0;
+    do {
+      const url = `${BASE_URL}/medicines?key=${API_KEY}&pageSize=300${pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : ''}`;
+      const res = await fetch(url, { cache: 'no-store' });
+      if (!res.ok) break;
+      const data = await res.json();
+      if (data.documents && Array.isArray(data.documents)) {
+        allDocs = allDocs.concat(data.documents);
+      }
+      pageToken = data.nextPageToken || '';
+      loopCount++;
+    } while (pageToken && loopCount < 10);
+
+    return allDocs.map(fromFirestoreDoc).filter(Boolean);
   } catch (err) {
+    console.warn('fetchCloudMedicines error:', err);
     return null;
   }
 };
@@ -201,9 +213,34 @@ export const saveCloudMedicine = async (medicine) => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(toFirestoreDoc(medicine))
     });
+    if (!res.ok) {
+      console.warn(`saveCloudMedicine failed for ${medicine.id}:`, res.status, res.statusText);
+    }
     return res.ok;
   } catch (err) {
+    console.error(`saveCloudMedicine network error for ${medicine.id}:`, err);
     return false;
   }
+};
+
+export const batchSaveCloudMedicines = async (medicinesList, onProgress) => {
+  if (!medicinesList || !Array.isArray(medicinesList) || medicinesList.length === 0) {
+    return { success: true, count: 0 };
+  }
+
+  let savedCount = 0;
+  for (let i = 0; i < medicinesList.length; i++) {
+    const med = medicinesList[i];
+    const ok = await saveCloudMedicine(med);
+    if (ok) savedCount++;
+    if (onProgress) {
+      onProgress(i + 1, medicinesList.length, med);
+    }
+    if (i < medicinesList.length - 1) {
+      await new Promise(r => setTimeout(r, 60));
+    }
+  }
+
+  return { success: true, count: savedCount };
 };
 
