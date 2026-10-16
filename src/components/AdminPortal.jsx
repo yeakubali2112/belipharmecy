@@ -82,6 +82,8 @@ export const AdminPortal = () => {
     adBanner,
     updateAdBanner,
     setIsAdModalOpen,
+    heroBanner,
+    updateHeroBanner,
     showToast,
     orders, 
     prescriptions, 
@@ -249,6 +251,115 @@ export const AdminPortal = () => {
     };
     updateAdBanner(updated);
     showToast?.('বিজ্ঞাপন ব্যানার সফলভাবে সেভ ও লাইভ আপডেট হয়েছে!', 'success');
+  };
+
+  // ==========================================
+  // Hero Banner / Main Page Background State
+  // ==========================================
+  const [bannerTab, setBannerTab] = useState('hero'); // 'hero' | 'popup'
+  const [heroForm, setHeroForm] = useState({
+    imageUrl: heroBanner?.imageUrl || '',
+    showText: heroBanner?.showText !== false,
+    showOverlay: heroBanner?.showOverlay !== false,
+    titleLine1: heroBanner?.titleLine1 || 'প্রয়োজনে দ্রুত আসল ওষুধ',
+    titleLine2: heroBanner?.titleLine2 || 'পৌঁছে যাবে আপনার দোরগোড়ায়',
+    subtitle: heroBanner?.subtitle || 'প্রেসক্রিপশন আপলোড করুন অথবা নাম দিয়ে ওষুধ খুঁজুন। আমাদের রেজিস্টার্ড ফার্মাসিস্টের তত্ত্বাবধানে যাচাইকৃত ১০০% জেনুইন ওষুধ দ্রুততম সময়ে ডেলিভারি করা হয়।'
+  });
+  const [heroUploadMethod, setHeroUploadMethod] = useState('file'); // 'file' | 'url'
+  const [isUploadingHero, setIsUploadingHero] = useState(false);
+  const heroFileInputRef = useRef(null);
+
+  React.useEffect(() => {
+    if (heroBanner && !isUploadingHero) {
+      setHeroForm({
+        imageUrl: heroBanner.imageUrl || '',
+        showText: heroBanner.showText !== false,
+        showOverlay: heroBanner.showOverlay !== false,
+        titleLine1: heroBanner.titleLine1 || 'প্রয়োজনে দ্রুত আসল ওষুধ',
+        titleLine2: heroBanner.titleLine2 || 'পৌঁছে যাবে আপনার দোরগোড়ায়',
+        subtitle: heroBanner.subtitle || 'প্রেসক্রিপশন আপলোড করুন অথবা নাম দিয়ে ওষুধ খুঁজুন। আমাদের রেজিস্টার্ড ফার্মাসিস্টের তত্ত্বাবধানে যাচাইকৃত ১০০% জেনুইন ওষুধ দ্রুততম সময়ে ডেলিভারি করা হয়।'
+      });
+    }
+  }, [heroBanner?.updatedAt, heroBanner?.imageUrl]);
+
+  const handleHeroImageFileChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      showToast?.('অনুগ্রহ করে শুধুমাত্র ছবি ফাইল নির্বাচন করুন (JPG, PNG, WebP)', 'error');
+      return;
+    }
+
+    setIsUploadingHero(true);
+    try {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+          const maxWidth = 1400;
+          if (width > maxWidth) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          }
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+          const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.82);
+
+          const updated = {
+            ...heroBanner,
+            ...heroForm,
+            imageUrl: compressedDataUrl,
+            updatedAt: new Date().toISOString()
+          };
+          setHeroForm(updated);
+          updateHeroBanner(updated);
+          setIsUploadingHero(false);
+          if (e.target) e.target.value = '';
+          showToast?.('হিরো ব্যানার ফটো সফলভাবে যোগ ও সেভ হয়েছে!', 'success');
+        };
+        img.onerror = () => {
+          setIsUploadingHero(false);
+          showToast?.('ছবি লোড করতে সমস্যা হয়েছে!', 'error');
+        };
+        img.src = event.target?.result;
+      };
+      reader.readAsDataURL(file);
+    } catch (err) {
+      setIsUploadingHero(false);
+      showToast?.('ফটো প্রসেসিং করতে সমস্যা হয়েছে!', 'error');
+    }
+  };
+
+  const handleSaveHeroBanner = (e) => {
+    e?.preventDefault?.();
+    const updated = {
+      ...heroBanner,
+      ...heroForm,
+      updatedAt: new Date().toISOString()
+    };
+    updateHeroBanner(updated);
+    showToast?.('হিরো ব্যানার সফলভাবে সেভ ও লাইভ আপডেট হয়েছে!', 'success');
+  };
+
+  const handleResetHeroBanner = () => {
+    const resetData = {
+      imageUrl: '',
+      showText: true,
+      showOverlay: true,
+      titleLine1: 'প্রয়োজনে দ্রুত আসল ওষুধ',
+      titleLine2: 'পৌঁছে যাবে আপনার দোরগোড়ায়',
+      subtitle: 'প্রেসক্রিপশন আপলোড করুন অথবা নাম দিয়ে ওষুধ খুঁজুন। আমাদের রেজিস্টার্ড ফার্মাসিস্টের তত্ত্বাবধানে যাচাইকৃত ১০০% জেনুইন ওষুধ দ্রুততম সময়ে ডেলিভারি করা হয়।',
+      updatedAt: new Date().toISOString()
+    };
+    setHeroForm(resetData);
+    updateHeroBanner(resetData);
+    showToast?.('ডিফল্ট ব্র‍্যান্ড গ্রেডিয়েন্ট ব্যাকগ্রাউন্ড রিসেট করা হয়েছে!', 'info');
   };
 
   // Coupon Manager Form State
@@ -1989,9 +2100,9 @@ export const AdminPortal = () => {
             >
               <Sparkles className="w-4 h-4 text-amber-300" />
               <div className="flex-1 flex items-center justify-between">
-                <span>অফার ও বিজ্ঞাপন পপআপ</span>
-                {adBanner?.isActive && (
-                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" title="বিজ্ঞাপন সক্রিয়" />
+                <span>ব্যানার ও অফার বিজ্ঞাপন</span>
+                {(adBanner?.isActive || heroBanner?.imageUrl) && (
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" title="ব্যানার বা বিজ্ঞাপন সক্রিয়" />
                 )}
               </div>
             </button>
@@ -2026,7 +2137,7 @@ export const AdminPortal = () => {
               {activeTab === 'customers' && 'নিবন্ধিত গ্রাহক প্রোফাইল ও কাস্টমার ম্যানেজমেন্ট'}
               {activeTab === 'medicines' && 'ওষুধ ক্যাটালগ ও স্টক পরিচালনা'}
               {activeTab === 'coupons' && 'ডেলিভারি চার্জ ও কুপন কোড ব্যবস্থাপনা'}
-              {activeTab === 'ads' && 'হোমপেজ অফার ও বিজ্ঞাপন পপআপ কন্ট্রোল (Popup Ads)'}
+              {activeTab === 'ads' && 'হিরো ব্যানার ব্যাকগ্রাউন্ড ও অফার বিজ্ঞাপন কন্ট্রোল'}
               {activeTab === 'settings' && 'ফার্মেসি প্রোফাইল ও কনফিগারেশন'}
             </h1>
             <span className="text-xs text-slate-500">
@@ -5532,256 +5643,653 @@ export const AdminPortal = () => {
           )}
 
           {/* ================================================= */}
-          {/* TAB: OFFER & POPUP ADS MANAGEMENT */}
+          {/* TAB: BANNER & POPUP ADS MANAGEMENT */}
           {/* ================================================= */}
           {activeTab === 'ads' && (
             <div className="space-y-6 max-w-5xl mx-auto w-full">
               
-              {/* Quick Status Bar */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="bg-white border border-slate-200 p-4 shadow-xs flex items-center justify-between">
-                  <div>
-                    <span className="text-xs text-slate-500 font-bold block">পপআপ ফটো বিজ্ঞাপন স্ট্যাটাস</span>
-                    <span className={`text-xl font-black ${adForm.isActive ? 'text-[#02975E]' : 'text-slate-400'}`}>
-                      {adForm.isActive ? '✅ চালু রয়েছে (Active)' : '❌ বন্ধ রয়েছে (Disabled)'}
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const next = !adForm.isActive;
-                      setAdForm(prev => ({ ...prev, isActive: next }));
-                      updateAdBanner({ ...adForm, isActive: next });
-                    }}
-                    className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                      adForm.isActive 
-                        ? 'bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200' 
-                        : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200'
-                    }`}
-                  >
-                    {adForm.isActive ? 'বিজ্ঞাপন বন্ধ করুন' : 'বিজ্ঞাপন চালু করুন'}
-                  </button>
-                </div>
+              {/* Sub-Tabs Switcher: Hero Banner vs Popup Ads */}
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 p-1.5 bg-slate-100 rounded-2xl border border-slate-200">
+                <button
+                  type="button"
+                  onClick={() => setBannerTab('hero')}
+                  className={`flex-1 py-3 px-4 rounded-xl text-xs sm:text-sm font-black transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                    bannerTab === 'hero'
+                      ? 'bg-[#123184] text-white shadow-md'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/70'
+                  }`}
+                >
+                  <ImageIcon className="w-4 h-4 text-emerald-400" />
+                  <span>১. ওয়েবসাইটের মূল হিরো ব্যানার (Hero Banner)</span>
+                  {heroBanner?.imageUrl ? (
+                    <span className="text-[10px] bg-emerald-500 text-white px-2 py-0.5 rounded-full font-bold">কাস্টম ফটো সক্রিয়</span>
+                  ) : (
+                    <span className="text-[10px] bg-slate-300 text-slate-700 px-2 py-0.5 rounded-full font-bold">ডিফল্ট গ্র্যাডিয়েন্ট</span>
+                  )}
+                </button>
 
-                <div className="bg-white border border-slate-200 p-4 shadow-xs flex items-center justify-between">
-                  <div>
-                    <span className="text-xs text-slate-500 font-bold block">লাইভ পপআপ টেস্ট</span>
-                    <span className="text-xs text-slate-400">ওয়েবসাইটে ছবি কেমন দেখাবে দেখুন</span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsAdModalOpen(true);
-                    }}
-                    className="bg-[#123184] hover:bg-[#0d2463] text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer"
-                  >
-                    <Eye className="w-4 h-4" />
-                    <span>পপআপ টেস্ট করুন</span>
-                  </button>
-                </div>
+                <button
+                  type="button"
+                  onClick={() => setBannerTab('popup')}
+                  className={`flex-1 py-3 px-4 rounded-xl text-xs sm:text-sm font-black transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                    bannerTab === 'popup'
+                      ? 'bg-[#123184] text-white shadow-md'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/70'
+                  }`}
+                >
+                  <Sparkles className="w-4 h-4 text-amber-400" />
+                  <span>২. অফার ও পপআপ বিজ্ঞাপন (Offer Popup)</span>
+                  {adForm.isActive ? (
+                    <span className="text-[10px] bg-emerald-500 text-white px-2 py-0.5 rounded-full font-bold">অনলাইন সক্রিয়</span>
+                  ) : (
+                    <span className="text-[10px] bg-slate-300 text-slate-700 px-2 py-0.5 rounded-full font-bold">বন্ধ রয়েছে</span>
+                  )}
+                </button>
               </div>
 
-              {/* Main Form & Live Preview Grid */}
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-                
-                {/* Left Column: Photo Upload Form (6 cols) */}
-                <div className="lg:col-span-6 bg-white border border-slate-200 p-6 shadow-xs space-y-5">
-                  <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
-                    <div className="w-9 h-9 rounded-xl bg-[#02975E]/10 text-[#02975E] flex items-center justify-center">
-                      <Sparkles className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <h3 className="font-extrabold text-base text-[#123184]">
-                        অফার / অ্যাডস ফটো আপলোড
-                      </h3>
-                      <p className="text-xs text-slate-500">
-                        এখানে আপনার যেকোনো অফারের ফটো/ব্যানার আপলোড করুন। গ্রাহক ওয়েবসাইটে ঢুকলে শুধু এই ছবিটিই পপআপ আকারে দেখতে পাবেন।
-                      </p>
+              {/* ================================================= */}
+              {/* SUB-SECTION 1: HERO BANNER MANAGEMENT */}
+              {/* ================================================= */}
+              {bannerTab === 'hero' && (
+                <div className="space-y-6">
+                  {/* Banner Size & Specification Recommendation Card */}
+                  <div className="bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 text-white p-5 rounded-2xl shadow-md border border-blue-800/50">
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                      <div className="space-y-1.5">
+                        <div className="flex items-center gap-2">
+                          <span className="px-2.5 py-0.5 rounded-md text-[11px] font-black uppercase tracking-wider bg-emerald-500 text-slate-950">
+                            সাইজ নির্দেশিকা (Banner Dimensions)
+                          </span>
+                          <span className="text-xs text-blue-200 font-semibold">সঠিক ডিসপ্লে ও সুন্দর ফ্রেমের জন্য</span>
+                        </div>
+                        <h4 className="text-base sm:text-lg font-black text-white">
+                          হিরো ব্যানারের আদর্শ সাইজ: <span className="text-emerald-400 font-black underline decoration-emerald-400/50">১২৮০ × ৩২০ পিক্সেল (1280 × 320 px)</span>
+                        </h4>
+                        <p className="text-xs text-blue-100/90 leading-relaxed max-w-2xl">
+                          এই সাইজের (৪:১ অনুপাত) ব্যানার আপলোড করলে কম্পিউটার, ল্যাপটপ, ট্যাবলেট বা মোবাইল ফোন—যেকোনো স্ক্রিনে ছবি ক্রপ ছাড়া নিখুঁতভাবে প্রদর্শিত হবে।
+                        </p>
+                      </div>
+
+                      {/* Specs badges */}
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-center shrink-0">
+                        <div className="bg-white/10 backdrop-blur-xs border border-white/15 px-3 py-2 rounded-xl">
+                          <span className="text-[10px] text-blue-200 block font-bold">প্রস্তাবিত রেজোলিউশন</span>
+                          <span className="text-xs font-black text-emerald-300">1280 × 320 px</span>
+                        </div>
+                        <div className="bg-white/10 backdrop-blur-xs border border-white/15 px-3 py-2 rounded-xl">
+                          <span className="text-[10px] text-blue-200 block font-bold">রেশিও (অনুপাত)</span>
+                          <span className="text-xs font-black text-amber-300">৪:১ (4:1 Ratio)</span>
+                        </div>
+                        <div className="bg-white/10 backdrop-blur-xs border border-white/15 px-3 py-2 rounded-xl col-span-2 sm:col-span-1">
+                          <span className="text-[10px] text-blue-200 block font-bold">ফরম্যাট ও সাইজ</span>
+                          <span className="text-xs font-black text-cyan-300">JPG, PNG (সর্বোচ্চ 2MB)</span>
+                        </div>
+                      </div>
                     </div>
                   </div>
 
-                  <form onSubmit={handleSaveAdBanner} className="space-y-5">
-                    
-                    {/* Status Toggle */}
-                    <div className="flex items-center justify-between p-3.5 bg-slate-50 border border-slate-200 rounded-xl">
-                      <div>
-                        <span className="text-xs font-bold text-slate-800 block">বিজ্ঞাপন পপআপ সক্রিয় রাখুন</span>
-                        <span className="text-[11px] text-slate-500">গ্রাহক পেজ ওপেন করলে ছবির পপআপ আসবে কিনা</span>
-                      </div>
-                      <label className="relative inline-flex items-center cursor-pointer">
-                        <input 
-                          type="checkbox" 
-                          checked={adForm.isActive}
-                          onChange={(e) => {
-                            const val = e.target.checked;
-                            const updated = {
-                              ...adBanner,
-                              ...adForm,
-                              isActive: val,
-                              updatedAt: new Date().toISOString()
-                            };
-                            setAdForm(updated);
-                            updateAdBanner(updated);
-                          }}
-                          className="sr-only peer"
-                        />
-                        <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#02975E]"></div>
-                      </label>
-                    </div>
-
-                    {/* Image Selection Method (File upload vs Direct URL) */}
-                    <div className="space-y-3">
-                      <label className="text-xs font-bold text-slate-700 block">
-                        বিজ্ঞাপনের ফটো আপলোড বা লিংক নির্বাচন:
-                      </label>
-                      <div className="flex gap-2">
-                        <button
-                          type="button"
-                          onClick={() => setImageUploadMethod('file')}
-                          className={`flex-1 py-2 px-3 text-xs font-bold rounded-xl border transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
-                            imageUploadMethod === 'file' 
-                              ? 'bg-[#123184] text-white border-[#123184]' 
-                              : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
-                          }`}
-                        >
-                          <Upload className="w-3.5 h-3.5" />
-                          <span>ডিভাইস থেকে ছবি আপলোড</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setImageUploadMethod('url')}
-                          className={`flex-1 py-2 px-3 text-xs font-bold rounded-xl border transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
-                            imageUploadMethod === 'url' 
-                              ? 'bg-[#123184] text-white border-[#123184]' 
-                              : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
-                          }`}
-                        >
-                          <ExternalLink className="w-3.5 h-3.5" />
-                          <span>ছবির অনলাইন লিংক (URL)</span>
-                        </button>
-                      </div>
-
-                      {imageUploadMethod === 'file' ? (
-                        <div className="border-2 border-dashed border-slate-300 hover:border-[#02975E] p-6 text-center bg-slate-50 rounded-xl transition-colors">
-                          <input 
-                            type="file"
-                            ref={adFileInputRef}
-                            accept="image/*"
-                            onChange={handleImageFileChange}
-                            className="hidden"
-                          />
-                          <div className="space-y-3">
-                            <div className="w-12 h-12 rounded-full bg-emerald-100 text-[#02975E] flex items-center justify-center mx-auto">
-                              <Camera className="w-6 h-6" />
-                            </div>
-                            <div>
-                              <button
-                                type="button"
-                                onClick={() => adFileInputRef.current?.click()}
-                                disabled={isUploadingImage}
-                                className="bg-[#02975E] hover:bg-[#027e4e] text-white text-xs font-bold px-5 py-2.5 rounded-xl shadow-xs transition-colors cursor-pointer"
-                              >
-                                {isUploadingImage ? 'ছবি অপটিমাইজ ও সেভ হচ্ছে...' : 'কম্পিউটার বা মোবাইল থেকে ফটো নির্বাচন করুন'}
-                              </button>
-                              <span className="block text-[11px] text-slate-400 mt-2">
-                                JPG, PNG, WebP ফরম্যাট সমর্থিত (অটোমেটিক কম্প্রেস ও সেভ হবে)
-                              </span>
-                            </div>
+                  {/* Main Form & Live Preview Grid */}
+                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                    {/* Left Column: Form Controls (7 cols) */}
+                    <div className="lg:col-span-7 bg-white border border-slate-200 p-6 shadow-xs rounded-2xl space-y-5">
+                      <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-9 h-9 rounded-xl bg-blue-50 text-[#123184] flex items-center justify-center font-bold">
+                            <ImageIcon className="w-5 h-5" />
+                          </div>
+                          <div>
+                            <h3 className="font-extrabold text-base text-[#123184]">
+                              হিরো ব্যানার পরিবর্তন ও কনফিগারেশন
+                            </h3>
+                            <p className="text-xs text-slate-500">
+                              ওয়েবসাইটের হোমপেজের উপরের মূল ব্যাকগ্রাউন্ড ফটো বা ব্যানার পরিবর্তন করুন
+                            </p>
                           </div>
                         </div>
-                      ) : (
-                        <div className="space-y-1.5">
-                          <input 
-                            type="url"
-                            value={adForm.imageUrl}
-                            onChange={(e) => {
-                              const val = e.target.value;
-                              setAdForm(prev => ({ ...prev, imageUrl: val }));
-                            }}
-                            onBlur={(e) => {
-                              const val = e.target.value.trim();
-                              if (val && (val.startsWith('http://') || val.startsWith('https://'))) {
+
+                        {heroForm.imageUrl && (
+                          <button
+                            type="button"
+                            onClick={handleResetHeroBanner}
+                            className="text-xs text-rose-600 hover:text-rose-800 bg-rose-50 hover:bg-rose-100 border border-rose-200 px-3 py-1.5 rounded-xl font-bold flex items-center gap-1 transition-all cursor-pointer"
+                            title="ডিফল্ট গ্র্যাডিয়েন্টে ফেরত যান"
+                          >
+                            <RotateCcw className="w-3.5 h-3.5" />
+                            <span>রিসেট</span>
+                          </button>
+                        )}
+                      </div>
+
+                      <form onSubmit={handleSaveHeroBanner} className="space-y-5">
+                        {/* Image Selection Method (File upload vs Direct URL) */}
+                        <div className="space-y-3">
+                          <label className="text-xs font-bold text-slate-700 flex items-center justify-between">
+                            <span>ব্যানার ফটো নির্বাচন পদ্ধতি:</span>
+                            <span className="text-[11px] text-emerald-700 font-semibold">১২৮০ × ৩২০ px সাইজের ছবি দিন</span>
+                          </label>
+
+                          <div className="flex gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setHeroUploadMethod('file')}
+                              className={`flex-1 py-2 px-3 text-xs font-bold rounded-xl border transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                                heroUploadMethod === 'file'
+                                  ? 'bg-[#123184] text-white border-[#123184]'
+                                  : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                              }`}
+                            >
+                              <Upload className="w-3.5 h-3.5" />
+                              <span>ডিভাইস থেকে ফাইল আপলোড</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setHeroUploadMethod('url')}
+                              className={`flex-1 py-2 px-3 text-xs font-bold rounded-xl border transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                                heroUploadMethod === 'url'
+                                  ? 'bg-[#123184] text-white border-[#123184]'
+                                  : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                              }`}
+                            >
+                              <ExternalLink className="w-3.5 h-3.5" />
+                              <span>অনলাইন ছবির সরাসরি লিংক (URL)</span>
+                            </button>
+                          </div>
+
+                          {heroUploadMethod === 'file' ? (
+                            <div className="border-2 border-dashed border-slate-300 hover:border-[#123184] p-6 text-center bg-slate-50 rounded-xl transition-colors">
+                              <input
+                                type="file"
+                                ref={heroFileInputRef}
+                                accept="image/*"
+                                onChange={handleHeroImageFileChange}
+                                className="hidden"
+                              />
+                              <div className="space-y-3">
+                                <div className="w-12 h-12 rounded-full bg-blue-100 text-[#123184] flex items-center justify-center mx-auto">
+                                  <Camera className="w-6 h-6" />
+                                </div>
+                                <div>
+                                  <button
+                                    type="button"
+                                    onClick={() => heroFileInputRef.current?.click()}
+                                    disabled={isUploadingHero}
+                                    className="bg-[#123184] hover:bg-[#0e2669] text-white text-xs font-bold px-5 py-2.5 rounded-xl shadow-xs transition-colors cursor-pointer"
+                                  >
+                                    {isUploadingHero ? 'ফটো অপটিমাইজ ও আপলোড হচ্ছে...' : 'কম্পিউটার বা মোবাইল থেকে ব্যানার ছবি নির্বাচন করুন'}
+                                  </button>
+                                  <span className="block text-[11px] text-slate-400 mt-2 font-medium">
+                                    ১২৮০ × ৩২০ পিক্সেল (৪:১ রেশিও) ছবি সবচেয়ে ভালো দেখাবে • সর্বোচ্চ ২ MB
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="space-y-1.5">
+                              <input
+                                type="url"
+                                value={heroForm.imageUrl}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setHeroForm(prev => ({ ...prev, imageUrl: val }));
+                                }}
+                                placeholder="https://example.com/banner-1280x320.jpg"
+                                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 focus:bg-white focus:border-[#123184] outline-none text-xs text-slate-900 rounded-xl transition-colors"
+                              />
+                              <span className="text-[10px] text-slate-400 block">
+                                যেকোনো হোস্ট করা ছবির ডিরেক্ট URL পেস্ট করুন (অনুপাত ৪:১ হলে ক্রপ ছাড়া সুন্দর আসবে)
+                              </span>
+                            </div>
+                          )}
+
+                          {heroForm.imageUrl && (
+                            <div className="flex items-center justify-between p-2.5 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-900">
+                              <span className="flex items-center gap-1.5 font-bold">
+                                <CheckCircle2 className="w-4 h-4 text-[#02975E]" />
+                                কাস্টম ব্যানার ফটো সিলেক্টেড রয়েছে
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setHeroForm(prev => ({ ...prev, imageUrl: '' }));
+                                }}
+                                className="text-rose-600 hover:text-rose-800 text-[11px] font-bold underline cursor-pointer"
+                              >
+                                ছবি রিমুভ করুন
+                              </button>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Overlay and Text Display Toggles */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-slate-100">
+                          {/* Toggle: Dark Overlay */}
+                          <div className="flex items-center justify-between p-3 bg-slate-50 border border-slate-200 rounded-xl">
+                            <div>
+                              <span className="text-xs font-bold text-slate-800 block">কালো রিডাবিলিটি ওভারলে</span>
+                              <span className="text-[10px] text-slate-500">লেখা স্পষ্ট পড়ার জন্য ডার্ক শেড</span>
+                            </div>
+                            <label className="relative inline-flex items-center cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={heroForm.showOverlay}
+                                onChange={(e) => setHeroForm(prev => ({ ...prev, showOverlay: e.target.checked }))}
+                                className="sr-only peer"
+                              />
+                              <div className="w-10 h-5 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#02975E]"></div>
+                            </label>
+                          </div>
+
+                          {/* Toggle: Show Text */}
+                          <div className="flex items-center justify-between p-3 bg-slate-50 border border-slate-200 rounded-xl">
+                            <div>
+                              <span className="text-xs font-bold text-slate-800 block">ব্যানারের লেখা দেখান</span>
+                              <span className="text-[10px] text-slate-500">ছবির ভেতরে লেখা থাকলে অফ করুন</span>
+                            </div>
+                            <label className="relative inline-flex items-center cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={heroForm.showText}
+                                onChange={(e) => setHeroForm(prev => ({ ...prev, showText: e.target.checked }))}
+                                className="sr-only peer"
+                              />
+                              <div className="w-10 h-5 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#02975E]"></div>
+                            </label>
+                          </div>
+                        </div>
+
+                        {/* Text Content Inputs (Only active if showText is true) */}
+                        {heroForm.showText && (
+                          <div className="space-y-3.5 p-4 bg-slate-50/80 border border-slate-200 rounded-xl">
+                            <span className="text-xs font-extrabold text-[#123184] block border-b border-slate-200 pb-1.5">
+                              ব্যানারের শিরোনাম ও সাবটাইটেল কাস্টমাইজেশন:
+                            </span>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                              <div className="space-y-1">
+                                <label className="text-[11px] font-bold text-slate-700 block">
+                                  শিরোনাম লাইন ১:
+                                </label>
+                                <input
+                                  type="text"
+                                  value={heroForm.titleLine1}
+                                  onChange={(e) => setHeroForm(prev => ({ ...prev, titleLine1: e.target.value }))}
+                                  placeholder="প্রয়োজনে দ্রুত আসল ওষুধ"
+                                  className="w-full px-3 py-2 bg-white border border-slate-200 focus:border-[#123184] outline-none text-xs rounded-xl"
+                                />
+                              </div>
+
+                              <div className="space-y-1">
+                                <label className="text-[11px] font-bold text-slate-700 block">
+                                  শিরোনাম লাইন ২ (হাইলাইটেড):
+                                </label>
+                                <input
+                                  type="text"
+                                  value={heroForm.titleLine2}
+                                  onChange={(e) => setHeroForm(prev => ({ ...prev, titleLine2: e.target.value }))}
+                                  placeholder="পৌঁছে যাবে আপনার দোরগোড়ায়"
+                                  className="w-full px-3 py-2 bg-white border border-slate-200 focus:border-[#123184] outline-none text-xs rounded-xl"
+                                />
+                              </div>
+                            </div>
+
+                            <div className="space-y-1">
+                              <label className="text-[11px] font-bold text-slate-700 block">
+                                সাবটাইটেল / বিবরণ:
+                              </label>
+                              <textarea
+                                rows={2}
+                                value={heroForm.subtitle}
+                                onChange={(e) => setHeroForm(prev => ({ ...prev, subtitle: e.target.value }))}
+                                placeholder="প্রেসক্রিপশন আপলোড করুন অথবা নাম দিয়ে ওষুধ খুঁজুন..."
+                                className="w-full px-3 py-2 bg-white border border-slate-200 focus:border-[#123184] outline-none text-xs rounded-xl"
+                              />
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Save & Publish Button */}
+                        <div className="pt-2 flex flex-col sm:flex-row gap-3">
+                          <button
+                            type="submit"
+                            className="flex-1 bg-gradient-to-r from-[#123184] to-[#02975E] hover:from-[#0e2669] hover:to-[#027e4e] text-white py-3.5 px-4 text-sm font-bold rounded-xl flex items-center justify-center gap-2 shadow-md transition-all cursor-pointer"
+                          >
+                            <Save className="w-4 h-4" />
+                            <span>হিরো ব্যানার সেভ ও লাইভ আপডেট করুন (Save & Publish)</span>
+                          </button>
+                        </div>
+                      </form>
+                    </div>
+
+                    {/* Right Column: Live Mockup / Preview (5 cols) */}
+                    <div className="lg:col-span-5 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-black text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                          <Eye className="w-3.5 h-3.5 text-[#123184]" />
+                          <span>হোমপেজ লাইভ প্রিভিউ (Live Preview):</span>
+                        </span>
+                        <span className="text-[11px] text-slate-400">অনুপাত ৪:১ (1280×320)</span>
+                      </div>
+
+                      {/* Mockup Container imitating Hero.jsx */}
+                      <div className="relative rounded-2xl overflow-hidden shadow-lg border border-slate-300 aspect-[4/1.2] min-h-[220px] flex flex-col justify-center">
+                        {heroForm.imageUrl ? (
+                          <div 
+                            className="absolute inset-0 bg-cover bg-center transition-all duration-300"
+                            style={{ backgroundImage: `url(${heroForm.imageUrl})` }}
+                          />
+                        ) : (
+                          <div className="absolute inset-0 bg-gradient-to-r from-[#123184] via-[#0d235c] to-[#02975E]">
+                            <div className="absolute -top-12 -left-12 w-48 h-48 bg-emerald-400/20 rounded-full blur-2xl pointer-events-none"></div>
+                            <div className="absolute -bottom-12 -right-12 w-48 h-48 bg-blue-400/20 rounded-full blur-2xl pointer-events-none"></div>
+                          </div>
+                        )}
+
+                        {/* Overlay */}
+                        {heroForm.imageUrl && heroForm.showOverlay && (
+                          <div className="absolute inset-0 bg-gradient-to-r from-slate-950/80 via-slate-950/60 to-slate-950/40 pointer-events-none"></div>
+                        )}
+
+                        {/* Content Preview */}
+                        <div className="relative z-10 p-5 text-white space-y-2">
+                          {heroForm.showText ? (
+                            <>
+                              <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-white/10 backdrop-blur-md text-[10px] text-emerald-300 font-bold border border-white/10">
+                                <span>{config.name}</span>
+                                <span>•</span>
+                                <span>২৪/৭ হোম ডেলিভারি</span>
+                              </div>
+                              <h2 className="text-base sm:text-lg font-black leading-tight drop-shadow-md">
+                                {heroForm.titleLine1 || 'প্রয়োজনে দ্রুত আসল ওষুধ'} <br />
+                                <span className="text-emerald-400">{heroForm.titleLine2 || 'পৌঁছে যাবে আপনার দোরগোড়ায়'}</span>
+                              </h2>
+                              <p className="text-[11px] text-slate-200 line-clamp-2 max-w-sm drop-shadow-xs">
+                                {heroForm.subtitle || 'প্রেসক্রিপশন আপলোড করুন অথবা নাম দিয়ে ওষুধ খুঁজুন...'}
+                              </p>
+                            </>
+                          ) : (
+                            <div className="text-center py-6">
+                              <span className="inline-block px-3 py-1 rounded-full bg-black/50 text-white text-[11px] font-bold backdrop-blur-md border border-white/20">
+                                ব্যানার ফটোতে টেক্সট লুকানো রয়েছে (ছবির ভেতরের লেখা দেখা যাবে)
+                              </span>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Corner indicator */}
+                        <div className="absolute bottom-2 right-2 z-20">
+                          <span className="text-[9px] px-2 py-0.5 rounded-md bg-black/60 text-white font-mono">
+                            {heroForm.imageUrl ? 'কাস্টম ছবি (4:1)' : 'ডিফল্ট থিম'}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Info tip */}
+                      <div className="p-3 bg-blue-50/80 border border-blue-200 text-xs text-blue-900 rounded-xl space-y-1">
+                        <p className="font-bold flex items-center gap-1 text-[11px]">
+                          <Sparkles className="w-3.5 h-3.5 text-blue-700" />
+                          <span>ডিভাইস অ্যাডাপ্টেশন তথ্য:</span>
+                        </p>
+                        <p className="text-[11px] text-blue-800 leading-relaxed">
+                          ১২৮০ × ৩২০ পিক্সেলের ছবি ওয়েবসাইটে সম্পূর্ণভাবে বিস্তৃত থাকে। আপনি সেভ বাটনে ক্লিক করলে তা সরাসরি ক্লাউডে সংরক্ষিত হবে এবং সকল ভিজিটর ও ডিভাইসে কোনো রিলোড ছাড়াই সাথে সাথে নতুন ব্যানার দেখতে পাবেন।
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* ================================================= */}
+              {/* SUB-SECTION 2: POPUP ADS MANAGEMENT */}
+              {/* ================================================= */}
+              {bannerTab === 'popup' && (
+                <div className="space-y-6">
+                  {/* Quick Status Bar */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="bg-white border border-slate-200 p-4 shadow-xs rounded-xl flex items-center justify-between">
+                      <div>
+                        <span className="text-xs text-slate-500 font-bold block">পপআপ ফটো বিজ্ঞাপন স্ট্যাটাস</span>
+                        <span className={`text-xl font-black ${adForm.isActive ? 'text-[#02975E]' : 'text-slate-400'}`}>
+                          {adForm.isActive ? '✅ চালু রয়েছে (Active)' : '❌ বন্ধ রয়েছে (Disabled)'}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const next = !adForm.isActive;
+                          setAdForm(prev => ({ ...prev, isActive: next }));
+                          updateAdBanner({ ...adForm, isActive: next });
+                        }}
+                        className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                          adForm.isActive 
+                            ? 'bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200' 
+                            : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200'
+                        }`}
+                      >
+                        {adForm.isActive ? 'বিজ্ঞাপন বন্ধ করুন' : 'বিজ্ঞাপন চালু করুন'}
+                      </button>
+                    </div>
+
+                    <div className="bg-white border border-slate-200 p-4 shadow-xs rounded-xl flex items-center justify-between">
+                      <div>
+                        <span className="text-xs text-slate-500 font-bold block">লাইভ পপআপ টেস্ট</span>
+                        <span className="text-xs text-slate-400">ওয়েবসাইটে ছবি কেমন দেখাবে দেখুন</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsAdModalOpen(true);
+                        }}
+                        className="bg-[#123184] hover:bg-[#0d2463] text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer"
+                      >
+                        <Eye className="w-4 h-4" />
+                        <span>পপআপ টেস্ট করুন</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Main Form & Live Preview Grid */}
+                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                    
+                    {/* Left Column: Photo Upload Form (6 cols) */}
+                    <div className="lg:col-span-6 bg-white border border-slate-200 p-6 shadow-xs rounded-2xl space-y-5">
+                      <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
+                        <div className="w-9 h-9 rounded-xl bg-[#02975E]/10 text-[#02975E] flex items-center justify-center">
+                          <Sparkles className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <h3 className="font-extrabold text-base text-[#123184]">
+                            অফার / অ্যাডস ফটো আপলোড
+                          </h3>
+                          <p className="text-xs text-slate-500">
+                            এখানে আপনার যেকোনো অফারের ফটো/ব্যানার আপলোড করুন। গ্রাহক ওয়েবসাইটে ঢুকলে শুধু এই ছবিটিই পপআপ আকারে দেখতে পাবেন।
+                          </p>
+                        </div>
+                      </div>
+
+                      <form onSubmit={handleSaveAdBanner} className="space-y-5">
+                        
+                        {/* Status Toggle */}
+                        <div className="flex items-center justify-between p-3.5 bg-slate-50 border border-slate-200 rounded-xl">
+                          <div>
+                            <span className="text-xs font-bold text-slate-800 block">বিজ্ঞাপন পপআপ সক্রিয় রাখুন</span>
+                            <span className="text-[11px] text-slate-500">গ্রাহক পেজ ওপেন করলে ছবির পপআপ আসবে কিনা</span>
+                          </div>
+                          <label className="relative inline-flex items-center cursor-pointer">
+                            <input 
+                              type="checkbox" 
+                              checked={adForm.isActive}
+                              onChange={(e) => {
+                                const val = e.target.checked;
                                 const updated = {
                                   ...adBanner,
                                   ...adForm,
-                                  imageUrl: val,
-                                  isActive: true,
+                                  isActive: val,
                                   updatedAt: new Date().toISOString()
                                 };
                                 setAdForm(updated);
                                 updateAdBanner(updated);
-                              }
-                            }}
-                            placeholder="https://example.com/offer-banner.jpg"
-                            className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 focus:bg-white focus:border-[#123184] outline-none text-xs text-slate-900 rounded-xl transition-colors"
-                          />
-                          <span className="text-[10px] text-slate-400 block">
-                            যেকোনো অনলাইন ছবির সরাসরি লিংক পেস্ট করুন
-                          </span>
+                              }}
+                              className="sr-only peer"
+                            />
+                            <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#02975E]"></div>
+                          </label>
                         </div>
-                      )}
-                    </div>
 
-                    {/* Submit Button */}
-                    <div className="pt-2">
-                      <button
-                        type="submit"
-                        className="w-full bg-gradient-to-r from-[#123184] to-[#02975E] hover:from-[#0e2669] hover:to-[#027e4e] text-white py-3.5 px-4 text-sm font-bold rounded-xl flex items-center justify-center gap-2 shadow-md transition-all cursor-pointer"
-                      >
-                        <Save className="w-4 h-4" />
-                        <span>ফটো ব্যানার সেভ ও লাইভ পাবলিশ করুন (Save & Publish)</span>
-                      </button>
-                    </div>
+                        {/* Image Selection Method (File upload vs Direct URL) */}
+                        <div className="space-y-3">
+                          <label className="text-xs font-bold text-slate-700 block">
+                            বিজ্ঞাপনের ফটো আপলোড বা লিংক নির্বাচন:
+                          </label>
+                          <div className="flex gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setImageUploadMethod('file')}
+                              className={`flex-1 py-2 px-3 text-xs font-bold rounded-xl border transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                                imageUploadMethod === 'file' 
+                                  ? 'bg-[#123184] text-white border-[#123184]' 
+                                  : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                              }`}
+                            >
+                              <Upload className="w-3.5 h-3.5" />
+                              <span>ডিভাইস থেকে ছবি আপলোড</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setImageUploadMethod('url')}
+                              className={`flex-1 py-2 px-3 text-xs font-bold rounded-xl border transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                                imageUploadMethod === 'url' 
+                                  ? 'bg-[#123184] text-white border-[#123184]' 
+                                  : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                              }`}
+                            >
+                              <ExternalLink className="w-3.5 h-3.5" />
+                              <span>ছবির অনলাইন লিংক (URL)</span>
+                            </button>
+                          </div>
 
-                  </form>
-                </div>
-
-                {/* Right Column: Real-Time Live Preview (6 cols) */}
-                <div className="lg:col-span-6 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-black text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
-                      <Eye className="w-3.5 h-3.5 text-[#123184]" />
-                      <span>লাইভ ফটো প্রিভিউ (Live Preview):</span>
-                    </span>
-                    <span className="text-[11px] text-slate-400">গ্রাহক ঠিক এই ফটোটিই দেখতে পাবেন</span>
-                  </div>
-
-                  {/* Pure Photo Preview Mockup */}
-                  <div className="relative bg-slate-900/10 p-3 rounded-xl border-2 border-slate-200 shadow-xl overflow-hidden max-w-sm sm:max-w-md mx-auto text-center">
-                    {/* Simulated Close Button */}
-                    <div className="absolute top-5 right-5 z-20 w-8 h-8 rounded-full bg-black/70 text-white flex items-center justify-center shadow-md border border-white/20">
-                      <X className="w-4 h-4" />
-                    </div>
-
-                    {/* Banner Image */}
-                    <div className="relative w-full rounded-xl overflow-hidden bg-slate-100 flex items-center justify-center min-h-[220px]">
-                      {adForm.imageUrl ? (
-                        <img 
-                          src={adForm.imageUrl} 
-                          alt="Ad Preview" 
-                          className="w-full h-auto max-h-[380px] object-contain rounded-xl"
-                        />
-                      ) : (
-                        <div className="flex flex-col items-center justify-center text-slate-400 text-xs gap-2 p-8">
-                          <ImageIcon className="w-10 h-10 text-slate-300" />
-                          <span>কোনো ব্যানার ছবি দেওয়া হয়নি</span>
+                          {imageUploadMethod === 'file' ? (
+                            <div className="border-2 border-dashed border-slate-300 hover:border-[#02975E] p-6 text-center bg-slate-50 rounded-xl transition-colors">
+                              <input 
+                                type="file"
+                                ref={adFileInputRef}
+                                accept="image/*"
+                                onChange={handleImageFileChange}
+                                className="hidden"
+                              />
+                              <div className="space-y-3">
+                                <div className="w-12 h-12 rounded-full bg-emerald-100 text-[#02975E] flex items-center justify-center mx-auto">
+                                  <Camera className="w-6 h-6" />
+                                </div>
+                                <div>
+                                  <button
+                                    type="button"
+                                    onClick={() => adFileInputRef.current?.click()}
+                                    disabled={isUploadingImage}
+                                    className="bg-[#02975E] hover:bg-[#027e4e] text-white text-xs font-bold px-5 py-2.5 rounded-xl shadow-xs transition-colors cursor-pointer"
+                                  >
+                                    {isUploadingImage ? 'ছবি অপটিমাইজ ও সেভ হচ্ছে...' : 'কম্পিউটার বা মোবাইল থেকে ফটো নির্বাচন করুন'}
+                                  </button>
+                                  <span className="block text-[11px] text-slate-400 mt-2">
+                                    JPG, PNG, WebP ফরম্যাট সমর্থিত (অটোমেটিক কম্প্রেস ও সেভ হবে)
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="space-y-1.5">
+                              <input 
+                                type="url"
+                                value={adForm.imageUrl}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setAdForm(prev => ({ ...prev, imageUrl: val }));
+                                }}
+                                onBlur={(e) => {
+                                  const val = e.target.value.trim();
+                                  if (val && (val.startsWith('http://') || val.startsWith('https://'))) {
+                                    const updated = {
+                                      ...adBanner,
+                                      ...adForm,
+                                      imageUrl: val,
+                                      isActive: true,
+                                      updatedAt: new Date().toISOString()
+                                    };
+                                    setAdForm(updated);
+                                    updateAdBanner(updated);
+                                  }
+                                }}
+                                placeholder="https://example.com/offer-banner.jpg"
+                                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 focus:bg-white focus:border-[#123184] outline-none text-xs text-slate-900 rounded-xl transition-colors"
+                              />
+                              <span className="text-[10px] text-slate-400 block">
+                                যেকোনো অনলাইন ছবির সরাসরি লিংক পেস্ট করুন
+                              </span>
+                            </div>
+                          )}
                         </div>
-                      )}
-                    </div>
-                  </div>
 
-                  <div className="p-3.5 bg-blue-50/70 border border-blue-200 text-xs text-blue-900 rounded-2xl space-y-1">
-                    <p className="font-bold flex items-center gap-1">
-                      <Sparkles className="w-3.5 h-3.5 text-blue-700" />
-                      <span>টিপস:</span>
-                    </p>
-                    <p className="text-[11px] text-blue-800 leading-relaxed">
-                      বিজ্ঞাপনের ব্যানারে কোনো অতিরিক্ত টেক্সট বক্স বা ওষুধের নাম থাকবে না। আপনার অফারের লেখা, কুপন বা ওষুধের ছবি সরাসরি ব্যানারের ভেতরে ডিজাইন করে ফটোটি আপলোড করে দিন।
-                    </p>
+                        {/* Submit Button */}
+                        <div className="pt-2">
+                          <button
+                            type="submit"
+                            className="w-full bg-gradient-to-r from-[#123184] to-[#02975E] hover:from-[#0e2669] hover:to-[#027e4e] text-white py-3.5 px-4 text-sm font-bold rounded-xl flex items-center justify-center gap-2 shadow-md transition-all cursor-pointer"
+                          >
+                            <Save className="w-4 h-4" />
+                            <span>ফটো ব্যানার সেভ ও লাইভ পাবলিশ করুন (Save & Publish)</span>
+                          </button>
+                        </div>
+
+                      </form>
+                    </div>
+
+                    {/* Right Column: Real-Time Live Preview (6 cols) */}
+                    <div className="lg:col-span-6 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-black text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                          <Eye className="w-3.5 h-3.5 text-[#123184]" />
+                          <span>লাইভ ফটো প্রিভিউ (Live Preview):</span>
+                        </span>
+                        <span className="text-[11px] text-slate-400">গ্রাহক ঠিক এই ফটোটিই দেখতে পাবেন</span>
+                      </div>
+
+                      {/* Pure Photo Preview Mockup */}
+                      <div className="relative bg-slate-900/10 p-3 rounded-2xl border-2 border-slate-200 shadow-xl overflow-hidden max-w-sm sm:max-w-md mx-auto text-center">
+                        {/* Simulated Close Button */}
+                        <div className="absolute top-5 right-5 z-20 w-8 h-8 rounded-full bg-black/70 text-white flex items-center justify-center shadow-md border border-white/20">
+                          <X className="w-4 h-4" />
+                        </div>
+
+                        {/* Banner Image */}
+                        <div className="relative w-full rounded-xl overflow-hidden bg-slate-100 flex items-center justify-center min-h-[220px]">
+                          {adForm.imageUrl ? (
+                            <img 
+                              src={adForm.imageUrl} 
+                              alt="Ad Preview" 
+                              className="w-full h-auto max-h-[380px] object-contain rounded-xl"
+                            />
+                          ) : (
+                            <div className="flex flex-col items-center justify-center text-slate-400 text-xs gap-2 p-8">
+                              <ImageIcon className="w-10 h-10 text-slate-300" />
+                              <span>কোনো ব্যানার ছবি দেওয়া হয়নি</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="p-3.5 bg-blue-50/70 border border-blue-200 text-xs text-blue-900 rounded-2xl space-y-1">
+                        <p className="font-bold flex items-center gap-1">
+                          <Sparkles className="w-3.5 h-3.5 text-blue-700" />
+                          <span>টিপস:</span>
+                        </p>
+                        <p className="text-[11px] text-blue-800 leading-relaxed">
+                          বিজ্ঞাপনের ব্যানারে কোনো অতিরিক্ত টেক্সট বক্স বা ওষুধের নাম থাকবে না। আপনার অফারের লেখা, কুপন বা ওষুধের ছবি সরাসরি ব্যানারের ভেতরে ডিজাইন করে ফটোটি আপলোড করে দিন।
+                        </p>
+                      </div>
+                    </div>
+
                   </div>
                 </div>
-
-              </div>
+              )}
 
             </div>
           )}

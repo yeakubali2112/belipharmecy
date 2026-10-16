@@ -101,6 +101,41 @@ export const ShopProvider = ({ children }) => {
 
   const [isAdModalOpen, setIsAdModalOpen] = useState(false);
 
+  // Hero Banner / Main Page Background Photo Settings (Synced with LocalStorage and Firebase Cloud)
+  const DEFAULT_HERO_BANNER = {
+    imageUrl: '', // if empty, uses brand gradient
+    showText: true,
+    showOverlay: true,
+    titleLine1: 'প্রয়োজনে দ্রুত আসল ওষুধ',
+    titleLine2: 'পৌঁছে যাবে আপনার দোরগোড়ায়',
+    subtitle: 'প্রেসক্রিপশন আপলোড করুন অথবা নাম দিয়ে ওষুধ খুঁজুন। আমাদের রেজিস্টার্ড ফার্মাসিস্টের তত্ত্বাবধানে যাচাইকৃত ১০০% জেনুইন ওষুধ দ্রুততম সময়ে ডেলিভারি করা হয়।',
+    updatedAt: new Date().toISOString()
+  };
+
+  const [heroBanner, setHeroBanner] = useState(() => {
+    const saved = localStorage.getItem('beli_hero_banner');
+    if (!saved) return DEFAULT_HERO_BANNER;
+    try {
+      const parsed = JSON.parse(saved);
+      return { ...DEFAULT_HERO_BANNER, ...parsed };
+    } catch {
+      return DEFAULT_HERO_BANNER;
+    }
+  });
+
+  const updateHeroBanner = (newBannerData) => {
+    const updated = {
+      ...heroBanner,
+      ...newBannerData,
+      updatedAt: new Date().toISOString()
+    };
+    setHeroBanner(updated);
+    safeSetItem('beli_hero_banner', JSON.stringify(updated));
+    saveCloudSettings({ deliverySettings, coupons, adBanner, heroBanner: updated });
+    publishLiveSync({ type: 'HERO_BANNER_UPDATED', heroBanner: updated });
+    showToast(lang === 'bn' ? 'হিরো ব্যানার সফলভাবে আপডেট ও সেভ হয়েছে!' : 'Hero banner updated successfully!', 'success');
+  };
+
   const updateAdBanner = (newAdData) => {
     const updated = {
       ...adBanner,
@@ -109,7 +144,7 @@ export const ShopProvider = ({ children }) => {
     };
     setAdBanner(updated);
     safeSetItem('beli_ad_banner', JSON.stringify(updated));
-    saveCloudSettings({ deliverySettings, coupons, adBanner: updated });
+    saveCloudSettings({ deliverySettings, coupons, adBanner: updated, heroBanner });
     showToast(lang === 'bn' ? 'অফার বিজ্ঞাপন সফলভাবে আপডেট ও সেভ হয়েছে!' : 'Ad banner updated successfully!', 'success');
   };
 
@@ -121,7 +156,7 @@ export const ShopProvider = ({ children }) => {
     };
     setDeliverySettings(updated);
     safeSetItem('beli_delivery_settings', JSON.stringify(updated));
-    saveCloudSettings({ deliverySettings: updated, coupons, adBanner });
+    saveCloudSettings({ deliverySettings: updated, coupons, adBanner, heroBanner });
     showToast(lang === 'bn' ? 'ডেলিভারি চার্জ সেটিংস সফলভাবে আপডেট হয়েছে!' : 'Delivery settings updated successfully!', 'success');
   };
 
@@ -1064,6 +1099,9 @@ export const ShopProvider = ({ children }) => {
         safeSetItem('beli_prescriptions', JSON.stringify(next));
         return next;
       });
+    } else if (event.type === 'HERO_BANNER_UPDATED' && event.heroBanner) {
+      setHeroBanner(event.heroBanner);
+      safeSetItem('beli_hero_banner', JSON.stringify(event.heroBanner));
     } else if (event.type === 'SETTINGS_UPDATED' && event.settings) {
       if (event.settings.deliverySettings) {
         setDeliverySettings(event.settings.deliverySettings);
@@ -1072,6 +1110,10 @@ export const ShopProvider = ({ children }) => {
       if (event.settings.adBanner) {
         setAdBanner(event.settings.adBanner);
         safeSetItem('beli_ad_banner', JSON.stringify(event.settings.adBanner));
+      }
+      if (event.settings.heroBanner) {
+        setHeroBanner(event.settings.heroBanner);
+        safeSetItem('beli_hero_banner', JSON.stringify(event.settings.heroBanner));
       }
     }
   };
@@ -1145,6 +1187,10 @@ export const ShopProvider = ({ children }) => {
           if (cloudSettings.adBanner) {
             setAdBanner(cloudSettings.adBanner);
             safeSetItem('beli_ad_banner', JSON.stringify(cloudSettings.adBanner));
+          }
+          if (cloudSettings.heroBanner) {
+            setHeroBanner(cloudSettings.heroBanner);
+            safeSetItem('beli_hero_banner', JSON.stringify(cloudSettings.heroBanner));
           }
         }
       } catch (err) {
@@ -1779,6 +1825,11 @@ export const ShopProvider = ({ children }) => {
       updateAdBanner,
       isAdModalOpen,
       setIsAdModalOpen,
+
+      // Hero Banner / Main Page Photo
+      heroBanner,
+      setHeroBanner,
+      updateHeroBanner,
 
       // Toast
       toast,
