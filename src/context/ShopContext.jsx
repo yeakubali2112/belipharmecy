@@ -101,9 +101,12 @@ export const ShopProvider = ({ children }) => {
 
   const [isAdModalOpen, setIsAdModalOpen] = useState(false);
 
-  // Hero Banner / Main Page Background Photo Settings (Synced with LocalStorage and Firebase Cloud)
+  // Hero Banner / Main Page Background Photo & Slider Settings (Synced with LocalStorage and Firebase Cloud)
   const DEFAULT_HERO_BANNER = {
-    imageUrl: '', // if empty, uses brand gradient
+    imageUrl: '', // for backward compatibility
+    slides: [],   // Array of slides: [{ id, imageUrl, showText, showOverlay, titleLine1, titleLine2, subtitle, linkUrl }]
+    autoSlide: true,
+    autoSlideInterval: 5, // in seconds (e.g. 3, 4, 5, 6)
     showText: true,
     showOverlay: true,
     titleLine1: 'প্রয়োজনে দ্রুত আসল ওষুধ',
@@ -117,6 +120,17 @@ export const ShopProvider = ({ children }) => {
     if (!saved) return DEFAULT_HERO_BANNER;
     try {
       const parsed = JSON.parse(saved);
+      if (!parsed.slides || !Array.isArray(parsed.slides)) {
+        parsed.slides = parsed.imageUrl ? [{
+          id: 'slide-1',
+          imageUrl: parsed.imageUrl,
+          showText: parsed.showText !== false,
+          showOverlay: parsed.showOverlay !== false,
+          titleLine1: parsed.titleLine1 || 'প্রয়োজনে দ্রুত আসল ওষুধ',
+          titleLine2: parsed.titleLine2 || 'পৌঁছে যাবে আপনার দোরগোড়ায়',
+          subtitle: parsed.subtitle || 'প্রেসক্রিপশন আপলোড করুন অথবা নাম দিয়ে ওষুধ খুঁজুন। আমাদের রেজিস্টার্ড ফার্মাসিস্টের তত্ত্বাবধানে যাচাইকৃত ১০০% জেনুইন ওষুধ দ্রুততম সময়ে ডেলিভারি করা হয়।'
+        }] : [];
+      }
       return { ...DEFAULT_HERO_BANNER, ...parsed };
     } catch {
       return DEFAULT_HERO_BANNER;
@@ -129,11 +143,18 @@ export const ShopProvider = ({ children }) => {
       ...newBannerData,
       updatedAt: new Date().toISOString()
     };
+    if (updated.slides && updated.slides.length > 0) {
+      updated.imageUrl = updated.slides[0].imageUrl;
+      updated.showText = updated.slides[0].showText;
+      updated.showOverlay = updated.slides[0].showOverlay;
+    } else if (!updated.slides || updated.slides.length === 0) {
+      updated.imageUrl = '';
+    }
     setHeroBanner(updated);
     safeSetItem('beli_hero_banner', JSON.stringify(updated));
     saveCloudSettings({ deliverySettings, coupons, adBanner, heroBanner: updated });
     publishLiveSync({ type: 'HERO_BANNER_UPDATED', heroBanner: updated });
-    showToast(lang === 'bn' ? 'হিরো ব্যানার সফলভাবে আপডেট ও সেভ হয়েছে!' : 'Hero banner updated successfully!', 'success');
+    showToast(lang === 'bn' ? 'হিরো ব্যানার স্লাইডার সফলভাবে আপডেট ও সেভ হয়েছে!' : 'Hero banner slider updated successfully!', 'success');
   };
 
   const updateAdBanner = (newAdData) => {

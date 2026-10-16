@@ -60,7 +60,9 @@ import {
   PackagePlus,
   Boxes,
   TrendingUp,
-  ArrowUpRight
+  ArrowUpRight,
+  ArrowUp,
+  ArrowDown
 } from 'lucide-react';
 import { useShop } from '../context/ShopContext';
 import { CATEGORIES } from '../data/medicines';
@@ -254,35 +256,88 @@ export const AdminPortal = () => {
   };
 
   // ==========================================
-  // Hero Banner / Main Page Background State
+  // Hero Banner / Main Page Slider State
   // ==========================================
   const [bannerTab, setBannerTab] = useState('hero'); // 'hero' | 'popup'
-  const [heroForm, setHeroForm] = useState({
-    imageUrl: heroBanner?.imageUrl || '',
-    showText: heroBanner?.showText !== false,
-    showOverlay: heroBanner?.showOverlay !== false,
-    titleLine1: heroBanner?.titleLine1 || 'প্রয়োজনে দ্রুত আসল ওষুধ',
-    titleLine2: heroBanner?.titleLine2 || 'পৌঁছে যাবে আপনার দোরগোড়ায়',
-    subtitle: heroBanner?.subtitle || 'প্রেসক্রিপশন আপলোড করুন অথবা নাম দিয়ে ওষুধ খুঁজুন। আমাদের রেজিস্টার্ড ফার্মাসিস্টের তত্ত্বাবধানে যাচাইকৃত ১০০% জেনুইন ওষুধ দ্রুততম সময়ে ডেলিভারি করা হয়।'
-  });
-  const [heroUploadMethod, setHeroUploadMethod] = useState('file'); // 'file' | 'url'
-  const [isUploadingHero, setIsUploadingHero] = useState(false);
-  const heroFileInputRef = useRef(null);
 
-  React.useEffect(() => {
-    if (heroBanner && !isUploadingHero) {
-      setHeroForm({
-        imageUrl: heroBanner.imageUrl || '',
+  const [heroSlides, setHeroSlides] = useState(() => {
+    if (heroBanner?.slides && Array.isArray(heroBanner.slides) && heroBanner.slides.length > 0) {
+      return heroBanner.slides;
+    }
+    if (heroBanner?.imageUrl) {
+      return [{
+        id: 'slide-1',
+        imageUrl: heroBanner.imageUrl,
         showText: heroBanner.showText !== false,
         showOverlay: heroBanner.showOverlay !== false,
         titleLine1: heroBanner.titleLine1 || 'প্রয়োজনে দ্রুত আসল ওষুধ',
         titleLine2: heroBanner.titleLine2 || 'পৌঁছে যাবে আপনার দোরগোড়ায়',
         subtitle: heroBanner.subtitle || 'প্রেসক্রিপশন আপলোড করুন অথবা নাম দিয়ে ওষুধ খুঁজুন। আমাদের রেজিস্টার্ড ফার্মাসিস্টের তত্ত্বাবধানে যাচাইকৃত ১০০% জেনুইন ওষুধ দ্রুততম সময়ে ডেলিভারি করা হয়।'
-      });
+      }];
     }
-  }, [heroBanner?.updatedAt, heroBanner?.imageUrl]);
+    return [];
+  });
 
-  const handleHeroImageFileChange = (e) => {
+  const [heroAutoSlide, setHeroAutoSlide] = useState(heroBanner?.autoSlide !== false);
+  const [heroAutoSlideInterval, setHeroAutoSlideInterval] = useState(Number(heroBanner?.autoSlideInterval) || 5);
+  const [adminPreviewIndex, setAdminPreviewIndex] = useState(0);
+
+  // Active form for adding or editing a slide
+  const [editingSlideId, setEditingSlideId] = useState(null); // null = new slide, string = editing that slide ID
+  const [slideForm, setSlideForm] = useState({
+    imageUrl: '',
+    showText: false, // Default false so designed banners show clearly
+    showOverlay: true,
+    titleLine1: 'প্রয়োজনে দ্রুত আসল ওষুধ',
+    titleLine2: 'পৌঁছে যাবে আপনার দোরগোড়ায়',
+    subtitle: 'প্রেসক্রিপশন আপলোড করুন অথবা নাম দিয়ে ওষুধ খুঁজুন। আমাদের রেজিস্টার্ড ফার্মাসিস্টের তত্ত্বাবধানে যাচাইকৃত ১০০% জেনুইন ওষুধ দ্রুততম সময়ে ডেলিভারি করা হয়।'
+  });
+  const [slideUploadMethod, setSlideUploadMethod] = useState('file'); // 'file' | 'url'
+  const [isUploadingSlide, setIsUploadingSlide] = useState(false);
+  const slideFileInputRef = useRef(null);
+
+  // Sync with heroBanner from context
+  React.useEffect(() => {
+    if (heroBanner && !isUploadingSlide) {
+      if (heroBanner.slides && Array.isArray(heroBanner.slides)) {
+        setHeroSlides(heroBanner.slides);
+      } else if (heroBanner.imageUrl) {
+        setHeroSlides([{
+          id: 'slide-1',
+          imageUrl: heroBanner.imageUrl,
+          showText: heroBanner.showText !== false,
+          showOverlay: heroBanner.showOverlay !== false,
+          titleLine1: heroBanner.titleLine1 || 'প্রয়োজনে দ্রুত আসল ওষুধ',
+          titleLine2: heroBanner.titleLine2 || 'পৌঁছে যাবে আপনার দোরগোড়ায়',
+          subtitle: heroBanner.subtitle || 'প্রেসক্রিপশন আপলোড করুন অথবা নাম দিয়ে ওষুধ খুঁজুন। আমাদের রেজিস্টার্ড ফার্মাসিস্টের তত্ত্বাবধানে যাচাইকৃত ১০০% জেনুইন ওষুধ দ্রুততম সময়ে ডেলিভারি করা হয়।'
+        }]);
+      } else {
+        setHeroSlides([]);
+      }
+      setHeroAutoSlide(heroBanner.autoSlide !== false);
+      setHeroAutoSlideInterval(Number(heroBanner.autoSlideInterval) || 5);
+    }
+  }, [heroBanner?.updatedAt]);
+
+  // Keep admin preview index in valid bounds
+  React.useEffect(() => {
+    if (adminPreviewIndex >= heroSlides.length && heroSlides.length > 0) {
+      setAdminPreviewIndex(0);
+    }
+  }, [heroSlides.length, adminPreviewIndex]);
+
+  // Auto-slide for the admin preview box
+  React.useEffect(() => {
+    if (heroSlides.length <= 1 || !heroAutoSlide) return;
+    const intervalSec = Math.max(2, heroAutoSlideInterval);
+    const timer = setInterval(() => {
+      setAdminPreviewIndex(prev => (prev + 1) % heroSlides.length);
+    }, intervalSec * 1000);
+    return () => clearInterval(timer);
+  }, [heroSlides.length, heroAutoSlide, heroAutoSlideInterval]);
+
+  // Handle slide image file selection and compression
+  const handleSlideImageFileChange = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -291,7 +346,7 @@ export const AdminPortal = () => {
       return;
     }
 
-    setIsUploadingHero(true);
+    setIsUploadingSlide(true);
     try {
       const reader = new FileReader();
       reader.onload = (event) => {
@@ -300,7 +355,7 @@ export const AdminPortal = () => {
           const canvas = document.createElement('canvas');
           let width = img.width;
           let height = img.height;
-          const maxWidth = 1400;
+          const maxWidth = 1280;
           if (width > maxWidth) {
             height = Math.round((height * maxWidth) / width);
             width = maxWidth;
@@ -309,57 +364,155 @@ export const AdminPortal = () => {
           canvas.height = height;
           const ctx = canvas.getContext('2d');
           ctx.drawImage(img, 0, 0, width, height);
-          const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.82);
+          const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.80);
 
-          const updated = {
-            ...heroBanner,
-            ...heroForm,
-            imageUrl: compressedDataUrl,
-            updatedAt: new Date().toISOString()
-          };
-          setHeroForm(updated);
-          updateHeroBanner(updated);
-          setIsUploadingHero(false);
+          setSlideForm(prev => ({ ...prev, imageUrl: compressedDataUrl }));
+          setIsUploadingSlide(false);
           if (e.target) e.target.value = '';
-          showToast?.('হিরো ব্যানার ফটো সফলভাবে যোগ ও সেভ হয়েছে!', 'success');
+          showToast?.('ছবি সফলভাবে প্রসেস হয়েছে!', 'success');
         };
         img.onerror = () => {
-          setIsUploadingHero(false);
+          setIsUploadingSlide(false);
           showToast?.('ছবি লোড করতে সমস্যা হয়েছে!', 'error');
         };
         img.src = event.target?.result;
       };
       reader.readAsDataURL(file);
     } catch (err) {
-      setIsUploadingHero(false);
+      setIsUploadingSlide(false);
       showToast?.('ফটো প্রসেসিং করতে সমস্যা হয়েছে!', 'error');
     }
   };
 
-  const handleSaveHeroBanner = (e) => {
+  // Add new slide or update existing slide
+  const handleSaveSlideForm = (e) => {
     e?.preventDefault?.();
-    const updated = {
-      ...heroBanner,
-      ...heroForm,
-      updatedAt: new Date().toISOString()
-    };
-    updateHeroBanner(updated);
-    showToast?.('হিরো ব্যানার সফলভাবে সেভ ও লাইভ আপডেট হয়েছে!', 'success');
-  };
+    if (!slideForm.imageUrl) {
+      showToast?.('অনুগ্রহ করে স্লাইডের একটি ছবি আপলোড করুন বা লিংক দিন!', 'error');
+      return;
+    }
 
-  const handleResetHeroBanner = () => {
-    const resetData = {
+    let updatedList;
+    if (editingSlideId) {
+      // Editing existing slide
+      updatedList = heroSlides.map(s => s.id === editingSlideId ? { ...s, ...slideForm } : s);
+      showToast?.('স্লাইড সফলভাবে আপডেট করা হয়েছে!', 'success');
+    } else {
+      // Adding new slide
+      const newSlide = {
+        id: `slide_${Date.now()}`,
+        ...slideForm
+      };
+      updatedList = [...heroSlides, newSlide];
+      showToast?.('নতুন ব্যানার স্লাইড সফলভাবে যোগ করা হয়েছে!', 'success');
+    }
+
+    setHeroSlides(updatedList);
+    setEditingSlideId(null);
+    setSlideForm({
       imageUrl: '',
-      showText: true,
+      showText: false,
       showOverlay: true,
       titleLine1: 'প্রয়োজনে দ্রুত আসল ওষুধ',
       titleLine2: 'পৌঁছে যাবে আপনার দোরগোড়ায়',
-      subtitle: 'প্রেসক্রিপশন আপলোড করুন অথবা নাম দিয়ে ওষুধ খুঁজুন। আমাদের রেজিস্টার্ড ফার্মাসিস্টের তত্ত্বাবধানে যাচাইকৃত ১০০% জেনুইন ওষুধ দ্রুততম সময়ে ডেলিভারি করা হয়।',
-      updatedAt: new Date().toISOString()
-    };
-    setHeroForm(resetData);
-    updateHeroBanner(resetData);
-    showToast?.('ডিফল্ট ব্র‍্যান্ড গ্রেডিয়েন্ট ব্যাকগ্রাউন্ড রিসেট করা হয়েছে!', 'info');
+      subtitle: 'প্রেসক্রিপশন আপলোড করুন অথবা নাম দিয়ে ওষুধ খুঁজুন। আমাদের রেজিস্টার্ড ফার্মাসিস্টের তত্ত্বাবধানে যাচাইকৃত ১০০% জেনুইন ওষুধ দ্রুততম সময়ে ডেলিভারি করা হয়।'
+    });
+
+    // Auto save and live broadcast across all devices
+    updateHeroBanner({
+      slides: updatedList,
+      autoSlide: heroAutoSlide,
+      autoSlideInterval: heroAutoSlideInterval
+    });
+  };
+
+  // Edit slide
+  const handleEditSlide = (slide) => {
+    setEditingSlideId(slide.id);
+    setSlideForm({
+      imageUrl: slide.imageUrl || '',
+      showText: slide.showText !== false,
+      showOverlay: slide.showOverlay !== false,
+      titleLine1: slide.titleLine1 || 'প্রয়োজনে দ্রুত আসল ওষুধ',
+      titleLine2: slide.titleLine2 || 'পৌঁছে যাবে আপনার দোরগোড়ায়',
+      subtitle: slide.subtitle || 'প্রেসক্রিপশন আপলোড করুন অথবা নাম দিয়ে ওষুধ খুঁজুন...'
+    });
+  };
+
+  // Cancel edit
+  const handleCancelEditSlide = () => {
+    setEditingSlideId(null);
+    setSlideForm({
+      imageUrl: '',
+      showText: false,
+      showOverlay: true,
+      titleLine1: 'প্রয়োজনে দ্রুত আসল ওষুধ',
+      titleLine2: 'পৌঁছে যাবে আপনার দোরগোড়ায়',
+      subtitle: 'প্রেসক্রিপশন আপলোড করুন অথবা নাম দিয়ে ওষুধ খুঁজুন...'
+    });
+  };
+
+  // Delete a slide
+  const handleDeleteSlide = (slideId) => {
+    const updatedList = heroSlides.filter(s => s.id !== slideId);
+    setHeroSlides(updatedList);
+    if (editingSlideId === slideId) {
+      handleCancelEditSlide();
+    }
+    updateHeroBanner({
+      slides: updatedList,
+      autoSlide: heroAutoSlide,
+      autoSlideInterval: heroAutoSlideInterval
+    });
+    showToast?.('ব্যানার স্লাইডটি মুছে ফেলা হয়েছে', 'info');
+  };
+
+  // Move slide position up or down
+  const handleMoveSlide = (index, direction) => {
+    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= heroSlides.length) return;
+    const updated = [...heroSlides];
+    const temp = updated[index];
+    updated[index] = updated[targetIndex];
+    updated[targetIndex] = temp;
+    setHeroSlides(updated);
+    updateHeroBanner({
+      slides: updated,
+      autoSlide: heroAutoSlide,
+      autoSlideInterval: heroAutoSlideInterval
+    });
+  };
+
+  // Reset all slides to default brand gradient
+  const handleResetAllHeroSlides = () => {
+    setHeroSlides([]);
+    setEditingSlideId(null);
+    setSlideForm({
+      imageUrl: '',
+      showText: false,
+      showOverlay: true,
+      titleLine1: 'প্রয়োজনে দ্রুত আসল ওষুধ',
+      titleLine2: 'পৌঁছে যাবে আপনার দোরগোড়ায়',
+      subtitle: 'প্রেসক্রিপশন আপলোড করুন অথবা নাম দিয়ে ওষুধ খুঁজুন...'
+    });
+    updateHeroBanner({
+      slides: [],
+      imageUrl: '',
+      autoSlide: true,
+      autoSlideInterval: 5
+    });
+    showToast?.('ডিফল্ট ব্র‍্যান্ড গ্রেডিয়েন্ট ব্যাকগ্রাউন্ডে রিসেট করা হয়েছে!', 'info');
+  };
+
+  // Save slider settings
+  const handleSaveSliderSettings = (e) => {
+    e?.preventDefault?.();
+    updateHeroBanner({
+      slides: heroSlides,
+      autoSlide: heroAutoSlide,
+      autoSlideInterval: heroAutoSlideInterval
+    });
+    showToast?.('স্লাইডার সেটিংস সফলভাবে সেভ ও লাইভ আপডেট হয়েছে!', 'success');
   };
 
   // Coupon Manager Form State
@@ -5648,7 +5801,7 @@ export const AdminPortal = () => {
           {activeTab === 'ads' && (
             <div className="space-y-6 max-w-5xl mx-auto w-full">
               
-              {/* Sub-Tabs Switcher: Hero Banner vs Popup Ads */}
+              {/* Sub-Tabs Switcher: Hero Banner Slider vs Popup Ads */}
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 p-1.5 bg-slate-100 rounded-2xl border border-slate-200">
                 <button
                   type="button"
@@ -5660,11 +5813,13 @@ export const AdminPortal = () => {
                   }`}
                 >
                   <ImageIcon className="w-4 h-4 text-emerald-400" />
-                  <span>১. ওয়েবসাইটের মূল হিরো ব্যানার (Hero Banner)</span>
-                  {heroBanner?.imageUrl ? (
-                    <span className="text-[10px] bg-emerald-500 text-white px-2 py-0.5 rounded-full font-bold">কাস্টম ফটো সক্রিয়</span>
+                  <span>১. ওয়েবসাইটের মূল হিরো ব্যানার স্লাইডার (Hero Slider)</span>
+                  {heroSlides.length > 0 ? (
+                    <span className="text-[10px] bg-emerald-500 text-white px-2.5 py-0.5 rounded-full font-bold">
+                      {heroSlides.length}টি ব্যানার স্লাইড সক্রিয়
+                    </span>
                   ) : (
-                    <span className="text-[10px] bg-slate-300 text-slate-700 px-2 py-0.5 rounded-full font-bold">ডিফল্ট গ্র্যাডিয়েন্ট</span>
+                    <span className="text-[10px] bg-slate-300 text-slate-700 px-2.5 py-0.5 rounded-full font-bold">ডিফল্ট গ্র্যাডিয়েন্ট</span>
                   )}
                 </button>
 
@@ -5688,7 +5843,7 @@ export const AdminPortal = () => {
               </div>
 
               {/* ================================================= */}
-              {/* SUB-SECTION 1: HERO BANNER MANAGEMENT */}
+              {/* SUB-SECTION 1: HERO MULTI-BANNER SLIDER MANAGEMENT */}
               {/* ================================================= */}
               {bannerTab === 'hero' && (
                 <div className="space-y-6">
@@ -5706,7 +5861,7 @@ export const AdminPortal = () => {
                           হিরো ব্যানারের আদর্শ সাইজ: <span className="text-emerald-400 font-black underline decoration-emerald-400/50">১২৮০ × ৩২০ পিক্সেল (1280 × 320 px)</span>
                         </h4>
                         <p className="text-xs text-blue-100/90 leading-relaxed max-w-2xl">
-                          এই সাইজের (৪:১ অনুপাত) ব্যানার আপলোড করলে কম্পিউটার, ল্যাপটপ, ট্যাবলেট বা মোবাইল ফোন—যেকোনো স্ক্রিনে ছবি ক্রপ ছাড়া নিখুঁতভাবে প্রদর্শিত হবে।
+                          এই সাইজের (৪:১ অনুপাত) ব্যানার আপলোড করলে কম্পিউটার, ল্যাপটপ, ট্যাবলেট বা মোবাইল ফোন—যেকোনো স্ক্রিনে ছবি ক্রপ ছাড়া নিখুঁতভাবে প্রদর্শিত হবে। একাধিক ব্যানার দিলে ওয়েবসাইটে স্বয়ংক্রিয়ভাবে একটির পর একটি স্লাইড হতে থাকবে।
                         </p>
                       </div>
 
@@ -5728,309 +5883,613 @@ export const AdminPortal = () => {
                     </div>
                   </div>
 
+                  {/* Slider Configuration Bar */}
+                  <div className="bg-white border border-slate-200 p-4 rounded-2xl shadow-xs flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-emerald-50 text-[#02975E] flex items-center justify-center font-bold">
+                        <Sparkles className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <span className="text-xs font-bold text-slate-500 block">স্লাইডার স্ট্যাটাস ও নিয়ন্ত্রণ</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-black text-slate-900">
+                            {heroSlides.length === 0 
+                              ? 'ডিফল্ট ব্র‍্যান্ড থিম (০টি ব্যানার)' 
+                              : `মোট ${heroSlides.length}টি ব্যানার স্লাইডার সক্রিয়`}
+                          </span>
+                          {heroSlides.length > 1 && (
+                            <span className="text-[10px] bg-emerald-100 text-[#02975E] font-bold px-2 py-0.5 rounded-full">
+                              🔄 অটো-স্লাইড চালু
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-3">
+                      {/* Auto-Slide Toggle */}
+                      <label className="flex items-center gap-2 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-xl cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={heroAutoSlide}
+                          onChange={(e) => {
+                            const val = e.target.checked;
+                            setHeroAutoSlide(val);
+                            updateHeroBanner({
+                              slides: heroSlides,
+                              autoSlide: val,
+                              autoSlideInterval: heroAutoSlideInterval
+                            });
+                          }}
+                          className="w-4 h-4 text-[#02975E] rounded-md focus:ring-0"
+                        />
+                        <span className="text-xs font-bold text-slate-700">অটো-স্লাইড চালু</span>
+                      </label>
+
+                      {/* Interval duration selector */}
+                      <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-xl text-xs font-bold text-slate-700">
+                        <span>স্লাইড গতি:</span>
+                        <select
+                          value={heroAutoSlideInterval}
+                          onChange={(e) => {
+                            const val = Number(e.target.value);
+                            setHeroAutoSlideInterval(val);
+                            updateHeroBanner({
+                              slides: heroSlides,
+                              autoSlide: heroAutoSlide,
+                              autoSlideInterval: val
+                            });
+                          }}
+                          className="bg-white border border-slate-300 rounded-lg px-2 py-0.5 text-xs font-bold text-[#123184] outline-none"
+                        >
+                          <option value={3}>৩ সেকেন্ড</option>
+                          <option value={4}>৪ সেকেন্ড</option>
+                          <option value={5}>৫ সেকেন্ড (আদর্শ)</option>
+                          <option value={6}>৬ সেকেন্ড</option>
+                          <option value={8}>৮ সেকেন্ড</option>
+                        </select>
+                      </div>
+
+                      {heroSlides.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (window.confirm('আপনি কি নিশ্চিত যে সকল ব্যানার স্লাইড মুছে ফেলে ডিফল্ট ব্র‍্যান্ড থিমে ফেরত যেতে চান?')) {
+                              handleResetAllHeroSlides();
+                            }
+                          }}
+                          className="text-xs text-rose-600 hover:text-rose-800 bg-rose-50 hover:bg-rose-100 border border-rose-200 px-3 py-1.5 rounded-xl font-bold flex items-center gap-1 transition-all cursor-pointer"
+                        >
+                          <RotateCcw className="w-3.5 h-3.5" />
+                          <span>সব রিসেট</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
                   {/* Main Form & Live Preview Grid */}
                   <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-                    {/* Left Column: Form Controls (7 cols) */}
-                    <div className="lg:col-span-7 bg-white border border-slate-200 p-6 shadow-xs rounded-2xl space-y-5">
-                      <div className="flex items-center justify-between border-b border-slate-100 pb-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-9 h-9 rounded-xl bg-blue-50 text-[#123184] flex items-center justify-center font-bold">
-                            <ImageIcon className="w-5 h-5" />
-                          </div>
-                          <div>
-                            <h3 className="font-extrabold text-base text-[#123184]">
-                              হিরো ব্যানার পরিবর্তন ও কনফিগারেশন
-                            </h3>
-                            <p className="text-xs text-slate-500">
-                              ওয়েবসাইটের হোমপেজের উপরের মূল ব্যাকগ্রাউন্ড ফটো বা ব্যানার পরিবর্তন করুন
-                            </p>
-                          </div>
+                    {/* Left Column: Slides Management & Add Form (7 cols) */}
+                    <div className="lg:col-span-7 space-y-6">
+
+                      {/* Current Slides Gallery / Cards */}
+                      <div className="bg-white border border-slate-200 p-5 rounded-2xl shadow-xs space-y-4">
+                        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                          <h4 className="font-extrabold text-sm text-[#123184] flex items-center gap-2">
+                            <ImageIcon className="w-4 h-4 text-[#02975E]" />
+                            <span>বর্তমান ব্যানার স্লাইডসমূহ ({heroSlides.length}টি)</span>
+                          </h4>
+                          <span className="text-[11px] text-slate-400">ওয়েবসাইটে এই ক্রমানুসারে স্লাইড হবে</span>
                         </div>
 
-                        {heroForm.imageUrl && (
-                          <button
-                            type="button"
-                            onClick={handleResetHeroBanner}
-                            className="text-xs text-rose-600 hover:text-rose-800 bg-rose-50 hover:bg-rose-100 border border-rose-200 px-3 py-1.5 rounded-xl font-bold flex items-center gap-1 transition-all cursor-pointer"
-                            title="ডিফল্ট গ্র্যাডিয়েন্টে ফেরত যান"
-                          >
-                            <RotateCcw className="w-3.5 h-3.5" />
-                            <span>রিসেট</span>
-                          </button>
+                        {heroSlides.length === 0 ? (
+                          <div className="text-center py-8 bg-slate-50 border border-dashed border-slate-200 rounded-xl space-y-2">
+                            <ImageIcon className="w-8 h-8 text-slate-300 mx-auto" />
+                            <p className="text-xs font-bold text-slate-600">
+                              এখনো কোনো কাস্টম ব্যানার স্লাইড যোগ করা হয়নি
+                            </p>
+                            <p className="text-[11px] text-slate-400 max-w-sm mx-auto">
+                              নিচের ফর্মটি ব্যবহার করে কম্পিউটার বা মোবাইল থেকে এক বা একাধিক ব্যানার ফটো যোগ করুন।
+                            </p>
+                          </div>
+                        ) : (
+                          <div className="space-y-3">
+                            {heroSlides.map((slide, index) => {
+                              const isEditing = editingSlideId === slide.id;
+                              return (
+                                <div 
+                                  key={slide.id || index}
+                                  className={`p-3 rounded-xl border transition-all flex items-center gap-3 ${
+                                    isEditing 
+                                      ? 'bg-blue-50/70 border-[#123184] ring-2 ring-blue-200' 
+                                      : 'bg-slate-50 hover:bg-slate-100/80 border-slate-200'
+                                  }`}
+                                >
+                                  {/* Slide Number */}
+                                  <div className="w-7 h-7 rounded-lg bg-[#123184] text-white flex items-center justify-center font-bold text-xs shrink-0">
+                                    {index + 1}
+                                  </div>
+
+                                  {/* Thumbnail Preview */}
+                                  <div className="w-24 h-12 rounded-lg overflow-hidden bg-slate-200 border border-slate-300 shrink-0 relative flex items-center justify-center">
+                                    {slide.imageUrl ? (
+                                      <img 
+                                        src={slide.imageUrl} 
+                                        alt={`Slide ${index + 1}`} 
+                                        className="w-full h-full object-cover"
+                                      />
+                                    ) : (
+                                      <span className="text-[9px] text-slate-400">ছবি নেই</span>
+                                    )}
+                                  </div>
+
+                                  {/* Slide Info */}
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                      <span className="text-xs font-black text-slate-800">
+                                        ব্যানার স্লাইড #{index + 1}
+                                      </span>
+                                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
+                                        slide.showText !== false 
+                                          ? 'bg-blue-100 text-blue-700' 
+                                          : 'bg-slate-200 text-slate-600'
+                                      }`}>
+                                        {slide.showText !== false ? 'টেক্সট অন' : 'টেক্সট অফ (শুধু ছবি)'}
+                                      </span>
+                                      {slide.showOverlay !== false && (
+                                        <span className="text-[10px] bg-emerald-100 text-[#02975E] font-bold px-2 py-0.5 rounded-full">
+                                          ডার্ক শেড
+                                        </span>
+                                      )}
+                                    </div>
+                                    <p className="text-[11px] text-slate-400 truncate mt-0.5">
+                                      {slide.showText !== false 
+                                        ? (slide.titleLine1 || 'প্রয়োজনে দ্রুত আসল ওষুধ') 
+                                        : 'ডিজাইন করা ফটো ব্যানার'}
+                                    </p>
+                                  </div>
+
+                                  {/* Action Buttons */}
+                                  <div className="flex items-center gap-1 shrink-0">
+                                    {/* Move Up */}
+                                    <button
+                                      type="button"
+                                      onClick={() => handleMoveSlide(index, 'up')}
+                                      disabled={index === 0}
+                                      className={`p-1.5 rounded-lg border transition-all ${
+                                        index === 0 
+                                          ? 'opacity-30 cursor-not-allowed border-transparent text-slate-400' 
+                                          : 'hover:bg-white text-slate-700 border-slate-200 cursor-pointer shadow-2xs'
+                                      }`}
+                                      title="উপরে নিন"
+                                    >
+                                      <ArrowUp className="w-3.5 h-3.5" />
+                                    </button>
+
+                                    {/* Move Down */}
+                                    <button
+                                      type="button"
+                                      onClick={() => handleMoveSlide(index, 'down')}
+                                      disabled={index === heroSlides.length - 1}
+                                      className={`p-1.5 rounded-lg border transition-all ${
+                                        index === heroSlides.length - 1 
+                                          ? 'opacity-30 cursor-not-allowed border-transparent text-slate-400' 
+                                          : 'hover:bg-white text-slate-700 border-slate-200 cursor-pointer shadow-2xs'
+                                      }`}
+                                      title="নিচে নিন"
+                                    >
+                                      <ArrowDown className="w-3.5 h-3.5" />
+                                    </button>
+
+                                    {/* Edit Button */}
+                                    <button
+                                      type="button"
+                                      onClick={() => handleEditSlide(slide)}
+                                      className="p-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 text-[#123184] border border-blue-200 transition-all cursor-pointer"
+                                      title="এডিট করুন"
+                                    >
+                                      <Edit3 className="w-3.5 h-3.5" />
+                                    </button>
+
+                                    {/* Delete Button */}
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        if (window.confirm(`ব্যানার স্লাইড #${index + 1} মুছে ফেলতে চান?`)) {
+                                          handleDeleteSlide(slide.id);
+                                        }
+                                      }}
+                                      className="p-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 transition-all cursor-pointer"
+                                      title="মুছে ফেলুন"
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                    </button>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
                         )}
                       </div>
 
-                      <form onSubmit={handleSaveHeroBanner} className="space-y-5">
-                        {/* Image Selection Method (File upload vs Direct URL) */}
-                        <div className="space-y-3">
-                          <label className="text-xs font-bold text-slate-700 flex items-center justify-between">
-                            <span>ব্যানার ফটো নির্বাচন পদ্ধতি:</span>
-                            <span className="text-[11px] text-emerald-700 font-semibold">১২৮০ × ৩২০ px সাইজের ছবি দিন</span>
-                          </label>
-
-                          <div className="flex gap-2">
-                            <button
-                              type="button"
-                              onClick={() => setHeroUploadMethod('file')}
-                              className={`flex-1 py-2 px-3 text-xs font-bold rounded-xl border transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
-                                heroUploadMethod === 'file'
-                                  ? 'bg-[#123184] text-white border-[#123184]'
-                                  : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
-                              }`}
-                            >
-                              <Upload className="w-3.5 h-3.5" />
-                              <span>ডিভাইস থেকে ফাইল আপলোড</span>
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setHeroUploadMethod('url')}
-                              className={`flex-1 py-2 px-3 text-xs font-bold rounded-xl border transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
-                                heroUploadMethod === 'url'
-                                  ? 'bg-[#123184] text-white border-[#123184]'
-                                  : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
-                              }`}
-                            >
-                              <ExternalLink className="w-3.5 h-3.5" />
-                              <span>অনলাইন ছবির সরাসরি লিংক (URL)</span>
-                            </button>
+                      {/* Add or Edit Slide Form Card */}
+                      <div className="bg-white border border-slate-200 p-6 shadow-xs rounded-2xl space-y-5">
+                        <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-9 h-9 rounded-xl bg-blue-50 text-[#123184] flex items-center justify-center font-bold">
+                              {editingSlideId ? <Edit3 className="w-5 h-5" /> : <Plus className="w-5 h-5" />}
+                            </div>
+                            <div>
+                              <h3 className="font-extrabold text-base text-[#123184]">
+                                {editingSlideId 
+                                  ? `ব্যানার স্লাইড #${heroSlides.findIndex(s => s.id === editingSlideId) + 1} এডিট করুন` 
+                                  : '+ নতুন ব্যানার স্লাইড যোগ করুন'}
+                              </h3>
+                              <p className="text-xs text-slate-500">
+                                {editingSlideId 
+                                  ? 'এই স্লাইডের ছবি বা টেক্সট পরিবর্তন করে আপডেট করুন' 
+                                  : 'ওয়েবসাইটের স্লাইডারে প্রদর্শন করার জন্য আরও একটি নতুন ব্যানার যোগ করুন'}
+                              </p>
+                            </div>
                           </div>
 
-                          {heroUploadMethod === 'file' ? (
-                            <div className="border-2 border-dashed border-slate-300 hover:border-[#123184] p-6 text-center bg-slate-50 rounded-xl transition-colors">
-                              <input
-                                type="file"
-                                ref={heroFileInputRef}
-                                accept="image/*"
-                                onChange={handleHeroImageFileChange}
-                                className="hidden"
-                              />
-                              <div className="space-y-3">
-                                <div className="w-12 h-12 rounded-full bg-blue-100 text-[#123184] flex items-center justify-center mx-auto">
-                                  <Camera className="w-6 h-6" />
-                                </div>
-                                <div>
-                                  <button
-                                    type="button"
-                                    onClick={() => heroFileInputRef.current?.click()}
-                                    disabled={isUploadingHero}
-                                    className="bg-[#123184] hover:bg-[#0e2669] text-white text-xs font-bold px-5 py-2.5 rounded-xl shadow-xs transition-colors cursor-pointer"
-                                  >
-                                    {isUploadingHero ? 'ফটো অপটিমাইজ ও আপলোড হচ্ছে...' : 'কম্পিউটার বা মোবাইল থেকে ব্যানার ছবি নির্বাচন করুন'}
-                                  </button>
-                                  <span className="block text-[11px] text-slate-400 mt-2 font-medium">
-                                    ১২৮০ × ৩২০ পিক্সেল (৪:১ রেশিও) ছবি সবচেয়ে ভালো দেখাবে • সর্বোচ্চ ২ MB
-                                  </span>
-                                </div>
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="space-y-1.5">
-                              <input
-                                type="url"
-                                value={heroForm.imageUrl}
-                                onChange={(e) => {
-                                  const val = e.target.value;
-                                  setHeroForm(prev => ({ ...prev, imageUrl: val }));
-                                }}
-                                placeholder="https://example.com/banner-1280x320.jpg"
-                                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 focus:bg-white focus:border-[#123184] outline-none text-xs text-slate-900 rounded-xl transition-colors"
-                              />
-                              <span className="text-[10px] text-slate-400 block">
-                                যেকোনো হোস্ট করা ছবির ডিরেক্ট URL পেস্ট করুন (অনুপাত ৪:১ হলে ক্রপ ছাড়া সুন্দর আসবে)
-                              </span>
-                            </div>
+                          {editingSlideId && (
+                            <button
+                              type="button"
+                              onClick={handleCancelEditSlide}
+                              className="text-xs text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 border border-slate-300 px-3 py-1.5 rounded-xl font-bold transition-all cursor-pointer"
+                            >
+                              বাতিল করুন
+                            </button>
                           )}
+                        </div>
 
-                          {heroForm.imageUrl && (
-                            <div className="flex items-center justify-between p-2.5 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-900">
-                              <span className="flex items-center gap-1.5 font-bold">
-                                <CheckCircle2 className="w-4 h-4 text-[#02975E]" />
-                                কাস্টম ব্যানার ফটো সিলেক্টেড রয়েছে
-                              </span>
+                        <form onSubmit={handleSaveSlideForm} className="space-y-5">
+                          {/* Image Selection Method (File upload vs Direct URL) */}
+                          <div className="space-y-3">
+                            <label className="text-xs font-bold text-slate-700 flex items-center justify-between">
+                              <span>ব্যানার ফটো নির্বাচন:</span>
+                              <span className="text-[11px] text-emerald-700 font-semibold">১২৮০ × ৩২০ px সাইজের ছবি দিন</span>
+                            </label>
+
+                            <div className="flex gap-2">
                               <button
                                 type="button"
-                                onClick={() => {
-                                  setHeroForm(prev => ({ ...prev, imageUrl: '' }));
-                                }}
-                                className="text-rose-600 hover:text-rose-800 text-[11px] font-bold underline cursor-pointer"
+                                onClick={() => setSlideUploadMethod('file')}
+                                className={`flex-1 py-2 px-3 text-xs font-bold rounded-xl border transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                                  slideUploadMethod === 'file'
+                                    ? 'bg-[#123184] text-white border-[#123184]'
+                                    : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                                }`}
                               >
-                                ছবি রিমুভ করুন
+                                <Upload className="w-3.5 h-3.5" />
+                                <span>ডিভাইস থেকে ফাইল আপলোড</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setSlideUploadMethod('url')}
+                                className={`flex-1 py-2 px-3 text-xs font-bold rounded-xl border transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                                  slideUploadMethod === 'url'
+                                    ? 'bg-[#123184] text-white border-[#123184]'
+                                    : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                                }`}
+                              >
+                                <ExternalLink className="w-3.5 h-3.5" />
+                                <span>অনলাইন ছবির সরাসরি লিংক (URL)</span>
                               </button>
                             </div>
-                          )}
-                        </div>
 
-                        {/* Overlay and Text Display Toggles */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-slate-100">
-                          {/* Toggle: Dark Overlay */}
-                          <div className="flex items-center justify-between p-3 bg-slate-50 border border-slate-200 rounded-xl">
-                            <div>
-                              <span className="text-xs font-bold text-slate-800 block">কালো রিডাবিলিটি ওভারলে</span>
-                              <span className="text-[10px] text-slate-500">লেখা স্পষ্ট পড়ার জন্য ডার্ক শেড</span>
-                            </div>
-                            <label className="relative inline-flex items-center cursor-pointer">
-                              <input
-                                type="checkbox"
-                                checked={heroForm.showOverlay}
-                                onChange={(e) => setHeroForm(prev => ({ ...prev, showOverlay: e.target.checked }))}
-                                className="sr-only peer"
-                              />
-                              <div className="w-10 h-5 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#02975E]"></div>
-                            </label>
+                            {slideUploadMethod === 'file' ? (
+                              <div className="border-2 border-dashed border-slate-300 hover:border-[#123184] p-6 text-center bg-slate-50 rounded-xl transition-colors">
+                                <input
+                                  type="file"
+                                  ref={slideFileInputRef}
+                                  accept="image/*"
+                                  onChange={handleSlideImageFileChange}
+                                  className="hidden"
+                                />
+                                <div className="space-y-3">
+                                  <div className="w-12 h-12 rounded-full bg-blue-100 text-[#123184] flex items-center justify-center mx-auto">
+                                    <Camera className="w-6 h-6" />
+                                  </div>
+                                  <div>
+                                    <button
+                                      type="button"
+                                      onClick={() => slideFileInputRef.current?.click()}
+                                      disabled={isUploadingSlide}
+                                      className="bg-[#123184] hover:bg-[#0e2669] text-white text-xs font-bold px-5 py-2.5 rounded-xl shadow-xs transition-colors cursor-pointer"
+                                    >
+                                      {isUploadingSlide ? 'ফটো অপটিমাইজ ও আপলোড হচ্ছে...' : 'কম্পিউটার বা মোবাইল থেকে ব্যানার ছবি নির্বাচন করুন'}
+                                    </button>
+                                    <span className="block text-[11px] text-slate-400 mt-2 font-medium">
+                                      ১২৮০ × ৩২০ পিক্সেল (৪:১ রেশিও) ছবি সবচেয়ে ভালো দেখাবে • সর্বোচ্চ ২ MB
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="space-y-1.5">
+                                <input
+                                  type="url"
+                                  value={slideForm.imageUrl}
+                                  onChange={(e) => {
+                                    const val = e.target.value;
+                                    setSlideForm(prev => ({ ...prev, imageUrl: val }));
+                                  }}
+                                  placeholder="https://example.com/banner-1280x320.jpg"
+                                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 focus:bg-white focus:border-[#123184] outline-none text-xs text-slate-900 rounded-xl transition-colors"
+                                />
+                                <span className="text-[10px] text-slate-400 block">
+                                  যেকোনো হোস্ট করা ছবির ডিরেক্ট URL পেস্ট করুন (অনুপাত ৪:১ হলে ক্রপ ছাড়া সুন্দর আসবে)
+                                </span>
+                              </div>
+                            )}
+
+                            {slideForm.imageUrl && (
+                              <div className="flex items-center justify-between p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-900">
+                                <div className="flex items-center gap-2">
+                                  <div className="w-12 h-6 rounded overflow-hidden bg-slate-200 border border-emerald-300">
+                                    <img src={slideForm.imageUrl} alt="Preview" className="w-full h-full object-cover" />
+                                  </div>
+                                  <span className="font-bold flex items-center gap-1">
+                                    <CheckCircle2 className="w-4 h-4 text-[#02975E]" />
+                                    ছবিটি প্রস্তুত রয়েছে
+                                  </span>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => setSlideForm(prev => ({ ...prev, imageUrl: '' }))}
+                                  className="text-rose-600 hover:text-rose-800 text-[11px] font-bold underline cursor-pointer"
+                                >
+                                  ছবি মুছুন
+                                </button>
+                              </div>
+                            )}
                           </div>
 
-                          {/* Toggle: Show Text */}
-                          <div className="flex items-center justify-between p-3 bg-slate-50 border border-slate-200 rounded-xl">
-                            <div>
-                              <span className="text-xs font-bold text-slate-800 block">ব্যানারের লেখা দেখান</span>
-                              <span className="text-[10px] text-slate-500">ছবির ভেতরে লেখা থাকলে অফ করুন</span>
-                            </div>
-                            <label className="relative inline-flex items-center cursor-pointer">
-                              <input
-                                type="checkbox"
-                                checked={heroForm.showText}
-                                onChange={(e) => setHeroForm(prev => ({ ...prev, showText: e.target.checked }))}
-                                className="sr-only peer"
-                              />
-                              <div className="w-10 h-5 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#02975E]"></div>
-                            </label>
-                          </div>
-                        </div>
-
-                        {/* Text Content Inputs (Only active if showText is true) */}
-                        {heroForm.showText && (
-                          <div className="space-y-3.5 p-4 bg-slate-50/80 border border-slate-200 rounded-xl">
-                            <span className="text-xs font-extrabold text-[#123184] block border-b border-slate-200 pb-1.5">
-                              ব্যানারের শিরোনাম ও সাবটাইটেল কাস্টমাইজেশন:
-                            </span>
-
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                              <div className="space-y-1">
-                                <label className="text-[11px] font-bold text-slate-700 block">
-                                  শিরোনাম লাইন ১:
-                                </label>
-                                <input
-                                  type="text"
-                                  value={heroForm.titleLine1}
-                                  onChange={(e) => setHeroForm(prev => ({ ...prev, titleLine1: e.target.value }))}
-                                  placeholder="প্রয়োজনে দ্রুত আসল ওষুধ"
-                                  className="w-full px-3 py-2 bg-white border border-slate-200 focus:border-[#123184] outline-none text-xs rounded-xl"
-                                />
+                          {/* Overlay and Text Display Toggles */}
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-slate-100">
+                            {/* Toggle: Dark Overlay */}
+                            <div className="flex items-center justify-between p-3 bg-slate-50 border border-slate-200 rounded-xl">
+                              <div>
+                                <span className="text-xs font-bold text-slate-800 block">কালো রিডাবিলিটি ওভারলে</span>
+                                <span className="text-[10px] text-slate-500">লেখা স্পষ্ট পড়ার জন্য ডার্ক শেড</span>
                               </div>
-
-                              <div className="space-y-1">
-                                <label className="text-[11px] font-bold text-slate-700 block">
-                                  শিরোনাম লাইন ২ (হাইলাইটেড):
-                                </label>
+                              <label className="relative inline-flex items-center cursor-pointer">
                                 <input
-                                  type="text"
-                                  value={heroForm.titleLine2}
-                                  onChange={(e) => setHeroForm(prev => ({ ...prev, titleLine2: e.target.value }))}
-                                  placeholder="পৌঁছে যাবে আপনার দোরগোড়ায়"
-                                  className="w-full px-3 py-2 bg-white border border-slate-200 focus:border-[#123184] outline-none text-xs rounded-xl"
+                                  type="checkbox"
+                                  checked={slideForm.showOverlay}
+                                  onChange={(e) => setSlideForm(prev => ({ ...prev, showOverlay: e.target.checked }))}
+                                  className="sr-only peer"
                                 />
-                              </div>
-                            </div>
-
-                            <div className="space-y-1">
-                              <label className="text-[11px] font-bold text-slate-700 block">
-                                সাবটাইটেল / বিবরণ:
+                                <div className="w-10 h-5 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#02975E]"></div>
                               </label>
-                              <textarea
-                                rows={2}
-                                value={heroForm.subtitle}
-                                onChange={(e) => setHeroForm(prev => ({ ...prev, subtitle: e.target.value }))}
-                                placeholder="প্রেসক্রিপশন আপলোড করুন অথবা নাম দিয়ে ওষুধ খুঁজুন..."
-                                className="w-full px-3 py-2 bg-white border border-slate-200 focus:border-[#123184] outline-none text-xs rounded-xl"
-                              />
+                            </div>
+
+                            {/* Toggle: Show Text */}
+                            <div className="flex items-center justify-between p-3 bg-slate-50 border border-slate-200 rounded-xl">
+                              <div>
+                                <span className="text-xs font-bold text-slate-800 block">ব্যানারের লেখা দেখান</span>
+                                <span className="text-[10px] text-slate-500">ছবির ভেতরে ডিজাইন করা লেখা থাকলে অফ রাখুন</span>
+                              </div>
+                              <label className="relative inline-flex items-center cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={slideForm.showText}
+                                  onChange={(e) => setSlideForm(prev => ({ ...prev, showText: e.target.checked }))}
+                                  className="sr-only peer"
+                                />
+                                <div className="w-10 h-5 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#02975E]"></div>
+                              </label>
                             </div>
                           </div>
-                        )}
 
-                        {/* Save & Publish Button */}
-                        <div className="pt-2 flex flex-col sm:flex-row gap-3">
-                          <button
-                            type="submit"
-                            className="flex-1 bg-gradient-to-r from-[#123184] to-[#02975E] hover:from-[#0e2669] hover:to-[#027e4e] text-white py-3.5 px-4 text-sm font-bold rounded-xl flex items-center justify-center gap-2 shadow-md transition-all cursor-pointer"
-                          >
-                            <Save className="w-4 h-4" />
-                            <span>হিরো ব্যানার সেভ ও লাইভ আপডেট করুন (Save & Publish)</span>
-                          </button>
-                        </div>
-                      </form>
+                          {/* Text Content Inputs (Only active if showText is true) */}
+                          {slideForm.showText && (
+                            <div className="space-y-3.5 p-4 bg-slate-50/80 border border-slate-200 rounded-xl">
+                              <span className="text-xs font-extrabold text-[#123184] block border-b border-slate-200 pb-1.5">
+                                ব্যানারের শিরোনাম ও সাবটাইটেল কাস্টমাইজেশন:
+                              </span>
+
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div className="space-y-1">
+                                  <label className="text-[11px] font-bold text-slate-700 block">
+                                    শিরোনাম লাইন ১:
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={slideForm.titleLine1}
+                                    onChange={(e) => setSlideForm(prev => ({ ...prev, titleLine1: e.target.value }))}
+                                    placeholder="প্রয়োজনে দ্রুত আসল ওষুধ"
+                                    className="w-full px-3 py-2 bg-white border border-slate-200 focus:border-[#123184] outline-none text-xs rounded-xl"
+                                  />
+                                </div>
+
+                                <div className="space-y-1">
+                                  <label className="text-[11px] font-bold text-slate-700 block">
+                                    শিরোনাম লাইন ২ (হাইলাইটেড):
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={slideForm.titleLine2}
+                                    onChange={(e) => setSlideForm(prev => ({ ...prev, titleLine2: e.target.value }))}
+                                    placeholder="পৌঁছে যাবে আপনার দোরগোড়ায়"
+                                    className="w-full px-3 py-2 bg-white border border-slate-200 focus:border-[#123184] outline-none text-xs rounded-xl"
+                                  />
+                                </div>
+                              </div>
+
+                              <div className="space-y-1">
+                                <label className="text-[11px] font-bold text-slate-700 block">
+                                  সাবটাইটেল / বিবরণ:
+                                </label>
+                                <textarea
+                                  rows={2}
+                                  value={slideForm.subtitle}
+                                  onChange={(e) => setSlideForm(prev => ({ ...prev, subtitle: e.target.value }))}
+                                  placeholder="প্রেসক্রিপশন আপলোড করুন অথবা নাম দিয়ে ওষুধ খুঁজুন..."
+                                  className="w-full px-3 py-2 bg-white border border-slate-200 focus:border-[#123184] outline-none text-xs rounded-xl"
+                                />
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Submit Button */}
+                          <div className="pt-2 flex flex-col sm:flex-row gap-3">
+                            <button
+                              type="submit"
+                              className="flex-1 bg-gradient-to-r from-[#123184] to-[#02975E] hover:from-[#0e2669] hover:to-[#027e4e] text-white py-3.5 px-4 text-sm font-bold rounded-xl flex items-center justify-center gap-2 shadow-md transition-all cursor-pointer"
+                            >
+                              {editingSlideId ? <Save className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+                              <span>
+                                {editingSlideId 
+                                  ? 'এই স্লাইডটি আপডেট ও সেভ করুন (Update Slide)' 
+                                  : '➕ এই স্লাইডটি যোগ ও সেভ করুন (Add Slide to Slider)'}
+                              </span>
+                            </button>
+                          </div>
+                        </form>
+                      </div>
+
                     </div>
 
-                    {/* Right Column: Live Mockup / Preview (5 cols) */}
+                    {/* Right Column: Real-Time Interactive Slider Preview (5 cols) */}
                     <div className="lg:col-span-5 space-y-3">
                       <div className="flex items-center justify-between">
                         <span className="text-xs font-black text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
                           <Eye className="w-3.5 h-3.5 text-[#123184]" />
-                          <span>হোমপেজ লাইভ প্রিভিউ (Live Preview):</span>
+                          <span>হোমপেজ লাইভ স্লাইডার প্রিভিউ:</span>
                         </span>
                         <span className="text-[11px] text-slate-400">অনুপাত ৪:১ (1280×320)</span>
                       </div>
 
-                      {/* Mockup Container imitating Hero.jsx */}
-                      <div className="relative rounded-2xl overflow-hidden shadow-lg border border-slate-300 aspect-[4/1.2] min-h-[220px] flex flex-col justify-center">
-                        {heroForm.imageUrl ? (
-                          <div 
-                            className="absolute inset-0 bg-cover bg-center transition-all duration-300"
-                            style={{ backgroundImage: `url(${heroForm.imageUrl})` }}
-                          />
-                        ) : (
-                          <div className="absolute inset-0 bg-gradient-to-r from-[#123184] via-[#0d235c] to-[#02975E]">
+                      {/* Mockup Container with interactive slide controls */}
+                      <div className="relative rounded-2xl overflow-hidden shadow-lg border border-slate-300 aspect-[4/1.2] min-h-[220px] flex flex-col justify-center group bg-slate-900">
+                        {heroSlides.length === 0 ? (
+                          /* No Slides -> Default Gradient Mockup */
+                          <div className="absolute inset-0 bg-gradient-to-r from-[#123184] via-[#0d235c] to-[#02975E] flex items-center">
                             <div className="absolute -top-12 -left-12 w-48 h-48 bg-emerald-400/20 rounded-full blur-2xl pointer-events-none"></div>
                             <div className="absolute -bottom-12 -right-12 w-48 h-48 bg-blue-400/20 rounded-full blur-2xl pointer-events-none"></div>
-                          </div>
-                        )}
 
-                        {/* Overlay */}
-                        {heroForm.imageUrl && heroForm.showOverlay && (
-                          <div className="absolute inset-0 bg-gradient-to-r from-slate-950/80 via-slate-950/60 to-slate-950/40 pointer-events-none"></div>
-                        )}
-
-                        {/* Content Preview */}
-                        <div className="relative z-10 p-5 text-white space-y-2">
-                          {heroForm.showText ? (
-                            <>
+                            <div className="relative z-10 p-5 text-white space-y-2">
                               <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-white/10 backdrop-blur-md text-[10px] text-emerald-300 font-bold border border-white/10">
                                 <span>{config.name}</span>
                                 <span>•</span>
                                 <span>২৪/৭ হোম ডেলিভারি</span>
                               </div>
                               <h2 className="text-base sm:text-lg font-black leading-tight drop-shadow-md">
-                                {heroForm.titleLine1 || 'প্রয়োজনে দ্রুত আসল ওষুধ'} <br />
-                                <span className="text-emerald-400">{heroForm.titleLine2 || 'পৌঁছে যাবে আপনার দোরগোড়ায়'}</span>
+                                প্রয়োজনে দ্রুত আসল ওষুধ <br />
+                                <span className="text-emerald-400">পৌঁছে যাবে আপনার দোরগোড়ায়</span>
                               </h2>
                               <p className="text-[11px] text-slate-200 line-clamp-2 max-w-sm drop-shadow-xs">
-                                {heroForm.subtitle || 'প্রেসক্রিপশন আপলোড করুন অথবা নাম দিয়ে ওষুধ খুঁজুন...'}
+                                প্রেসক্রিপশন আপলোড করুন অথবা নাম দিয়ে ওষুধ খুঁজুন...
                               </p>
-                            </>
-                          ) : (
-                            <div className="text-center py-6">
-                              <span className="inline-block px-3 py-1 rounded-full bg-black/50 text-white text-[11px] font-bold backdrop-blur-md border border-white/20">
-                                ব্যানার ফটোতে টেক্সট লুকানো রয়েছে (ছবির ভেতরের লেখা দেখা যাবে)
+                            </div>
+                          </div>
+                        ) : (
+                          /* Render All Slides with Active Slide Visible */
+                          heroSlides.map((slide, sIdx) => {
+                            const isCurrent = sIdx === adminPreviewIndex;
+                            return (
+                              <div 
+                                key={slide.id || sIdx}
+                                className={`absolute inset-0 bg-cover bg-center transition-opacity duration-500 flex items-center ${
+                                  isCurrent ? 'opacity-100 z-10' : 'opacity-0 z-0'
+                                }`}
+                                style={{ backgroundImage: `url(${slide.imageUrl})` }}
+                              >
+                                {/* Overlay */}
+                                {slide.showOverlay !== false && (
+                                  <div className="absolute inset-0 bg-gradient-to-r from-slate-950/80 via-slate-950/60 to-slate-950/40 pointer-events-none"></div>
+                                )}
+
+                                {/* Content */}
+                                <div className="relative z-10 p-5 text-white space-y-2 w-full">
+                                  {slide.showText !== false ? (
+                                    <>
+                                      <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-white/10 backdrop-blur-md text-[10px] text-emerald-300 font-bold border border-white/10">
+                                        <span>{config.name}</span>
+                                        <span>•</span>
+                                        <span>২৪/৭ হোম ডেলিভারি</span>
+                                      </div>
+                                      <h2 className="text-base sm:text-lg font-black leading-tight drop-shadow-md">
+                                        {slide.titleLine1 || 'প্রয়োজনে দ্রুত আসল ওষুধ'} <br />
+                                        <span className="text-emerald-400">{slide.titleLine2 || 'পৌঁছে যাবে আপনার দোরগোড়ায়'}</span>
+                                      </h2>
+                                      <p className="text-[11px] text-slate-200 line-clamp-2 max-w-sm drop-shadow-xs">
+                                        {slide.subtitle || 'প্রেসক্রিপশন আপলোড করুন অথবা নাম দিয়ে ওষুধ খুঁজুন...'}
+                                      </p>
+                                    </>
+                                  ) : (
+                                    <div className="text-center py-6">
+                                      <span className="inline-block px-3 py-1 rounded-full bg-black/60 text-white text-[11px] font-bold backdrop-blur-md border border-white/20">
+                                        ব্যানার ফটোতে টেক্সট লুকানো রয়েছে (ডিজাইনের লেখা দেখা যাবে)
+                                      </span>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })
+                        )}
+
+                        {/* Interactive Arrows for Preview */}
+                        {heroSlides.length > 1 && (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => setAdminPreviewIndex(prev => (prev - 1 + heroSlides.length) % heroSlides.length)}
+                              className="absolute left-2 top-1/2 -translate-y-1/2 z-20 w-7 h-7 rounded-full bg-black/50 hover:bg-black/80 text-white flex items-center justify-center transition-all cursor-pointer shadow-md"
+                              title="পূর্ববর্তী স্লাইড"
+                            >
+                              <ChevronLeft className="w-4 h-4" />
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => setAdminPreviewIndex(prev => (prev + 1) % heroSlides.length)}
+                              className="absolute right-2 top-1/2 -translate-y-1/2 z-20 w-7 h-7 rounded-full bg-black/50 hover:bg-black/80 text-white flex items-center justify-center transition-all cursor-pointer shadow-md"
+                              title="পরবর্তী স্লাইড"
+                            >
+                              <ChevronRight className="w-4 h-4" />
+                            </button>
+
+                            {/* Pagination Dots in Preview */}
+                            <div className="absolute bottom-2 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5 bg-black/40 backdrop-blur-sm px-2.5 py-1 rounded-full border border-white/10">
+                              {heroSlides.map((_, pIdx) => (
+                                <button
+                                  key={pIdx}
+                                  type="button"
+                                  onClick={() => setAdminPreviewIndex(pIdx)}
+                                  className={`rounded-full transition-all cursor-pointer ${
+                                    pIdx === adminPreviewIndex 
+                                      ? 'w-4 h-1.5 bg-[#02975E]' 
+                                      : 'w-1.5 h-1.5 bg-white/50 hover:bg-white/80'
+                                  }`}
+                                />
+                              ))}
+                            </div>
+
+                            {/* Slide Counter Badge */}
+                            <div className="absolute top-2 right-2 z-20">
+                              <span className="text-[10px] px-2 py-0.5 rounded-md bg-black/60 text-white font-mono font-bold">
+                                স্লাইড {adminPreviewIndex + 1} / {heroSlides.length}
                               </span>
                             </div>
-                          )}
-                        </div>
-
-                        {/* Corner indicator */}
-                        <div className="absolute bottom-2 right-2 z-20">
-                          <span className="text-[9px] px-2 py-0.5 rounded-md bg-black/60 text-white font-mono">
-                            {heroForm.imageUrl ? 'কাস্টম ছবি (4:1)' : 'ডিফল্ট থিম'}
-                          </span>
-                        </div>
+                          </>
+                        )}
                       </div>
 
                       {/* Info tip */}
-                      <div className="p-3 bg-blue-50/80 border border-blue-200 text-xs text-blue-900 rounded-xl space-y-1">
+                      <div className="p-3.5 bg-blue-50/80 border border-blue-200 text-xs text-blue-900 rounded-xl space-y-1.5">
                         <p className="font-bold flex items-center gap-1 text-[11px]">
                           <Sparkles className="w-3.5 h-3.5 text-blue-700" />
-                          <span>ডিভাইস অ্যাডাপ্টেশন তথ্য:</span>
+                          <span>স্লাইডার তথ্য ও সুবিধা:</span>
                         </p>
                         <p className="text-[11px] text-blue-800 leading-relaxed">
-                          ১২৮০ × ৩২০ পিক্সেলের ছবি ওয়েবসাইটে সম্পূর্ণভাবে বিস্তৃত থাকে। আপনি সেভ বাটনে ক্লিক করলে তা সরাসরি ক্লাউডে সংরক্ষিত হবে এবং সকল ভিজিটর ও ডিভাইসে কোনো রিলোড ছাড়াই সাথে সাথে নতুন ব্যানার দেখতে পাবেন।
+                          • <strong>একাধিক ব্যানার:</strong> আপনি যত খুশি ব্যানার ফটো যোগ করতে পারবেন। ওয়েবসাইটে গ্রাহকরা এগুলোকে মসৃণ স্লাইড আকারে দেখতে পাবেন।<br />
+                          • <strong>মোবাইল সুইপ সাপোর্ট:</strong> মোবাইলে ব্যবহারকারীরা হাত দিয়ে সুইপ (Swipe Left/Right) করেও ব্যানার চেঞ্জ করতে পারবেন।<br />
+                          • <strong>রিয়েল-টাইম ক্লাউড সিঙ্ক:</strong> আপনি যেকোনো ব্যানার যোগ বা এডিট করলে অন্য সব ডিভাইসে রিলোড ছাড়াই সাথে সাথে নতুন স্লাইডার চালু হয়ে যাবে।
                         </p>
                       </div>
                     </div>
