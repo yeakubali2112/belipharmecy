@@ -178,6 +178,7 @@ export const ShopProvider = ({ children }) => {
     setAdBanner(updated);
     safeSetItem('beli_ad_banner', JSON.stringify(updated));
     saveCloudSettings({ deliverySettings, coupons, adBanner: updated, heroBanner });
+    publishLiveSync({ type: 'AD_BANNER_UPDATED', adBanner: updated });
     showToast(lang === 'bn' ? 'অফার বিজ্ঞাপন সফলভাবে আপডেট ও সেভ হয়েছে!' : 'Ad banner updated successfully!', 'success');
   };
 
@@ -190,6 +191,7 @@ export const ShopProvider = ({ children }) => {
     setDeliverySettings(updated);
     safeSetItem('beli_delivery_settings', JSON.stringify(updated));
     saveCloudSettings({ deliverySettings: updated, coupons, adBanner, heroBanner });
+    publishLiveSync({ type: 'DELIVERY_SETTINGS_UPDATED', deliverySettings: updated });
     showToast(lang === 'bn' ? 'ডেলিভারি চার্জ সেটিংস সফলভাবে আপডেট হয়েছে!' : 'Delivery settings updated successfully!', 'success');
   };
 
@@ -268,6 +270,7 @@ export const ShopProvider = ({ children }) => {
     setPaymentSettings(merged);
     safeSetItem('beli_payment_settings', JSON.stringify(merged));
     saveCloudSettings({ paymentSettings: merged, deliverySettings, coupons, adBanner, heroBanner, adminUsers });
+    publishLiveSync({ type: 'PAYMENT_SETTINGS_UPDATED', paymentSettings: merged });
     showToast(lang === 'bn' ? 'পেমেন্ট মেথড সেটিংস সফলভাবে আপডেট হয়েছে!' : 'Payment settings updated successfully!', 'success');
   };
 
@@ -1065,47 +1068,67 @@ export const ShopProvider = ({ children }) => {
       maxDiscount: Number(couponData.maxDiscount) || 0,
       isActive: couponData.isActive !== false,
     };
-    setCoupons(prev => [newCp, ...prev]);
+    setCoupons(prev => {
+      const next = [newCp, ...prev];
+      safeSetItem('beli_coupons', JSON.stringify(next));
+      publishLiveSync({ type: 'COUPONS_UPDATED', coupons: next });
+      return next;
+    });
     showToast(lang === 'bn' ? `কুপন '${cleanCode}' সফলভাবে তৈরি হয়েছে!` : `Coupon '${cleanCode}' created!`, 'success');
     return { success: true };
   };
 
   const updateCoupon = (id, updatedData) => {
-    setCoupons(prev => prev.map(c => {
-      if (c.id === id) {
-        return {
-          ...c,
-          ...updatedData,
-          code: updatedData.code ? String(updatedData.code).trim().toUpperCase() : c.code,
-          value: updatedData.value !== undefined ? Number(updatedData.value) : c.value,
-          minOrder: updatedData.minOrder !== undefined ? Number(updatedData.minOrder) : c.minOrder,
-          maxDiscount: updatedData.maxDiscount !== undefined ? Number(updatedData.maxDiscount) : c.maxDiscount,
-        };
-      }
-      return c;
-    }));
+    setCoupons(prev => {
+      const next = prev.map(c => {
+        if (c.id === id) {
+          return {
+            ...c,
+            ...updatedData,
+            code: updatedData.code ? String(updatedData.code).trim().toUpperCase() : c.code,
+            value: updatedData.value !== undefined ? Number(updatedData.value) : c.value,
+            minOrder: updatedData.minOrder !== undefined ? Number(updatedData.minOrder) : c.minOrder,
+            maxDiscount: updatedData.maxDiscount !== undefined ? Number(updatedData.maxDiscount) : c.maxDiscount,
+          };
+        }
+        return c;
+      });
+      safeSetItem('beli_coupons', JSON.stringify(next));
+      publishLiveSync({ type: 'COUPONS_UPDATED', coupons: next });
+      return next;
+    });
     showToast(lang === 'bn' ? 'কুপন কোড আপডেট করা হয়েছে!' : 'Coupon updated!', 'success');
   };
 
   const deleteCoupon = (id) => {
-    setCoupons(prev => prev.filter(c => c.id !== id));
+    setCoupons(prev => {
+      const next = prev.filter(c => c.id !== id);
+      safeSetItem('beli_coupons', JSON.stringify(next));
+      publishLiveSync({ type: 'COUPONS_UPDATED', coupons: next });
+      return next;
+    });
     showToast(lang === 'bn' ? 'কুপনটি মুছে ফেলা হয়েছে' : 'Coupon deleted', 'info');
   };
 
   const toggleCouponStatus = (id) => {
-    setCoupons(prev => prev.map(c => {
-      if (c.id === id) {
-        const nextState = !c.isActive;
-        showToast(
-          lang === 'bn' 
-            ? `কুপন ${c.code} ${nextState ? 'সক্রিয়' : 'নিষ্ক্রিয়'} করা হয়েছে` 
-            : `Coupon ${c.code} ${nextState ? 'activated' : 'deactivated'}`,
-          'info'
-        );
-        return { ...c, isActive: nextState };
-      }
-      return c;
-    }));
+    setCoupons(prev => {
+      const next = prev.map(c => {
+        if (c.id === id) {
+          const nextState = !c.isActive;
+          showToast(
+            lang === 'bn' 
+              ? `কুপন ${c.code} ${nextState ? 'সক্রিয়' : 'নিষ্ক্রিয়'} করা হয়েছে` 
+              : `Coupon ${c.code} ${nextState ? 'activated' : 'deactivated'}`,
+            'info'
+          );
+          return { ...c, isActive: nextState };
+        }
+        return c;
+      });
+      safeSetItem('beli_coupons', JSON.stringify(next));
+      publishLiveSync({ type: 'COUPONS_UPDATED', coupons: next });
+      return next;
+    });
   };
 
   // Applied Coupon state in current session
@@ -1473,7 +1496,7 @@ export const ShopProvider = ({ children }) => {
     });
   };
 
-  // Handle incoming real-time sync events from any connected device
+  // Handle incoming real-time sync events from any connected device or tab
   const handleIncomingSyncEvent = (event) => {
     if (!event || !event.type) return;
 
@@ -1498,6 +1521,12 @@ export const ShopProvider = ({ children }) => {
         safeSetItem('beli_orders', JSON.stringify(next));
         return next;
       });
+    } else if (event.type === 'ORDER_UPDATED' && event.order) {
+      setOrders(prev => {
+        const next = prev.map(o => o.id === event.order.id ? { ...o, ...event.order } : o);
+        safeSetItem('beli_orders', JSON.stringify(next));
+        return next;
+      });
     } else if (event.type === 'MEDICINE_UPDATED' && event.medicine) {
       setMedicines(prev => {
         const index = prev.findIndex(m => m.id === event.medicine.id);
@@ -1508,6 +1537,12 @@ export const ShopProvider = ({ children }) => {
         } else {
           next = [event.medicine, ...prev];
         }
+        safeSetItem('beli_medicines', JSON.stringify(next));
+        return next;
+      });
+    } else if (event.type === 'MEDICINE_DELETED' && event.medicineId) {
+      setMedicines(prev => {
+        const next = prev.filter(m => m.id !== event.medicineId);
         safeSetItem('beli_medicines', JSON.stringify(next));
         return next;
       });
@@ -1539,13 +1574,39 @@ export const ShopProvider = ({ children }) => {
         safeSetItem('beli_prescriptions', JSON.stringify(next));
         return next;
       });
+    } else if (event.type === 'PRESCRIPTION_UPDATED' && event.prescription) {
+      setPrescriptions(prev => {
+        const next = prev.map(p => p.id === event.prescription.id ? { ...p, ...event.prescription } : p);
+        safeSetItem('beli_prescriptions', JSON.stringify(next));
+        return next;
+      });
     } else if (event.type === 'HERO_BANNER_UPDATED' && event.heroBanner) {
       setHeroBanner(event.heroBanner);
       safeSetItem('beli_hero_banner', JSON.stringify(event.heroBanner));
+    } else if (event.type === 'AD_BANNER_UPDATED' && event.adBanner) {
+      setAdBanner(event.adBanner);
+      safeSetItem('beli_ad_banner', JSON.stringify(event.adBanner));
+    } else if (event.type === 'DELIVERY_SETTINGS_UPDATED' && event.deliverySettings) {
+      setDeliverySettings(event.deliverySettings);
+      safeSetItem('beli_delivery_settings', JSON.stringify(event.deliverySettings));
+    } else if (event.type === 'PAYMENT_SETTINGS_UPDATED' && event.paymentSettings) {
+      setPaymentSettings(event.paymentSettings);
+      safeSetItem('beli_payment_settings', JSON.stringify(event.paymentSettings));
+    } else if (event.type === 'COUPONS_UPDATED' && event.coupons) {
+      setCoupons(event.coupons);
+      safeSetItem('beli_coupons', JSON.stringify(event.coupons));
     } else if (event.type === 'SETTINGS_UPDATED' && event.settings) {
       if (event.settings.deliverySettings) {
         setDeliverySettings(event.settings.deliverySettings);
         safeSetItem('beli_delivery_settings', JSON.stringify(event.settings.deliverySettings));
+      }
+      if (event.settings.paymentSettings) {
+        setPaymentSettings(event.settings.paymentSettings);
+        safeSetItem('beli_payment_settings', JSON.stringify(event.settings.paymentSettings));
+      }
+      if (event.settings.coupons) {
+        setCoupons(event.settings.coupons);
+        safeSetItem('beli_coupons', JSON.stringify(event.settings.coupons));
       }
       if (event.settings.adBanner) {
         setAdBanner(event.settings.adBanner);
@@ -1558,9 +1619,10 @@ export const ShopProvider = ({ children }) => {
     }
   };
 
-  // Real-time Cloud Sync across all devices (Mobile & Desktop) via Server-Sent Events (SSE)
+  // Real-time Cloud & Multi-Tab Sync across all tabs and devices
   useEffect(() => {
     let isMounted = true;
+    let lastCloudSyncTime = Date.now();
 
     // 1. Initial catch-up from cloud
     fetchRecentSyncEvents().then(events => {
@@ -1609,8 +1671,6 @@ export const ShopProvider = ({ children }) => {
           }
 
           // Automatic bi-directional cloud sync:
-          // If this device has local custom medicine photos/edits that are not yet in Firestore,
-          // auto-upload them to Firestore so other devices (mobile, other computers) can see them!
           const cloudMap = new Map(cloudMeds.map(m => [m.id, m]));
           const initialMap = new Map(INITIAL_MEDICINES.map(m => [m.id, m]));
 
@@ -1640,10 +1700,8 @@ export const ShopProvider = ({ children }) => {
           });
 
           if (unpushed.length > 0) {
-            console.log(`[Beli Sync] Auto-uploading ${unpushed.length} local custom medicines to Cloud...`);
             batchSaveCloudMedicines(unpushed).then(res => {
               if (res.count > 0) {
-                console.log(`[Beli Sync] Uploaded ${res.count} custom medicines to Cloud!`);
                 publishLiveSync({ type: 'ALL_MEDICINES_SYNCED', count: res.count });
               }
             });
@@ -1667,6 +1725,14 @@ export const ShopProvider = ({ children }) => {
           if (cloudSettings.deliverySettings) {
             setDeliverySettings(cloudSettings.deliverySettings);
             safeSetItem('beli_delivery_settings', JSON.stringify(cloudSettings.deliverySettings));
+          }
+          if (cloudSettings.paymentSettings) {
+            setPaymentSettings(cloudSettings.paymentSettings);
+            safeSetItem('beli_payment_settings', JSON.stringify(cloudSettings.paymentSettings));
+          }
+          if (cloudSettings.coupons && Array.isArray(cloudSettings.coupons)) {
+            setCoupons(cloudSettings.coupons);
+            safeSetItem('beli_coupons', JSON.stringify(cloudSettings.coupons));
           }
           if (cloudSettings.adBanner) {
             setAdBanner(cloudSettings.adBanner);
@@ -1694,9 +1760,60 @@ export const ShopProvider = ({ children }) => {
     };
 
     syncCloudDataOnce();
-    window.addEventListener('focus', syncCloudDataOnce);
 
-    // 2. Connect to real-time stream (instant updates without reload across all devices)
+    // Throttled focus sync (max once every 5 minutes to avoid quota exhaustion)
+    const handleWindowFocus = () => {
+      const now = Date.now();
+      if (now - lastCloudSyncTime > 300000) {
+        lastCloudSyncTime = now;
+        syncCloudDataOnce();
+      }
+    };
+    window.addEventListener('focus', handleWindowFocus);
+
+    // 2. Storage event listener (guaranteed instant tab-to-tab sync across all windows on same browser)
+    const handleStorageChange = (e) => {
+      if (!isMounted || !e || !e.key || !e.newValue) return;
+      try {
+        if (e.key === 'beli_payment_settings') {
+          const parsed = JSON.parse(e.newValue);
+          if (parsed && typeof parsed === 'object') setPaymentSettings(parsed);
+        } else if (e.key === 'beli_delivery_settings') {
+          const parsed = JSON.parse(e.newValue);
+          if (parsed && typeof parsed === 'object') setDeliverySettings(parsed);
+        } else if (e.key === 'beli_medicines') {
+          const parsed = JSON.parse(e.newValue);
+          if (Array.isArray(parsed)) {
+            setMedicines(prev => {
+              const cloudMap = new Map(parsed.map(m => [m.id, m]));
+              const next = prev.map(m => cloudMap.has(m.id) ? { ...m, ...cloudMap.get(m.id) } : m);
+              parsed.forEach(cm => {
+                if (!next.some(m => m.id === cm.id)) next.unshift(cm);
+              });
+              return deduplicateMedicines(next);
+            });
+          }
+        } else if (e.key === 'beli_orders') {
+          const parsed = JSON.parse(e.newValue);
+          if (Array.isArray(parsed)) setOrders(parsed);
+        } else if (e.key === 'beli_prescriptions') {
+          const parsed = JSON.parse(e.newValue);
+          if (Array.isArray(parsed)) setPrescriptions(parsed);
+        } else if (e.key === 'beli_ad_banner') {
+          const parsed = JSON.parse(e.newValue);
+          if (parsed) setAdBanner(parsed);
+        } else if (e.key === 'beli_hero_banner') {
+          const parsed = JSON.parse(e.newValue);
+          if (parsed) setHeroBanner(parsed);
+        } else if (e.key === 'beli_coupons') {
+          const parsed = JSON.parse(e.newValue);
+          if (Array.isArray(parsed)) setCoupons(parsed);
+        }
+      } catch (err) {}
+    };
+    window.addEventListener('storage', handleStorageChange);
+
+    // 3. Connect to live real-time stream (BroadcastChannel + Cloud SSE)
     const unsubscribeSSE = subscribeLiveSync((event) => {
       if (isMounted) {
         handleIncomingSyncEvent(event);
@@ -1705,7 +1822,8 @@ export const ShopProvider = ({ children }) => {
 
     return () => {
       isMounted = false;
-      window.removeEventListener('focus', syncCloudDataOnce);
+      window.removeEventListener('focus', handleWindowFocus);
+      window.removeEventListener('storage', handleStorageChange);
       unsubscribeSSE();
     };
   }, []);
@@ -1929,16 +2047,25 @@ export const ShopProvider = ({ children }) => {
   };
 
   const updateOrderPaymentMethod = (orderId, paymentMethod, trxId = 'N/A', isConfirmed = true) => {
+    let target = null;
     setOrders(prev => {
-      const next = prev.map(o => o.id === orderId ? { 
-        ...o, 
-        paymentMethod, 
-        trxId: trxId || o.trxId || 'N/A',
-        paymentConfirmed: isConfirmed
-      } : o);
+      const next = prev.map(o => {
+        if (o.id === orderId) {
+          target = { 
+            ...o, 
+            paymentMethod, 
+            trxId: trxId || o.trxId || 'N/A',
+            paymentConfirmed: isConfirmed
+          };
+          return target;
+        }
+        return o;
+      });
       safeSetItem('beli_orders', JSON.stringify(next));
-      const target = next.find(o => o.id === orderId);
-      if (target) saveCloudOrder(target);
+      if (target) {
+        saveCloudOrder(target);
+        publishLiveSync({ type: 'ORDER_UPDATED', order: target });
+      }
       return next;
     });
     showToast(
@@ -1950,11 +2077,20 @@ export const ShopProvider = ({ children }) => {
   };
 
   const updatePrescriptionStatus = (rxId, newStatus) => {
+    let target = null;
     setPrescriptions(prev => {
-      const next = prev.map(rx => rx.id === rxId ? { ...rx, status: newStatus } : rx);
+      const next = prev.map(rx => {
+        if (rx.id === rxId) {
+          target = { ...rx, status: newStatus };
+          return target;
+        }
+        return rx;
+      });
       safeSetItem('beli_prescriptions', JSON.stringify(next));
-      const target = next.find(rx => rx.id === rxId);
-      if (target) saveCloudPrescription(target);
+      if (target) {
+        saveCloudPrescription(target);
+        publishLiveSync({ type: 'PRESCRIPTION_UPDATED', prescription: target });
+      }
       return next;
     });
     showToast(`Prescription ${rxId} updated to ${newStatus}`, 'info');
@@ -1985,6 +2121,7 @@ export const ShopProvider = ({ children }) => {
             processedAt: new Date().toLocaleString('en-GB')
           };
           saveCloudPrescription(uRx);
+          publishLiveSync({ type: 'PRESCRIPTION_UPDATED', prescription: uRx });
           return uRx;
         }
         return rx;
@@ -2013,6 +2150,7 @@ export const ShopProvider = ({ children }) => {
             voiceNoteUpdatedAt: new Date().toLocaleString('en-GB')
           };
           saveCloudPrescription(uRx);
+          publishLiveSync({ type: 'PRESCRIPTION_UPDATED', prescription: uRx });
           return uRx;
         }
         return rx;
@@ -2037,6 +2175,7 @@ export const ShopProvider = ({ children }) => {
             status: 'Added to Cart'
           };
           saveCloudPrescription(uRx);
+          publishLiveSync({ type: 'PRESCRIPTION_UPDATED', prescription: uRx });
           return uRx;
         }
         return rx;
@@ -2220,7 +2359,12 @@ export const ShopProvider = ({ children }) => {
   };
 
   const deleteMedicine = (medId) => {
-    setMedicines(prev => prev.filter(m => m.id !== medId));
+    setMedicines(prev => {
+      const next = prev.filter(m => m.id !== medId);
+      safeSetItem('beli_medicines', JSON.stringify(next));
+      return next;
+    });
+    publishLiveSync({ type: 'MEDICINE_DELETED', medicineId: medId });
     showToast(lang === 'bn' ? 'ওষুধ ডিলিট করা হয়েছে' : 'Medicine deleted', 'info');
   };
 

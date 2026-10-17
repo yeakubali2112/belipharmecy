@@ -5,6 +5,17 @@ const PROJECT_ID = 'beli-pharmacy';
 const API_KEY = 'AIzaSyCAiNB0xZuLSDKt79nDbsSyGuvdtxdX67w';
 const BASE_URL = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents`;
 
+let quotaExceededUntil = 0;
+
+const isQuotaBlocked = () => {
+  return Date.now() < quotaExceededUntil;
+};
+
+const markQuotaExceeded = () => {
+  quotaExceededUntil = Date.now() + 10 * 60 * 1000; // 10 minutes cooldown
+  console.warn('[Firestore Cloud] Daily quota reached (429). Switched to instant local & multi-tab sync.');
+};
+
 /**
  * Encodes JavaScript object into Firestore document representation
  */
@@ -36,20 +47,24 @@ const fromFirestoreDoc = (doc) => {
 // ==========================================
 
 export const fetchCloudOrders = async () => {
+  if (isQuotaBlocked()) return null;
   try {
     const res = await fetch(`${BASE_URL}/orders?key=${API_KEY}&pageSize=100`, { cache: 'no-store' });
+    if (res.status === 429) {
+      markQuotaExceeded();
+      return null;
+    }
     if (!res.ok) return null;
     const data = await res.json();
     if (!data.documents) return [];
     return data.documents.map(fromFirestoreDoc).filter(Boolean);
   } catch (err) {
-    console.error('Cloud fetch orders error:', err);
     return null;
   }
 };
 
 export const saveCloudOrder = async (order) => {
-  if (!order || !order.id) return false;
+  if (!order || !order.id || isQuotaBlocked()) return false;
   try {
     const docId = encodeURIComponent(order.id);
     const res = await fetch(`${BASE_URL}/orders/${docId}?key=${API_KEY}`, {
@@ -57,9 +72,12 @@ export const saveCloudOrder = async (order) => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(toFirestoreDoc(order))
     });
+    if (res.status === 429) {
+      markQuotaExceeded();
+      return false;
+    }
     return res.ok;
   } catch (err) {
-    console.error('Cloud save order error:', err);
     return false;
   }
 };
@@ -69,20 +87,24 @@ export const saveCloudOrder = async (order) => {
 // ==========================================
 
 export const fetchCloudPrescriptions = async () => {
+  if (isQuotaBlocked()) return null;
   try {
     const res = await fetch(`${BASE_URL}/prescriptions?key=${API_KEY}&pageSize=100`, { cache: 'no-store' });
+    if (res.status === 429) {
+      markQuotaExceeded();
+      return null;
+    }
     if (!res.ok) return null;
     const data = await res.json();
     if (!data.documents) return [];
     return data.documents.map(fromFirestoreDoc).filter(Boolean);
   } catch (err) {
-    console.error('Cloud fetch prescriptions error:', err);
     return null;
   }
 };
 
 export const saveCloudPrescription = async (prescription) => {
-  if (!prescription || !prescription.id) return false;
+  if (!prescription || !prescription.id || isQuotaBlocked()) return false;
   try {
     const docId = encodeURIComponent(prescription.id);
     const res = await fetch(`${BASE_URL}/prescriptions/${docId}?key=${API_KEY}`, {
@@ -90,9 +112,12 @@ export const saveCloudPrescription = async (prescription) => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(toFirestoreDoc(prescription))
     });
+    if (res.status === 429) {
+      markQuotaExceeded();
+      return false;
+    }
     return res.ok;
   } catch (err) {
-    console.error('Cloud save prescription error:', err);
     return false;
   }
 };
@@ -102,27 +127,35 @@ export const saveCloudPrescription = async (prescription) => {
 // ==========================================
 
 export const fetchCloudSettings = async () => {
+  if (isQuotaBlocked()) return null;
   try {
     const res = await fetch(`${BASE_URL}/settings/global?key=${API_KEY}`, { cache: 'no-store' });
+    if (res.status === 429) {
+      markQuotaExceeded();
+      return null;
+    }
     if (!res.ok) return null;
     const data = await res.json();
     return fromFirestoreDoc(data);
   } catch (err) {
-    console.error('Cloud fetch settings error:', err);
     return null;
   }
 };
 
 export const saveCloudSettings = async (settings) => {
+  if (isQuotaBlocked()) return false;
   try {
     const res = await fetch(`${BASE_URL}/settings/global?key=${API_KEY}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(toFirestoreDoc(settings))
     });
+    if (res.status === 429) {
+      markQuotaExceeded();
+      return false;
+    }
     return res.ok;
   } catch (err) {
-    console.error('Cloud save settings error:', err);
     return false;
   }
 };
@@ -132,20 +165,24 @@ export const saveCloudSettings = async (settings) => {
 // ==========================================
 
 export const fetchCloudCustomers = async () => {
+  if (isQuotaBlocked()) return null;
   try {
     const res = await fetch(`${BASE_URL}/customers?key=${API_KEY}&pageSize=300`, { cache: 'no-store' });
+    if (res.status === 429) {
+      markQuotaExceeded();
+      return null;
+    }
     if (!res.ok) return null;
     const data = await res.json();
     if (!data.documents) return [];
     return data.documents.map(fromFirestoreDoc).filter(Boolean);
   } catch (err) {
-    console.error('Cloud fetch customers error:', err);
     return null;
   }
 };
 
 export const saveCloudCustomer = async (customer) => {
-  if (!customer || !customer.phone) return false;
+  if (!customer || !customer.phone || isQuotaBlocked()) return false;
   try {
     const cleanId = String(customer.phone).trim().replace(/[^0-9+]/g, '');
     const docId = encodeURIComponent(cleanId);
@@ -154,24 +191,30 @@ export const saveCloudCustomer = async (customer) => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(toFirestoreDoc({ id: cleanId, ...customer }))
     });
+    if (res.status === 429) {
+      markQuotaExceeded();
+      return false;
+    }
     return res.ok;
   } catch (err) {
-    console.error('Cloud save customer error:', err);
     return false;
   }
 };
 
 export const deleteCloudCustomer = async (phone) => {
-  if (!phone) return false;
+  if (!phone || isQuotaBlocked()) return false;
   try {
     const cleanId = String(phone).trim().replace(/[^0-9+]/g, '');
     const docId = encodeURIComponent(cleanId);
     const res = await fetch(`${BASE_URL}/customers/${docId}?key=${API_KEY}`, {
       method: 'DELETE'
     });
+    if (res.status === 429) {
+      markQuotaExceeded();
+      return false;
+    }
     return res.ok;
   } catch (err) {
-    console.error('Cloud delete customer error:', err);
     return false;
   }
 };
@@ -181,6 +224,7 @@ export const deleteCloudCustomer = async (phone) => {
 // ==========================================
 
 export const fetchCloudMedicines = async () => {
+  if (isQuotaBlocked()) return null;
   try {
     let allDocs = [];
     let pageToken = '';
@@ -188,6 +232,10 @@ export const fetchCloudMedicines = async () => {
     do {
       const url = `${BASE_URL}/medicines?key=${API_KEY}&pageSize=300${pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : ''}`;
       const res = await fetch(url, { cache: 'no-store' });
+      if (res.status === 429) {
+        markQuotaExceeded();
+        return null;
+      }
       if (!res.ok) break;
       const data = await res.json();
       if (data.documents && Array.isArray(data.documents)) {
@@ -199,13 +247,12 @@ export const fetchCloudMedicines = async () => {
 
     return allDocs.map(fromFirestoreDoc).filter(Boolean);
   } catch (err) {
-    console.warn('fetchCloudMedicines error:', err);
     return null;
   }
 };
 
 export const saveCloudMedicine = async (medicine) => {
-  if (!medicine || !medicine.id) return false;
+  if (!medicine || !medicine.id || isQuotaBlocked()) return false;
   try {
     const docId = encodeURIComponent(medicine.id);
     const res = await fetch(`${BASE_URL}/medicines/${docId}?key=${API_KEY}`, {
@@ -213,12 +260,12 @@ export const saveCloudMedicine = async (medicine) => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(toFirestoreDoc(medicine))
     });
-    if (!res.ok) {
-      console.warn(`saveCloudMedicine failed for ${medicine.id}:`, res.status, res.statusText);
+    if (res.status === 429) {
+      markQuotaExceeded();
+      return false;
     }
     return res.ok;
   } catch (err) {
-    console.error(`saveCloudMedicine network error for ${medicine.id}:`, err);
     return false;
   }
 };
