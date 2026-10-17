@@ -348,23 +348,101 @@ export const ShopProvider = ({ children }) => {
     }
   };
 
-  // Admin authentication (yeakub007 / 1234)
+  // Default Initial Admin User
+  const DEFAULT_ADMIN_USERS = [
+    {
+      id: 'usr_super_yeakub',
+      name: 'Yeakub Ahmed',
+      username: 'yeakub007',
+      password: '1234',
+      role: 'Super Admin',
+      roleBn: 'সুপার অ্যাডমিন (মালিক)',
+      phone: '01774 961757',
+      isSuperAdmin: true,
+      status: 'active',
+      avatar: 'Y',
+      permissions: [
+        'overview',
+        'sell',
+        'restock',
+        'orders',
+        'prescriptions',
+        'customers',
+        'medicines',
+        'coupons',
+        'ads',
+        'settings',
+        'users'
+      ],
+      createdAt: '2024-01-01'
+    }
+  ];
+
+  // Admin authentication & Role-Based Access Control (RBAC) users
+  const [adminUsers, setAdminUsers] = useState(() => {
+    try {
+      const saved = localStorage.getItem('beli_admin_users');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const hasSuper = parsed.some(u => u.isSuperAdmin || u.username === 'yeakub007');
+          if (!hasSuper) {
+            return [DEFAULT_ADMIN_USERS[0], ...parsed];
+          }
+          return parsed;
+        }
+      }
+    } catch {}
+    return DEFAULT_ADMIN_USERS;
+  });
+
   const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(() => {
     return localStorage.getItem('beli_admin_auth') === 'true';
   });
 
+  const [currentAdminUser, setCurrentAdminUser] = useState(() => {
+    try {
+      const saved = localStorage.getItem('beli_current_admin_user');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && parsed.username) return parsed;
+      }
+    } catch {}
+    if (localStorage.getItem('beli_admin_auth') === 'true') {
+      return DEFAULT_ADMIN_USERS[0];
+    }
+    return null;
+  });
+
+  const [previewOriginalUser, setPreviewOriginalUser] = useState(null);
+
   const adminLogin = (username, password) => {
-    const cleanUser = String(username || '').trim();
+    const cleanUser = String(username || '').trim().toLowerCase();
     const cleanPass = String(password || '').trim();
 
-    if (
-      cleanUser.toLowerCase() === String(PHARMACY_CONFIG.adminUsername).toLowerCase() && 
-      cleanPass === String(PHARMACY_CONFIG.adminPassword)
-    ) {
+    // Check against all registered users
+    let matchedUser = adminUsers.find(
+      u => String(u.username || '').trim().toLowerCase() === cleanUser && String(u.password || '').trim() === cleanPass
+    );
+
+    // Also support default admin credentials from PHARMACY_CONFIG
+    if (!matchedUser && cleanUser === String(PHARMACY_CONFIG.adminUsername).toLowerCase() && cleanPass === String(PHARMACY_CONFIG.adminPassword)) {
+      matchedUser = adminUsers.find(u => u.isSuperAdmin) || DEFAULT_ADMIN_USERS[0];
+    }
+
+    if (matchedUser) {
+      if (matchedUser.status === 'inactive') {
+        showToast(lang === 'bn' ? 'এই ইউজার অ্যাকাউন্টটি নিষ্ক্রিয় (Inactive) করা হয়েছে! অ্যাডমিনের সাথে যোগাযোগ করুন।' : 'This account is deactivated! Contact admin.', 'error');
+        return { success: false, error: 'এই অ্যাকাউন্টটি নিষ্ক্রিয় করা হয়েছে! অ্যাডমিনের সাথে যোগাযোগ করুন।' };
+      }
+
       setIsAdminAuthenticated(true);
+      setCurrentAdminUser(matchedUser);
+      setPreviewOriginalUser(null);
       localStorage.setItem('beli_admin_auth', 'true');
-      showToast(lang === 'bn' ? 'অ্যাডমিন লগইন সফল হয়েছে!' : 'Admin logged in successfully!', 'success');
-      return { success: true };
+      localStorage.setItem('beli_current_admin_user', JSON.stringify(matchedUser));
+      showToast(lang === 'bn' ? `স্বাগতম, ${matchedUser.name}! লগইন সফল হয়েছে।` : `Welcome, ${matchedUser.name}! Login successful.`, 'success');
+      return { success: true, user: matchedUser };
     } else {
       showToast(lang === 'bn' ? 'ভুল ইউজারনেম বা পাসওয়ার্ড!' : 'Invalid username or password!', 'error');
       return { success: false, error: 'ভুল ব্যবহারকারী নাম অথবা পাসওয়ার্ড!' };
@@ -373,8 +451,129 @@ export const ShopProvider = ({ children }) => {
 
   const adminLogout = () => {
     setIsAdminAuthenticated(false);
+    setCurrentAdminUser(null);
+    setPreviewOriginalUser(null);
     localStorage.removeItem('beli_admin_auth');
+    localStorage.removeItem('beli_current_admin_user');
     showToast(lang === 'bn' ? 'অ্যাডমিন থেকে লগআউট করা হয়েছে' : 'Logged out from Admin', 'info');
+  };
+
+  const addAdminUser = (userData) => {
+    const cleanUsername = String(userData.username || '').trim().toLowerCase();
+    if (!cleanUsername) {
+      showToast(lang === 'bn' ? 'ইউজারনেম দেওয়া আবশ্যক!' : 'Username is required!', 'error');
+      return { success: false, error: 'ইউজারনেম আবশ্যক' };
+    }
+    if (adminUsers.some(u => String(u.username).trim().toLowerCase() === cleanUsername)) {
+      showToast(lang === 'bn' ? 'এই ইউজারনেমটি ইতিমধ্যে ব্যবহৃত হচ্ছে!' : 'Username already exists!', 'error');
+      return { success: false, error: 'এই ইউজারনেমটি আগে থেকেই বিদ্যমান' };
+    }
+
+    const newUser = {
+      id: `usr_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
+      name: userData.name?.trim() || cleanUsername,
+      username: cleanUsername,
+      password: String(userData.password || '123456').trim(),
+      role: userData.role?.trim() || 'স্টাফ',
+      phone: userData.phone?.trim() || '',
+      isSuperAdmin: false,
+      status: userData.status || 'active',
+      avatar: (userData.name?.trim() || 'S').charAt(0).toUpperCase(),
+      permissions: Array.isArray(userData.permissions) && userData.permissions.length > 0 
+        ? userData.permissions 
+        : ['sell', 'medicines'],
+      createdAt: new Date().toISOString()
+    };
+
+    const updated = [...adminUsers, newUser];
+    setAdminUsers(updated);
+    safeSetItem('beli_admin_users', JSON.stringify(updated));
+    saveCloudSettings({ deliverySettings, coupons, adBanner, heroBanner, adminUsers: updated });
+    showToast(lang === 'bn' ? `নতুন প্রোফাইল "${newUser.name}" সফলভাবে যুক্ত হয়েছে!` : 'User profile created!', 'success');
+    return { success: true, user: newUser };
+  };
+
+  const updateAdminUser = (userId, updatedData) => {
+    const updated = adminUsers.map(u => {
+      if (u.id === userId) {
+        return {
+          ...u,
+          ...updatedData,
+          isSuperAdmin: u.isSuperAdmin ? true : !!updatedData.isSuperAdmin,
+          permissions: u.isSuperAdmin ? DEFAULT_ADMIN_USERS[0].permissions : (updatedData.permissions || u.permissions)
+        };
+      }
+      return u;
+    });
+
+    setAdminUsers(updated);
+    safeSetItem('beli_admin_users', JSON.stringify(updated));
+    saveCloudSettings({ deliverySettings, coupons, adBanner, heroBanner, adminUsers: updated });
+
+    if (currentAdminUser && currentAdminUser.id === userId) {
+      const me = updated.find(u => u.id === userId);
+      if (me) {
+        setCurrentAdminUser(me);
+        localStorage.setItem('beli_current_admin_user', JSON.stringify(me));
+      }
+    }
+
+    showToast(lang === 'bn' ? 'ইউজার প্রোফাইল ও পারমিশন সফলভাবে আপডেট হয়েছে!' : 'User profile updated!', 'success');
+    return { success: true };
+  };
+
+  const deleteAdminUser = (userId) => {
+    const target = adminUsers.find(u => u.id === userId);
+    if (!target) return { success: false };
+    if (target.isSuperAdmin) {
+      showToast(lang === 'bn' ? 'সুপার অ্যাডমিন ডিলিট করা যাবে না!' : 'Cannot delete Super Admin!', 'error');
+      return { success: false, error: 'Cannot delete super admin' };
+    }
+
+    const updated = adminUsers.filter(u => u.id !== userId);
+    setAdminUsers(updated);
+    safeSetItem('beli_admin_users', JSON.stringify(updated));
+    saveCloudSettings({ deliverySettings, coupons, adBanner, heroBanner, adminUsers: updated });
+
+    if (currentAdminUser && currentAdminUser.id === userId) {
+      const superAdmin = updated.find(u => u.isSuperAdmin) || DEFAULT_ADMIN_USERS[0];
+      setCurrentAdminUser(superAdmin);
+      localStorage.setItem('beli_current_admin_user', JSON.stringify(superAdmin));
+    }
+
+    showToast(lang === 'bn' ? `প্রোফাইল "${target.name}" ডিলিট করা হয়েছে!` : 'User profile deleted!', 'info');
+    return { success: true };
+  };
+
+  const toggleAdminUserStatus = (userId) => {
+    const target = adminUsers.find(u => u.id === userId);
+    if (!target) return;
+    if (target.isSuperAdmin) {
+      showToast(lang === 'bn' ? 'সুপার অ্যাডমিন নিষ্ক্রিয় করা যাবে না!' : 'Cannot deactivate Super Admin!', 'error');
+      return;
+    }
+    const newStatus = target.status === 'active' ? 'inactive' : 'active';
+    updateAdminUser(userId, { status: newStatus });
+  };
+
+  const switchAdminUser = (userId) => {
+    const target = adminUsers.find(u => u.id === userId);
+    if (!target) return false;
+    if (!previewOriginalUser && currentAdminUser?.isSuperAdmin) {
+      setPreviewOriginalUser(currentAdminUser);
+    }
+    setCurrentAdminUser(target);
+    localStorage.setItem('beli_current_admin_user', JSON.stringify(target));
+    showToast(lang === 'bn' ? `সুইচ করা হয়েছে: ${target.name} (${target.role || 'স্টাফ'})` : `Switched to ${target.name}`, 'info');
+    return true;
+  };
+
+  const exitUserPreview = () => {
+    const original = previewOriginalUser || adminUsers.find(u => u.isSuperAdmin) || DEFAULT_ADMIN_USERS[0];
+    setCurrentAdminUser(original);
+    setPreviewOriginalUser(null);
+    localStorage.setItem('beli_current_admin_user', JSON.stringify(original));
+    showToast(lang === 'bn' ? 'সুপার অ্যাডমিন প্রোফাইলে ফিরে আসা হয়েছে!' : 'Returned to Super Admin!', 'success');
   };
 
   // Customer Profile functions
@@ -1284,6 +1483,17 @@ export const ShopProvider = ({ children }) => {
             setHeroBanner(cloudSettings.heroBanner);
             safeSetItem('beli_hero_banner', JSON.stringify(cloudSettings.heroBanner));
           }
+          if (cloudSettings.adminUsers && Array.isArray(cloudSettings.adminUsers) && cloudSettings.adminUsers.length > 0) {
+            setAdminUsers(prev => {
+              const map = new Map();
+              DEFAULT_ADMIN_USERS.forEach(u => map.set(u.id, u));
+              prev.forEach(u => map.set(u.id, u));
+              cloudSettings.adminUsers.forEach(u => map.set(u.id, u));
+              const merged = Array.from(map.values());
+              safeSetItem('beli_admin_users', JSON.stringify(merged));
+              return merged;
+            });
+          }
         }
       } catch (err) {
         // Fallback silently
@@ -1900,6 +2110,17 @@ export const ShopProvider = ({ children }) => {
       setIsAdminAuthenticated,
       adminLogin,
       adminLogout,
+      adminUsers,
+      setAdminUsers,
+      currentAdminUser,
+      setCurrentAdminUser,
+      previewOriginalUser,
+      addAdminUser,
+      updateAdminUser,
+      deleteAdminUser,
+      toggleAdminUserStatus,
+      switchAdminUser,
+      exitUserPreview,
 
       // Search & Filter
       searchQuery,

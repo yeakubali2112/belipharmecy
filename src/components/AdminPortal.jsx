@@ -64,7 +64,9 @@ import {
   ArrowUp,
   ArrowDown,
   Cloud,
-  RefreshCw
+  RefreshCw,
+  UserCheck,
+  ShieldAlert
 } from 'lucide-react';
 import { useShop } from '../context/ShopContext';
 import { CATEGORIES } from '../data/medicines';
@@ -72,6 +74,7 @@ import { PRESET_AVATARS } from '../data/avatars';
 import { searchMedicines, mergeSearchResults, fetchMedexSearchResults } from '../utils/medicineSearch';
 import { VoiceNotePlayer } from './VoiceNotePlayer';
 import { convertFileToBase64, createSyntheticVoiceAudio } from '../utils/voiceNoteHelper';
+import { AdminUserManagement } from './AdminUserManagement';
 
 export const AdminPortal = () => {
   const { 
@@ -114,6 +117,11 @@ export const AdminPortal = () => {
     isAdminAuthenticated,
     adminLogin,
     adminLogout,
+    adminUsers,
+    currentAdminUser,
+    previewOriginalUser,
+    exitUserPreview,
+    switchAdminUser,
     lang 
   } = useShop();
 
@@ -123,8 +131,35 @@ export const AdminPortal = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [loginError, setLoginError] = useState('');
 
-  // Dashboard active tab: 'overview', 'orders', 'prescriptions', 'medicines', 'coupons', 'settings'
+  // Dashboard active tab: 'overview', 'orders', 'prescriptions', 'medicines', 'coupons', 'settings', 'users'
   const [activeTab, setActiveTab] = useState('overview');
+
+  // Settings internal sub-tab: 'profile' or 'users'
+  const [settingsSubTab, setSettingsSubTab] = useState('profile');
+
+  // RBAC Permission Check Helper
+  const canAccessTab = (tabId) => {
+    if (!currentAdminUser) return true;
+    if (currentAdminUser.isSuperAdmin) return true;
+    const perms = currentAdminUser.permissions || [];
+    if (tabId === 'users') {
+      return perms.includes('users') || perms.includes('settings');
+    }
+    return perms.includes(tabId);
+  };
+
+  // Auto-switch to first permitted tab if activeTab is not allowed
+  useEffect(() => {
+    if (currentAdminUser && !currentAdminUser.isSuperAdmin) {
+      if (!canAccessTab(activeTab)) {
+        const priorityOrder = ['sell', 'medicines', 'orders', 'prescriptions', 'restock', 'customers', 'coupons', 'ads', 'overview', 'settings', 'users'];
+        const first = priorityOrder.find(t => canAccessTab(t));
+        if (first) {
+          setActiveTab(first);
+        }
+      }
+    }
+  }, [currentAdminUser, activeTab]);
 
   // Delivery Settings Form State
   const [deliveryForm, setDeliveryForm] = useState({
@@ -1879,7 +1914,7 @@ export const AdminPortal = () => {
       supplier: restockSupplier,
       purchasePrice: restockPurchasePrice,
       note: restockNote,
-      adminUser: 'yeakub007'
+      adminUser: currentAdminUser?.username || 'yeakub007'
     });
 
     if (res && res.success) {
@@ -1904,7 +1939,7 @@ export const AdminPortal = () => {
 
     restockMedicine(med, val, {
       unitLabel: 'পিস',
-      adminUser: 'yeakub007',
+      adminUser: currentAdminUser?.username || 'yeakub007',
       note: 'কুইক স্টক ইন'
     });
 
@@ -2031,26 +2066,53 @@ export const AdminPortal = () => {
             )}
 
             {/* Credentials Info Box */}
-            <div 
-              onClick={() => {
-                setUsername('yeakub007');
-                setPassword('1234');
-                setLoginError('');
-              }}
-              className="bg-[#123184]/5 hover:bg-[#123184]/10 border border-[#123184]/15 rounded-2xl p-3 text-xs text-slate-600 space-y-1 cursor-pointer transition-colors"
-              title="ক্লিক করে তথ্য পূরণ করুন"
-            >
+            <div className="bg-[#123184]/5 border border-[#123184]/15 rounded-2xl p-3 text-xs text-slate-600 space-y-2">
               <div className="flex items-center justify-between">
                 <span className="font-bold text-[#123184] flex items-center gap-1">
                   <ShieldCheck className="w-3.5 h-3.5 text-[#02975E]" />
-                  নির্ধারিত লগইন তথ্য:
+                  সুপার অ্যাডমিন লগইন:
                 </span>
-                <span className="text-[10px] text-[#02975E] font-bold bg-[#02975E]/10 px-2 py-0.5 rounded-full">
-                  ক্লিক করে অটো-ফিল ⚡
-                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setUsername('yeakub007');
+                    setPassword('1234');
+                    setLoginError('');
+                  }}
+                  className="text-[10px] text-[#02975E] font-bold bg-[#02975E]/10 hover:bg-[#02975E]/20 px-2 py-0.5 rounded-full cursor-pointer transition-colors"
+                >
+                  অটো-ফিল ⚡
+                </button>
               </div>
-              <p>ইউজারনেম: <code className="font-mono font-bold text-[#123184] bg-white px-1.5 py-0.5 rounded border border-slate-200">yeakub007</code></p>
-              <p>পাসওয়ার্ড: <code className="font-mono font-bold text-[#02975E] bg-white px-1.5 py-0.5 rounded border border-slate-200">1234</code></p>
+              <div className="flex items-center justify-between font-mono text-[11px] pt-1 border-t border-slate-200/80">
+                <span>User: <strong className="text-[#123184]">yeakub007</strong></span>
+                <span>Pass: <strong className="text-[#02975E]">1234</strong></span>
+              </div>
+
+              {adminUsers && adminUsers.filter(u => !u.isSuperAdmin).length > 0 && (
+                <div className="pt-2 border-t border-slate-200/80">
+                  <span className="text-[11px] font-bold text-slate-500 block mb-1">
+                    👥 তৈরি করা স্টাফ একাউন্ট (ক্লিক করে লগইন করুন):
+                  </span>
+                  <div className="flex flex-wrap gap-1">
+                    {adminUsers.filter(u => !u.isSuperAdmin).map(u => (
+                      <button
+                        key={u.id}
+                        type="button"
+                        onClick={() => {
+                          setUsername(u.username);
+                          setPassword(u.password);
+                          setLoginError('');
+                        }}
+                        className="px-2 py-0.5 rounded-md bg-white hover:bg-emerald-50 text-slate-700 hover:text-emerald-800 border border-slate-200 hover:border-emerald-300 text-[10px] font-bold cursor-pointer transition-colors"
+                        title={`${u.name} (${u.role})`}
+                      >
+                        @{u.username}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Submit Button in Brand Navy Blue */}
@@ -2104,154 +2166,200 @@ export const AdminPortal = () => {
 
           {/* Navigation Links */}
           <nav className="p-3 space-y-1.5 text-xs font-bold">
-            <button
-              onClick={() => setActiveTab('overview')}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all cursor-pointer text-left ${
-                activeTab === 'overview' 
-                  ? 'bg-white/20 text-white shadow-md backdrop-blur-xs border border-white/20' 
-                  : 'text-blue-100/80 hover:bg-white/10'
-              }`}
-            >
-              <BarChart3 className="w-4 h-4 text-emerald-300" />
-              <span>সামগ্রিক পরিসংখ্যান</span>
-            </button>
+            {canAccessTab('overview') && (
+              <button
+                onClick={() => setActiveTab('overview')}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all cursor-pointer text-left ${
+                  activeTab === 'overview' 
+                    ? 'bg-white/20 text-white shadow-md backdrop-blur-xs border border-white/20' 
+                    : 'text-blue-100/80 hover:bg-white/10'
+                }`}
+              >
+                <BarChart3 className="w-4 h-4 text-emerald-300" />
+                <span>সামগ্রিক পরিসংখ্যান</span>
+              </button>
+            )}
 
-            <button
-              onClick={() => setActiveTab('sell')}
-              className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-all cursor-pointer text-left ${
-                activeTab === 'sell' 
-                  ? 'bg-gradient-to-r from-emerald-500/35 to-teal-500/30 text-white shadow-md backdrop-blur-xs border border-emerald-400/40 font-bold' 
-                  : 'text-blue-100/80 hover:bg-white/10'
-              }`}
-            >
-              <span className="flex items-center gap-3">
-                <ShoppingCart className="w-4 h-4 text-emerald-300" />
-                <span>সেল (Sell / POS)</span>
-              </span>
-              <span className="bg-[#02975E] text-white text-[9px] px-2 py-0.5 rounded-full font-black tracking-wider uppercase shadow-xs">
-                Sell
-              </span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('restock')}
-              className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-all cursor-pointer text-left ${
-                activeTab === 'restock' 
-                  ? 'bg-gradient-to-r from-teal-500/35 to-emerald-500/35 text-white shadow-md backdrop-blur-xs border border-emerald-400/40 font-bold' 
-                  : 'text-blue-100/80 hover:bg-white/10'
-              }`}
-            >
-              <span className="flex items-center gap-3">
-                <PackagePlus className="w-4 h-4 text-emerald-300" />
-                <span>স্টক ইন ও রিস্টক</span>
-              </span>
-              <span className="bg-gradient-to-r from-teal-500 to-emerald-600 text-white text-[9px] px-2 py-0.5 rounded-full font-black tracking-wider uppercase shadow-xs">
-                Stock In
-              </span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('orders')}
-              className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-all cursor-pointer text-left ${
-                activeTab === 'orders' 
-                  ? 'bg-white/20 text-white shadow-md backdrop-blur-xs border border-white/20' 
-                  : 'text-blue-100/80 hover:bg-white/10'
-              }`}
-            >
-              <span className="flex items-center gap-3">
-                <Package className="w-4 h-4 text-emerald-300" />
-                <span>গ্রাহকের অর্ডার</span>
-              </span>
-              {pendingOrders > 0 && (
-                <span className="bg-rose-500 text-white text-[10px] px-1.5 py-0.2 rounded-full font-bold shadow-xs">
-                  {pendingOrders}
+            {canAccessTab('sell') && (
+              <button
+                onClick={() => setActiveTab('sell')}
+                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-all cursor-pointer text-left ${
+                  activeTab === 'sell' 
+                    ? 'bg-gradient-to-r from-emerald-500/35 to-teal-500/30 text-white shadow-md backdrop-blur-xs border border-emerald-400/40 font-bold' 
+                    : 'text-blue-100/80 hover:bg-white/10'
+                }`}
+              >
+                <span className="flex items-center gap-3">
+                  <ShoppingCart className="w-4 h-4 text-emerald-300" />
+                  <span>সেল (Sell / POS)</span>
                 </span>
-              )}
-            </button>
-
-            <button
-              onClick={() => setActiveTab('prescriptions')}
-              className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-all cursor-pointer text-left ${
-                activeTab === 'prescriptions' 
-                  ? 'bg-white/20 text-white shadow-md backdrop-blur-xs border border-white/20' 
-                  : 'text-blue-100/80 hover:bg-white/10'
-              }`}
-            >
-              <span className="flex items-center gap-3">
-                <FileText className="w-4 h-4 text-emerald-300" />
-                <span>প্রেসক্রিপশন সমূহ</span>
-              </span>
-              {pendingRx > 0 && (
-                <span className="bg-amber-400 text-slate-900 text-[10px] px-1.5 py-0.2 rounded-full font-bold shadow-xs">
-                  {pendingRx}
+                <span className="bg-[#02975E] text-white text-[9px] px-2 py-0.5 rounded-full font-black tracking-wider uppercase shadow-xs">
+                  Sell
                 </span>
-              )}
-            </button>
+              </button>
+            )}
 
-            <button
-              onClick={() => setActiveTab('customers')}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all cursor-pointer text-left ${
-                activeTab === 'customers' 
-                  ? 'bg-white/20 text-white shadow-md backdrop-blur-xs border border-white/20' 
-                  : 'text-blue-100/80 hover:bg-white/10'
-              }`}
-            >
-              <Users className="w-4 h-4 text-emerald-300" />
-              <span>গ্রাহক ম্যানেজমেন্ট</span>
-            </button>
+            {canAccessTab('restock') && (
+              <button
+                onClick={() => setActiveTab('restock')}
+                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-all cursor-pointer text-left ${
+                  activeTab === 'restock' 
+                    ? 'bg-gradient-to-r from-teal-500/35 to-emerald-500/35 text-white shadow-md backdrop-blur-xs border border-emerald-400/40 font-bold' 
+                    : 'text-blue-100/80 hover:bg-white/10'
+                }`}
+              >
+                <span className="flex items-center gap-3">
+                  <PackagePlus className="w-4 h-4 text-emerald-300" />
+                  <span>স্টক ইন ও রিস্টক</span>
+                </span>
+                <span className="bg-gradient-to-r from-teal-500 to-emerald-600 text-white text-[9px] px-2 py-0.5 rounded-full font-black tracking-wider uppercase shadow-xs">
+                  Stock In
+                </span>
+              </button>
+            )}
 
-            <button
-              onClick={() => setActiveTab('medicines')}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all cursor-pointer text-left ${
-                activeTab === 'medicines' 
-                  ? 'bg-white/20 text-white shadow-md backdrop-blur-xs border border-white/20' 
-                  : 'text-blue-100/80 hover:bg-white/10'
-              }`}
-            >
-              <Pill className="w-4 h-4 text-emerald-300" />
-              <span>ওষুধ ক্যাটালগ ও স্টক</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('coupons')}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all cursor-pointer text-left ${
-                activeTab === 'coupons' 
-                  ? 'bg-white/20 text-white shadow-md backdrop-blur-xs border border-white/20' 
-                  : 'text-blue-100/80 hover:bg-white/10'
-              }`}
-            >
-              <Tag className="w-4 h-4 text-emerald-300" />
-              <span>ডেলিভারি চার্জ ও কুপন কোড</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('ads')}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all cursor-pointer text-left ${
-                activeTab === 'ads' 
-                  ? 'bg-white/20 text-white shadow-md backdrop-blur-xs border border-white/20' 
-                  : 'text-blue-100/80 hover:bg-white/10'
-              }`}
-            >
-              <Sparkles className="w-4 h-4 text-amber-300" />
-              <div className="flex-1 flex items-center justify-between">
-                <span>ব্যানার ও অফার বিজ্ঞাপন</span>
-                {(adBanner?.isActive || heroBanner?.imageUrl) && (
-                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" title="ব্যানার বা বিজ্ঞাপন সক্রিয়" />
+            {canAccessTab('orders') && (
+              <button
+                onClick={() => setActiveTab('orders')}
+                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-all cursor-pointer text-left ${
+                  activeTab === 'orders' 
+                    ? 'bg-white/20 text-white shadow-md backdrop-blur-xs border border-white/20' 
+                    : 'text-blue-100/80 hover:bg-white/10'
+                }`}
+              >
+                <span className="flex items-center gap-3">
+                  <Package className="w-4 h-4 text-emerald-300" />
+                  <span>গ্রাহকের অর্ডার</span>
+                </span>
+                {pendingOrders > 0 && (
+                  <span className="bg-rose-500 text-white text-[10px] px-1.5 py-0.2 rounded-full font-bold shadow-xs">
+                    {pendingOrders}
+                  </span>
                 )}
-              </div>
-            </button>
+              </button>
+            )}
 
-            <button
-              onClick={() => setActiveTab('settings')}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all cursor-pointer text-left ${
-                activeTab === 'settings' 
-                  ? 'bg-white/20 text-white shadow-md backdrop-blur-xs border border-white/20' 
-                  : 'text-blue-100/80 hover:bg-white/10'
-              }`}
-            >
-              <Settings className="w-4 h-4 text-emerald-300" />
-              <span>ফার্মেসি সেটিংস ও প্রোফাইল</span>
-            </button>
+            {canAccessTab('prescriptions') && (
+              <button
+                onClick={() => setActiveTab('prescriptions')}
+                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-all cursor-pointer text-left ${
+                  activeTab === 'prescriptions' 
+                    ? 'bg-white/20 text-white shadow-md backdrop-blur-xs border border-white/20' 
+                    : 'text-blue-100/80 hover:bg-white/10'
+                }`}
+              >
+                <span className="flex items-center gap-3">
+                  <FileText className="w-4 h-4 text-emerald-300" />
+                  <span>প্রেসক্রিপশন সমূহ</span>
+                </span>
+                {pendingRx > 0 && (
+                  <span className="bg-amber-400 text-slate-900 text-[10px] px-1.5 py-0.2 rounded-full font-bold shadow-xs">
+                    {pendingRx}
+                  </span>
+                )}
+              </button>
+            )}
+
+            {canAccessTab('customers') && (
+              <button
+                onClick={() => setActiveTab('customers')}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all cursor-pointer text-left ${
+                  activeTab === 'customers' 
+                    ? 'bg-white/20 text-white shadow-md backdrop-blur-xs border border-white/20' 
+                    : 'text-blue-100/80 hover:bg-white/10'
+                }`}
+              >
+                <Users className="w-4 h-4 text-emerald-300" />
+                <span>গ্রাহক ম্যানেজমেন্ট</span>
+              </button>
+            )}
+
+            {canAccessTab('medicines') && (
+              <button
+                onClick={() => setActiveTab('medicines')}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all cursor-pointer text-left ${
+                  activeTab === 'medicines' 
+                    ? 'bg-white/20 text-white shadow-md backdrop-blur-xs border border-white/20' 
+                    : 'text-blue-100/80 hover:bg-white/10'
+                }`}
+              >
+                <Pill className="w-4 h-4 text-emerald-300" />
+                <span>ওষুধ ক্যাটালগ ও স্টক</span>
+              </button>
+            )}
+
+            {canAccessTab('coupons') && (
+              <button
+                onClick={() => setActiveTab('coupons')}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all cursor-pointer text-left ${
+                  activeTab === 'coupons' 
+                    ? 'bg-white/20 text-white shadow-md backdrop-blur-xs border border-white/20' 
+                    : 'text-blue-100/80 hover:bg-white/10'
+                }`}
+              >
+                <Tag className="w-4 h-4 text-emerald-300" />
+                <span>ডেলিভারি চার্জ ও কুপন কোড</span>
+              </button>
+            )}
+
+            {canAccessTab('ads') && (
+              <button
+                onClick={() => setActiveTab('ads')}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all cursor-pointer text-left ${
+                  activeTab === 'ads' 
+                    ? 'bg-white/20 text-white shadow-md backdrop-blur-xs border border-white/20' 
+                    : 'text-blue-100/80 hover:bg-white/10'
+                }`}
+              >
+                <Sparkles className="w-4 h-4 text-amber-300" />
+                <div className="flex-1 flex items-center justify-between">
+                  <span>ব্যানার ও অফার বিজ্ঞাপন</span>
+                  {(adBanner?.isActive || heroBanner?.imageUrl) && (
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" title="ব্যানার বা বিজ্ঞাপন সক্রিয়" />
+                  )}
+                </div>
+              </button>
+            )}
+
+            {canAccessTab('settings') && (
+              <button
+                onClick={() => {
+                  setActiveTab('settings');
+                  setSettingsSubTab('profile');
+                }}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all cursor-pointer text-left ${
+                  activeTab === 'settings' && settingsSubTab === 'profile'
+                    ? 'bg-white/20 text-white shadow-md backdrop-blur-xs border border-white/20' 
+                    : 'text-blue-100/80 hover:bg-white/10'
+                }`}
+              >
+                <Settings className="w-4 h-4 text-emerald-300" />
+                <span>ফার্মেসি সেটিংস ও প্রোফাইল</span>
+              </button>
+            )}
+
+            {/* Dedicated User & Staff Permission Option */}
+            {canAccessTab('users') && (
+              <button
+                onClick={() => {
+                  setActiveTab('users');
+                  setSettingsSubTab('users');
+                }}
+                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-all cursor-pointer text-left ${
+                  activeTab === 'users' || (activeTab === 'settings' && settingsSubTab === 'users')
+                    ? 'bg-gradient-to-r from-emerald-500/35 to-teal-500/30 text-white shadow-md backdrop-blur-xs border border-emerald-400/40 font-bold' 
+                    : 'text-blue-100/80 hover:bg-white/10'
+                }`}
+              >
+                <span className="flex items-center gap-3">
+                  <UserCheck className="w-4 h-4 text-emerald-300" />
+                  <span>ইউজার ও পারমিশন</span>
+                </span>
+                <span className="bg-emerald-500 text-white text-[9px] font-mono font-bold px-1.5 py-0.2 rounded-full shadow-xs">
+                  {adminUsers?.length || 1}
+                </span>
+              </button>
+            )}
           </nav>
         </div>
       </aside>
@@ -2259,6 +2367,24 @@ export const AdminPortal = () => {
       {/* Main Admin Workspace Area */}
       <main className="flex-1 flex flex-col min-w-0 overflow-y-auto">
         
+        {/* Preview Mode Notification Banner */}
+        {previewOriginalUser && (
+          <div className="bg-amber-400 text-slate-900 px-4 py-2 text-xs font-bold flex items-center justify-between shadow-sm sticky top-0 z-30">
+            <div className="flex items-center gap-2">
+              <Eye className="w-4 h-4 text-slate-900 shrink-0" />
+              <span>
+                👁️ প্রিভিউ মোড: আপনি বর্তমানে <strong>{currentAdminUser?.name}</strong> (@{currentAdminUser?.username} • {currentAdminUser?.role}) হিসেবে ভিউ করছেন।
+              </span>
+            </div>
+            <button
+              onClick={exitUserPreview}
+              className="bg-slate-900 hover:bg-slate-800 text-white px-3 py-1 rounded-lg text-xs font-black transition-colors cursor-pointer shrink-0 ml-2"
+            >
+              সুপার অ্যাডমিনে ফিরুন ⚡
+            </button>
+          </div>
+        )}
+
         {/* Top Header Bar */}
         <header className="bg-white border-b border-slate-200 px-6 py-3.5 flex flex-wrap justify-between items-center gap-4 sticky top-0 z-20">
           <div>
@@ -2272,7 +2398,8 @@ export const AdminPortal = () => {
               {activeTab === 'medicines' && 'ওষুধ ক্যাটালগ ও স্টক পরিচালনা'}
               {activeTab === 'coupons' && 'ডেলিভারি চার্জ ও কুপন কোড ব্যবস্থাপনা'}
               {activeTab === 'ads' && 'হিরো ব্যানার ব্যাকগ্রাউন্ড ও অফার বিজ্ঞাপন কন্ট্রোল'}
-              {activeTab === 'settings' && 'ফার্মেসি প্রোফাইল ও কনফিগারেশন'}
+              {activeTab === 'settings' && (settingsSubTab === 'users' ? 'ইউজার প্রোফাইল ও অপশন পারমিশন কন্ট্রোল' : 'ফার্মেসি প্রোফাইল ও কনফিগারেশন')}
+              {activeTab === 'users' && 'ইউজার প্রোফাইল ও অপশন পারমিশন কন্ট্রোল'}
             </h1>
             <span className="text-xs text-slate-500">
               বেলী ফার্মেসি ম্যানেজমেন্ট সিস্টেম • রিয়েল-টাইম লাইভ ডাটা
@@ -2282,15 +2409,17 @@ export const AdminPortal = () => {
           <div className="flex items-center gap-2.5 flex-wrap">
             {/* User Profile Badge */}
             <div className="flex items-center gap-2.5 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-none shadow-2xs">
-              <div className="w-8 h-8 rounded-none bg-[#02975E] text-white font-black flex items-center justify-center text-xs shrink-0 shadow-xs">
-                Y
+              <div className={`w-8 h-8 rounded-none text-white font-black flex items-center justify-center text-xs shrink-0 shadow-xs ${
+                currentAdminUser?.isSuperAdmin ? 'bg-[#02975E]' : 'bg-[#123184]'
+              }`}>
+                {currentAdminUser?.avatar || (currentAdminUser?.name ? currentAdminUser.name.charAt(0).toUpperCase() : 'U')}
               </div>
               <div className="text-left leading-tight">
                 <span className="text-xs font-black text-slate-900 block">
-                  Yeakub Ahmed
+                  {currentAdminUser?.name || 'Yeakub Ahmed'}
                 </span>
                 <span className="text-[10px] text-[#02975E] font-bold font-mono block">
-                  @yeakub007 (Admin)
+                  @{currentAdminUser?.username || 'yeakub007'} ({currentAdminUser?.role || 'Admin'})
                 </span>
               </div>
             </div>
@@ -6635,50 +6764,173 @@ export const AdminPortal = () => {
           )}
 
           {/* ================================================= */}
-          {/* TAB 5: PHARMACY SETTINGS & INFO */}
+          {/* TAB 5 & 6: PHARMACY SETTINGS & USER RBAC MANAGEMENT */}
           {/* ================================================= */}
-          {activeTab === 'settings' && (
-            <div className="space-y-4 max-w-3xl mx-auto w-full">
-              <div className="bg-white rounded-none border border-slate-200 p-6 shadow-xs space-y-4">
-                <h3 className="font-extrabold text-base text-[#123184]">ফার্মেসি প্রোফাইল ও লগইন বিবরণ</h3>
+          {(activeTab === 'settings' || activeTab === 'users') && (
+            <div className="space-y-6 max-w-5xl mx-auto w-full">
+              
+              {/* Internal Tab Switcher: Pharmacy Profile vs User RBAC */}
+              <div className="bg-white p-1.5 rounded-2xl border border-slate-200 shadow-xs flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveTab('settings');
+                    setSettingsSubTab('profile');
+                  }}
+                  className={`flex-1 py-2.5 px-4 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                    activeTab === 'settings' && settingsSubTab === 'profile'
+                      ? 'bg-[#123184] text-white shadow-md'
+                      : 'text-slate-600 hover:bg-slate-100'
+                  }`}
+                >
+                  <Settings className="w-4 h-4" />
+                  <span>ফার্মেসি প্রোফাইল ও কনফিগারেশন</span>
+                </button>
 
-                <div className="grid sm:grid-cols-2 gap-4 text-xs">
-                  <div className="p-3 rounded-none bg-slate-50 border border-slate-200">
-                    <span className="font-bold text-slate-500 block">ফার্মেসির নাম:</span>
-                    <span className="text-sm font-black text-slate-900">{config.name} ({config.nameBn})</span>
-                  </div>
-
-                  <div className="p-3 rounded-none bg-slate-50 border border-slate-200">
-                    <span className="font-bold text-slate-500 block">অফিসিয়াল স্লোগান:</span>
-                    <span className="text-sm font-black text-[#02975E]">{config.slogan}</span>
-                  </div>
-
-                  <div className="p-3 rounded-none bg-slate-50 border border-slate-200">
-                    <span className="font-bold text-slate-500 block">অ্যাডমিন আইডি (Username):</span>
-                    <code className="text-sm font-mono font-black text-[#123184]">{config.adminUsername}</code>
-                  </div>
-
-                  <div className="p-3 rounded-none bg-slate-50 border border-slate-200">
-                    <span className="font-bold text-slate-500 block">অ্যাডমিন পাসওয়ার্ড:</span>
-                    <code className="text-sm font-mono font-black text-[#02975E]">{config.adminPassword}</code>
-                  </div>
-
-                  <div className="p-3 rounded-none bg-slate-50 border border-slate-200">
-                    <span className="font-bold text-slate-500 block">হটলাইন ও ফোন:</span>
-                    <span className="text-sm font-black text-slate-900">{config.phone}</span>
-                  </div>
-
-                  <div className="p-3 rounded-none bg-slate-50 border border-slate-200">
-                    <span className="font-bold text-slate-500 block">বিকাশ ও নগদ পেমেন্ট নম্বর:</span>
-                    <span className="text-sm font-black text-slate-900">{config.bkashNumber}</span>
-                  </div>
-                </div>
-
-                <div className="pt-2 text-xs text-slate-500 border-t border-slate-100 flex items-center gap-2">
-                  <ShieldCheck className="w-4 h-4 text-[#02975E]" />
-                  <span>লাইসেন্স নং: DA-DH-2024-9182 • ড্রাগ কন্ট্রোল অ্যাডমিনিস্ট্রেশন</span>
-                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveTab('settings');
+                    setSettingsSubTab('users');
+                  }}
+                  className={`flex-1 py-2.5 px-4 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                    activeTab === 'users' || (activeTab === 'settings' && settingsSubTab === 'users')
+                      ? 'bg-gradient-to-r from-[#123184] to-[#02975E] text-white shadow-md'
+                      : 'text-slate-600 hover:bg-slate-100'
+                  }`}
+                >
+                  <UserCheck className="w-4 h-4" />
+                  <span>ইউজার প্রোফাইল ও পারমিশন কন্ট্রোল</span>
+                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-mono font-bold ${
+                    activeTab === 'users' || (activeTab === 'settings' && settingsSubTab === 'users')
+                      ? 'bg-white/20 text-white'
+                      : 'bg-emerald-100 text-emerald-800'
+                  }`}>
+                    {adminUsers?.length || 1} জন
+                  </span>
+                </button>
               </div>
+
+              {/* Sub-tab 1: Pharmacy Profile Info */}
+              {activeTab === 'settings' && settingsSubTab === 'profile' && (
+                <div className="space-y-4">
+                  <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-4">
+                    <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
+                      <div>
+                        <h3 className="font-extrabold text-base text-[#123184]">
+                          ফার্মেসি প্রোফাইল ও লগইন বিবরণ
+                        </h3>
+                        <p className="text-xs text-slate-500">
+                          বেলী ফার্মেসির প্রাতিষ্ঠানিক তথ্য ও লাইসেন্স বিবরণ
+                        </p>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => setSettingsSubTab('users')}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-[#02975E] font-bold text-xs border border-emerald-200 transition-colors cursor-pointer"
+                      >
+                        <UserCheck className="w-3.5 h-3.5" />
+                        <span>ইউজার ও স্টাফ পারমিশন পরিচালনা করুন →</span>
+                      </button>
+                    </div>
+
+                    <div className="grid sm:grid-cols-2 gap-4 text-xs">
+                      <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200">
+                        <span className="font-bold text-slate-500 block mb-0.5">ফার্মেসির নাম:</span>
+                        <span className="text-sm font-black text-slate-900">{config.name} ({config.nameBn})</span>
+                      </div>
+
+                      <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200">
+                        <span className="font-bold text-slate-500 block mb-0.5">অফিসিয়াল স্লোগান:</span>
+                        <span className="text-sm font-black text-[#02975E]">{config.slogan}</span>
+                      </div>
+
+                      <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200">
+                        <span className="font-bold text-slate-500 block mb-0.5">সুপার অ্যাডমিন আইডি (Username):</span>
+                        <code className="text-sm font-mono font-black text-[#123184]">{config.adminUsername}</code>
+                      </div>
+
+                      <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200">
+                        <span className="font-bold text-slate-500 block mb-0.5">সুপার অ্যাডমিন পাসওয়ার্ড:</span>
+                        <code className="text-sm font-mono font-black text-[#02975E]">{config.adminPassword}</code>
+                      </div>
+
+                      <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200">
+                        <span className="font-bold text-slate-500 block mb-0.5">হটলাইন ও ফোন:</span>
+                        <span className="text-sm font-black text-slate-900">{config.phone}</span>
+                      </div>
+
+                      <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200">
+                        <span className="font-bold text-slate-500 block mb-0.5">বিকাশ ও নগদ পেমেন্ট নম্বর:</span>
+                        <span className="text-sm font-black text-slate-900">{config.bkashNumber}</span>
+                      </div>
+                    </div>
+
+                    <div className="pt-2 text-xs text-slate-500 border-t border-slate-100 flex items-center gap-2">
+                      <ShieldCheck className="w-4 h-4 text-[#02975E]" />
+                      <span>লাইসেন্স নং: DA-DH-2024-9182 • ড্রাগ কন্ট্রোল অ্যাডমিনিস্ট্রেশন</span>
+                    </div>
+                  </div>
+
+                  {/* Promo Callout to User Management */}
+                  <div className="bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-blue-500/10 border border-emerald-200 p-5 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4">
+                    <div className="flex items-center gap-3.5">
+                      <div className="w-12 h-12 rounded-2xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-md">
+                        <UserCheck className="w-6 h-6" />
+                      </div>
+                      <div>
+                        <h4 className="font-extrabold text-slate-900 text-sm sm:text-base">
+                          নতুন ইউজার প্রোফাইল ও পারমিশন কন্ট্রোল
+                        </h4>
+                        <p className="text-xs text-slate-600">
+                          আপনার ফার্মেসির সেলসম্যান, ক্যাশিয়ার বা স্টাফদের আলাদা অ্যাকাউন্ট দিন এবং তারা কোন কোন অপশন দেখতে পারবে তা নির্ধারণ করুন।
+                        </p>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => setSettingsSubTab('users')}
+                      className="px-5 py-2.5 rounded-xl bg-[#02975E] hover:bg-[#028352] text-white font-extrabold text-xs shadow-md transition-all cursor-pointer shrink-0"
+                    >
+                      ইউজার ম্যানেজমেন্ট খুলুন ⚡
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Sub-tab 2: User Profiles & Permission RBAC */}
+              {(activeTab === 'users' || (activeTab === 'settings' && settingsSubTab === 'users')) && (
+                <AdminUserManagement />
+              )}
+
+            </div>
+          )}
+
+          {/* Unauthorized Access Fallback Screen */}
+          {!canAccessTab(activeTab) && (
+            <div className="max-w-md mx-auto my-12 p-8 bg-white rounded-2xl border border-rose-200 shadow-lg text-center space-y-4">
+              <div className="w-14 h-14 bg-rose-100 text-rose-600 rounded-2xl flex items-center justify-center mx-auto shadow-xs">
+                <ShieldAlert className="w-8 h-8" />
+              </div>
+              <h3 className="text-lg font-black text-slate-800">
+                প্রবেশাধিকার সীমাবদ্ধ (Access Denied)
+              </h3>
+              <p className="text-xs text-slate-600 leading-relaxed">
+                আপনার অ্যাকাউন্টের জন্য এই সেকশনটিতে প্রবেশের অনুমতি নেই। বিস্তারিত জানতে ফার্মেসির সুপার অ্যাডমিনের সাথে যোগাযোগ করুন।
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  const allowed = ['sell', 'medicines', 'orders', 'prescriptions', 'restock', 'customers', 'coupons', 'ads', 'overview', 'settings'];
+                  const first = allowed.find(t => canAccessTab(t));
+                  if (first) setActiveTab(first);
+                }}
+                className="px-5 py-2.5 bg-[#123184] text-white rounded-xl text-xs font-bold hover:bg-[#0d2463] cursor-pointer transition-colors shadow-sm"
+              >
+                অনুমোদিত সেকশনে ফিরে যান
+              </button>
             </div>
           )}
 
