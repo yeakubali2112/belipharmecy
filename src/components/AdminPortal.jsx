@@ -7150,18 +7150,30 @@ export const AdminPortal = () => {
               ? paymentSettings.banks
               : (paymentSettings?.bank ? [{ id: 'bank-1', enabled: true, ...paymentSettings.bank }] : []);
 
+            // Helper to check if an order has been completed (Delivered / Complete / সম্পন্ন)
+            const isOrderComplete = (o) => {
+              const s = String(o?.status || '').trim().toLowerCase();
+              return s === 'delivered' || s === 'complete' || s === 'completed' || s === 'সম্পন্ন';
+            };
+
             // Cash orders calculations
-            const cashOrders = (orders || []).filter(o => {
+            const allCashOrders = (orders || []).filter(o => {
               const m = String(o.paymentMethod || '').toLowerCase();
               return m.includes('cod') || m.includes('cash') || m.includes('হাতে নগদ');
             });
-            const deliveredCashOrders = cashOrders.filter(o => o.status === 'Delivered');
-            const totalCashCollected = deliveredCashOrders.reduce((acc, o) => acc + Number(o.grandTotal || 0), 0);
-            const pendingCashOrders = cashOrders.filter(o => o.status !== 'Delivered');
+            // Only orders with Complete / Delivered status enter Cash Receive
+            const completedCashOrders = allCashOrders.filter(isOrderComplete);
+            const totalCashCollected = completedCashOrders.reduce((acc, o) => acc + Number(o.grandTotal || 0), 0);
+            
+            // Ongoing / pending cash orders (excluding Cancelled)
+            const pendingCashOrders = allCashOrders.filter(o => {
+              const s = String(o?.status || '').trim().toLowerCase();
+              return !isOrderComplete(o) && s !== 'cancelled' && s !== 'বাতিল';
+            });
             const pendingCashAmount = pendingCashOrders.reduce((acc, o) => acc + Number(o.grandTotal || 0), 0);
 
-            // Filtered cash orders & pagination (15 per page)
-            const filteredCashOrders = cashOrders.filter(o => {
+            // Filtered cash orders & pagination (15 per page) - Only Completed Orders
+            const filteredCashOrders = completedCashOrders.filter(o => {
               if (!cashSearchTerm.trim()) return true;
               const q = cashSearchTerm.toLowerCase();
               return (
@@ -7178,23 +7190,27 @@ export const AdminPortal = () => {
               currentCashPage * cashPerPage
             );
 
-            // All orders calculations for Payment History
-            const allOrders = orders || [];
-            const totalAllAmount = allOrders.reduce((acc, o) => acc + Number(o.grandTotal || 0), 0);
+            // Completed orders calculations for Payment History (Only Completed Orders enter Payment History)
+            const completedHistoryOrders = (orders || []).filter(isOrderComplete);
+            const totalAllAmount = completedHistoryOrders.reduce((acc, o) => acc + Number(o.grandTotal || 0), 0);
 
-            const bkashOrders = allOrders.filter(o => String(o.paymentMethod || '').toLowerCase().includes('bkash'));
+            const bkashOrders = completedHistoryOrders.filter(o => String(o.paymentMethod || '').toLowerCase().includes('bkash'));
             const bkashTotal = bkashOrders.reduce((acc, o) => acc + Number(o.grandTotal || 0), 0);
 
-            const nagadOrders = allOrders.filter(o => String(o.paymentMethod || '').toLowerCase().includes('nagad'));
+            const nagadOrders = completedHistoryOrders.filter(o => String(o.paymentMethod || '').toLowerCase().includes('nagad'));
             const nagadTotal = nagadOrders.reduce((acc, o) => acc + Number(o.grandTotal || 0), 0);
 
-            const bankOrders = allOrders.filter(o => String(o.paymentMethod || '').toLowerCase().includes('bank'));
+            const bankOrders = completedHistoryOrders.filter(o => String(o.paymentMethod || '').toLowerCase().includes('bank'));
             const bankTotal = bankOrders.reduce((acc, o) => acc + Number(o.grandTotal || 0), 0);
 
-            const cashTotalAll = cashOrders.reduce((acc, o) => acc + Number(o.grandTotal || 0), 0);
+            const cashOrdersInHistory = completedHistoryOrders.filter(o => {
+              const m = String(o.paymentMethod || '').toLowerCase();
+              return m.includes('cod') || m.includes('cash') || m.includes('হাতে নগদ');
+            });
+            const cashTotalAll = cashOrdersInHistory.reduce((acc, o) => acc + Number(o.grandTotal || 0), 0);
 
-            // Filtered orders for Payment History & pagination (15 per page)
-            const filteredHistoryOrders = allOrders.filter(o => {
+            // Filtered orders for Payment History & pagination (15 per page) - Only Completed Orders
+            const filteredHistoryOrders = completedHistoryOrders.filter(o => {
               const m = String(o.paymentMethod || '').toLowerCase();
               if (historyGatewayFilter === 'bkash' && !m.includes('bkash')) return false;
               if (historyGatewayFilter === 'nagad' && !m.includes('nagad')) return false;
@@ -7728,7 +7744,7 @@ export const AdminPortal = () => {
                         </div>
                         <div>
                           <span className="text-[11px] text-slate-500 font-bold block">মোট ক্যাশ অর্ডার:</span>
-                          <span className="text-base sm:text-lg font-black text-slate-900">{cashOrders.length} টি</span>
+                          <span className="text-base sm:text-lg font-black text-slate-900">{allCashOrders.length} টি</span>
                         </div>
                       </div>
 
@@ -7737,8 +7753,8 @@ export const AdminPortal = () => {
                           ✓
                         </div>
                         <div>
-                          <span className="text-[11px] text-slate-500 font-bold block">সফল ডেলিভারড:</span>
-                          <span className="text-base sm:text-lg font-black text-emerald-700">{deliveredCashOrders.length} টি</span>
+                          <span className="text-[11px] text-slate-500 font-bold block">রিসিভড / সম্পন্ন:</span>
+                          <span className="text-base sm:text-lg font-black text-emerald-700">{completedCashOrders.length} টি</span>
                         </div>
                       </div>
 
@@ -7834,10 +7850,10 @@ export const AdminPortal = () => {
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
                         <div>
                           <h3 className="font-extrabold text-sm text-slate-900">
-                            ক্যাশ রিসিভ ও ডেলিভারি হিস্ট্রি ({cashOrders.length} টি)
+                            ক্যাশ রিসিভ ও ডেলিভারি হিস্ট্রি ({completedCashOrders.length} টি)
                           </h3>
                           <span className="text-[11px] text-slate-500">
-                            যেসব অর্ডারে সরাসরি হাতে নগদ (Cash on Hand) এর মাধ্যমে পেমেন্ট সংগ্রহ করা হয়েছে বা হচ্ছে
+                            যেসব অর্ডারে সরাসরি হাতে নগদ (Cash on Hand) এর মাধ্যমে পেমেন্ট সম্পন্ন হয়েছে
                             {totalCashPages > 1 && ` • পেজ ${currentCashPage} এর ${totalCashPages} (প্রতি পেজে ১৫টি)`}
                           </span>
                         </div>
@@ -7997,7 +8013,7 @@ export const AdminPortal = () => {
                       <div className="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-xs">
                         <span className="text-[10px] text-slate-500 font-bold block">সর্বমোট পেমেন্ট:</span>
                         <span className="text-base font-black text-[#123184]">৳{totalAllAmount.toFixed(0)}</span>
-                        <span className="text-[10px] text-slate-400 block mt-0.5">{allOrders.length} টি মোট অর্ডার</span>
+                        <span className="text-[10px] text-slate-400 block mt-0.5">{completedHistoryOrders.length} টি সম্পন্ন অর্ডার</span>
                       </div>
 
                       <div className="bg-pink-50/70 p-3.5 rounded-2xl border border-pink-200 shadow-xs">
@@ -8021,7 +8037,7 @@ export const AdminPortal = () => {
                       <div className="bg-emerald-50/70 p-3.5 rounded-2xl border border-emerald-200 shadow-xs col-span-2 sm:col-span-1">
                         <span className="text-[10px] text-emerald-700 font-bold block">ক্যাশ অন হ্যান্ড:</span>
                         <span className="text-base font-black text-[#02975E]">৳{cashTotalAll.toFixed(0)}</span>
-                        <span className="text-[10px] text-emerald-600 block mt-0.5">{cashOrders.length} টি পেমেন্ট</span>
+                        <span className="text-[10px] text-emerald-600 block mt-0.5">{cashOrdersInHistory.length} টি পেমেন্ট</span>
                       </div>
                     </div>
 
@@ -8030,10 +8046,10 @@ export const AdminPortal = () => {
                       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 border-b border-slate-100 pb-4">
                         <div>
                           <h3 className="font-extrabold text-sm text-slate-900">
-                            সকল পেমেন্ট ও লেনদেন অডিট লগ ({allOrders.length} টি)
+                            সকল সফল পেমেন্ট ও লেনদেন অডিট লগ ({completedHistoryOrders.length} টি)
                           </h3>
                           <span className="text-[11px] text-slate-500">
-                            কোন গেটওয়ে থেকে পেমেন্ট করা হয়েছে, TrxID ও পেমেন্ট স্ট্যাটাস হিস্ট্রি
+                            সফলভাবে সম্পন্ন অর্ডারের গেটওয়ে, TrxID ও পেমেন্ট হিস্ট্রি
                             {totalHistoryPages > 1 && ` • পেজ ${currentHistoryPage} এর ${totalHistoryPages} (প্রতি পেজে ১৫টি)`}
                           </span>
                         </div>
@@ -8160,12 +8176,8 @@ export const AdminPortal = () => {
                                     ৳{Number(order.grandTotal || 0).toFixed(2)}
                                   </td>
                                   <td className="py-2.5 px-3 text-center">
-                                    <span className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
-                                      order.status === 'Delivered' 
-                                        ? 'bg-emerald-100 text-emerald-800' 
-                                        : 'bg-amber-100 text-amber-800'
-                                    }`}>
-                                      {order.status}
+                                    <span className="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                                      ✓ সম্পন্ন (Paid)
                                     </span>
                                   </td>
                                   <td className="py-2.5 px-3 text-right">
