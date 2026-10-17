@@ -133,12 +133,17 @@ export const InvoiceModal = () => {
                     <span>(নগদ)</span>
                   </span>
                 )}
+                {(activeInvoiceOrder.paymentMethod === 'bank' || activeInvoiceOrder.paymentMethod === 'Bank' || activeInvoiceOrder.paymentMethod === 'Bank Transfer') && (
+                  <span className="inline-flex items-center gap-1 font-bold text-[#123184]">
+                    <span>🏦 ব্যাংক ট্রান্সফার (Bank)</span>
+                  </span>
+                )}
                 {(activeInvoiceOrder.paymentMethod === 'cod' || activeInvoiceOrder.paymentMethod === 'Cash on Hand') && (
                   <b className="text-slate-800">💵 Cash on Hand (হাতে নগদ)</b>
                 )}
               </div>
               {activeInvoiceOrder.trxId && activeInvoiceOrder.trxId !== 'N/A' && (
-                <p className="text-slate-700">TrxID: <b className="font-mono">{activeInvoiceOrder.trxId}</b></p>
+                <p className="text-slate-700">TrxID / Ref: <b className="font-mono">{activeInvoiceOrder.trxId}</b></p>
               )}
               <p className="text-slate-700">
                 গতি: <b>{activeInvoiceOrder.deliveryType === 'express' ? '৬০-মিনিট এক্সপ্রেস' : 'নিয়মিত ডেলিভারি'}</b>

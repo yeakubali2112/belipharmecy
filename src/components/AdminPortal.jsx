@@ -68,7 +68,9 @@ import {
   UserCheck,
   ShieldAlert,
   KeyRound,
-  Smartphone
+  Smartphone,
+  Landmark,
+  Building2
 } from 'lucide-react';
 import { useShop } from '../context/ShopContext';
 import { CATEGORIES } from '../data/medicines';
@@ -125,6 +127,8 @@ export const AdminPortal = () => {
     previewOriginalUser,
     exitUserPreview,
     switchAdminUser,
+    paymentSettings,
+    updatePaymentSettings,
     lang 
   } = useShop();
 
@@ -144,11 +148,34 @@ export const AdminPortal = () => {
     setIsForgotModalOpen(true);
   };
 
-  // Dashboard active tab: 'overview', 'orders', 'prescriptions', 'medicines', 'coupons', 'settings', 'users'
+  // Dashboard active tab: 'overview', 'orders', 'prescriptions', 'medicines', 'coupons', 'ads', 'payments', 'settings', 'users'
   const [activeTab, setActiveTab] = useState('overview');
 
   // Settings internal sub-tab: 'profile' or 'users'
   const [settingsSubTab, setSettingsSubTab] = useState('profile');
+
+  // Payment Gateway & Bank Account Form State
+  const [paymentForm, setPaymentForm] = useState(paymentSettings || {});
+  const [isSavingPayments, setIsSavingPayments] = useState(false);
+  const [paymentSaveSuccess, setPaymentSaveSuccess] = useState(false);
+  const [paymentFilterMethod, setPaymentFilterMethod] = useState('all');
+
+  useEffect(() => {
+    if (paymentSettings) {
+      setPaymentForm(paymentSettings);
+    }
+  }, [paymentSettings]);
+
+  const handleSavePayments = (e) => {
+    if (e && e.preventDefault) e.preventDefault();
+    setIsSavingPayments(true);
+    setTimeout(() => {
+      updatePaymentSettings(paymentForm);
+      setIsSavingPayments(false);
+      setPaymentSaveSuccess(true);
+      setTimeout(() => setPaymentSaveSuccess(false), 3000);
+    }, 500);
+  };
 
   // RBAC Permission Check Helper
   const canAccessTab = (tabId) => {
@@ -165,7 +192,7 @@ export const AdminPortal = () => {
   useEffect(() => {
     if (currentAdminUser && !currentAdminUser.isSuperAdmin) {
       if (!canAccessTab(activeTab)) {
-        const priorityOrder = ['sell', 'medicines', 'orders', 'prescriptions', 'restock', 'customers', 'coupons', 'ads', 'overview', 'settings', 'users'];
+        const priorityOrder = ['sell', 'medicines', 'orders', 'prescriptions', 'restock', 'customers', 'coupons', 'ads', 'payments', 'overview', 'settings', 'users'];
         const first = priorityOrder.find(t => canAccessTab(t));
         if (first) {
           setActiveTab(first);
@@ -2379,6 +2406,25 @@ export const AdminPortal = () => {
               </button>
             )}
 
+            {canAccessTab('payments') && (
+              <button
+                onClick={() => setActiveTab('payments')}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all cursor-pointer text-left ${
+                  activeTab === 'payments' 
+                    ? 'bg-white/20 text-white shadow-md backdrop-blur-xs border border-white/20' 
+                    : 'text-blue-100/80 hover:bg-white/10'
+                }`}
+              >
+                <CreditCard className="w-4 h-4 text-emerald-300" />
+                <div className="flex-1 flex items-center justify-between">
+                  <span>পেমেন্ট মেথড ও ব্যাংক</span>
+                  <span className="text-[10px] bg-emerald-400/20 text-emerald-300 px-1.5 py-0.5 rounded font-bold">
+                    bKash/নগদ/Bank
+                  </span>
+                </div>
+              </button>
+            )}
+
             {canAccessTab('settings') && (
               <button
                 onClick={() => setActiveTab('settings')}
@@ -2430,6 +2476,7 @@ export const AdminPortal = () => {
               {activeTab === 'medicines' && 'ওষুধ ক্যাটালগ ও স্টক পরিচালনা'}
               {activeTab === 'coupons' && 'ডেলিভারি চার্জ ও কুপন কোড ব্যবস্থাপনা'}
               {activeTab === 'ads' && 'হিরো ব্যানার ব্যাকগ্রাউন্ড ও অফার বিজ্ঞাপন কন্ট্রোল'}
+              {activeTab === 'payments' && 'পেমেন্ট গেটওয়ে, বিকাশ, নগদ ও ব্যাংক অ্যাকাউন্ট ব্যবস্থাপনা'}
               {activeTab === 'settings' && (settingsSubTab === 'users' ? 'ইউজার প্রোফাইল ও অপশন পারমিশন কন্ট্রোল' : 'ফার্মেসি প্রোফাইল ও কনফিগারেশন')}
               {activeTab === 'users' && 'ইউজার প্রোফাইল ও অপশন পারমিশন কন্ট্রোল'}
             </h1>
@@ -7004,6 +7051,681 @@ export const AdminPortal = () => {
               {(activeTab === 'users' || (activeTab === 'settings' && settingsSubTab === 'users')) && (
                 <AdminUserManagement />
               )}
+
+            </div>
+          )}
+
+          {/* ================================================= */}
+          {/* TAB: PAYMENT METHODS & BANK MANAGEMENT */}
+          {/* ================================================= */}
+          {activeTab === 'payments' && canAccessTab('payments') && (
+            <div className="space-y-6 max-w-6xl mx-auto w-full animate-in fade-in">
+              {/* Header card with action and live status summary */}
+              <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-[#123184] to-[#02975E] text-white flex items-center justify-center shadow-md">
+                      <CreditCard className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h2 className="text-lg font-black text-slate-900">
+                        পেমেন্ট গেটওয়ে ও ব্যাংক অ্যাকাউন্ট ব্যবস্থাপনা
+                      </h2>
+                      <span className="text-xs text-slate-500">
+                        ওয়েবসাইট চেকআউট ও গ্রাহক পেমেন্ট মেথড (bKash, নগদ, ব্যাংক ও ক্যাশ) নিয়ন্ত্রণ
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Quick status summary chips */}
+                  <div className="flex flex-wrap items-center gap-2 pt-2">
+                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold border ${
+                      paymentForm?.bkash?.enabled !== false 
+                        ? 'bg-pink-50 text-[#D12053] border-pink-200' 
+                        : 'bg-slate-100 text-slate-500 border-slate-200'
+                    }`}>
+                      <span className={`w-2 h-2 rounded-full ${paymentForm?.bkash?.enabled !== false ? 'bg-[#D12053] animate-pulse' : 'bg-slate-400'}`} />
+                      bKash ({paymentForm?.bkash?.enabled !== false ? 'সক্রিয়' : 'নিষ্ক্রিয়'})
+                    </span>
+
+                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold border ${
+                      paymentForm?.nagad?.enabled !== false 
+                        ? 'bg-orange-50 text-[#E31B23] border-orange-200' 
+                        : 'bg-slate-100 text-slate-500 border-slate-200'
+                    }`}>
+                      <span className={`w-2 h-2 rounded-full ${paymentForm?.nagad?.enabled !== false ? 'bg-[#E31B23] animate-pulse' : 'bg-slate-400'}`} />
+                      Nagad ({paymentForm?.nagad?.enabled !== false ? 'সক্রিয়' : 'নিষ্ক্রিয়'})
+                    </span>
+
+                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold border ${
+                      paymentForm?.bank?.enabled !== false 
+                        ? 'bg-blue-50 text-[#123184] border-blue-200' 
+                        : 'bg-slate-100 text-slate-500 border-slate-200'
+                    }`}>
+                      <span className={`w-2 h-2 rounded-full ${paymentForm?.bank?.enabled !== false ? 'bg-[#123184] animate-pulse' : 'bg-slate-400'}`} />
+                      Bank Transfer ({paymentForm?.bank?.enabled !== false ? 'সক্রিয়' : 'নিষ্ক্রিয়'})
+                    </span>
+
+                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold border ${
+                      paymentForm?.cod?.enabled !== false 
+                        ? 'bg-emerald-50 text-[#02975E] border-emerald-200' 
+                        : 'bg-slate-100 text-slate-500 border-slate-200'
+                    }`}>
+                      <span className={`w-2 h-2 rounded-full ${paymentForm?.cod?.enabled !== false ? 'bg-[#02975E] animate-pulse' : 'bg-slate-400'}`} />
+                      Cash on Hand ({paymentForm?.cod?.enabled !== false ? 'সক্রিয়' : 'নিষ্ক্রিয়'})
+                    </span>
+                  </div>
+                </div>
+
+                {/* Save Button */}
+                <button
+                  type="button"
+                  onClick={handleSavePayments}
+                  disabled={isSavingPayments}
+                  className={`px-5 py-3 rounded-2xl font-black text-sm flex items-center justify-center gap-2 shadow-md cursor-pointer transition-all shrink-0 ${
+                    paymentSaveSuccess 
+                      ? 'bg-emerald-600 text-white' 
+                      : 'bg-gradient-to-r from-[#123184] to-[#02975E] hover:from-[#0d2463] hover:to-[#027e4e] text-white hover:shadow-lg'
+                  }`}
+                >
+                  {isSavingPayments ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                      <span>সংরক্ষণ হচ্ছে...</span>
+                    </>
+                  ) : paymentSaveSuccess ? (
+                    <>
+                      <CheckCircle2 className="w-4 h-4" />
+                      <span>সফলভাবে সংরক্ষিত!</span>
+                    </>
+                  ) : (
+                    <>
+                      <Save className="w-4 h-4" />
+                      <span>সকল সেটিংস সংরক্ষণ করুন</span>
+                    </>
+                  )}
+                </button>
+              </div>
+
+              {/* Form Grid */}
+              <div className="grid lg:grid-cols-2 gap-6">
+                
+                {/* 1. bKash Settings Card */}
+                <div className="bg-white rounded-3xl border border-pink-200 shadow-sm overflow-hidden flex flex-col">
+                  {/* Card Header */}
+                  <div className="p-4 bg-gradient-to-r from-pink-50 to-pink-100/60 border-b border-pink-200 flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <div className="bg-white px-2 py-1 rounded-xl border border-pink-200 shadow-2xs">
+                        <img src="/bkash-logo.png" alt="bKash" className="h-5 object-contain" />
+                      </div>
+                      <div>
+                        <h3 className="font-black text-sm text-[#D12053]">বিকাশ (bKash) পেমেন্ট</h3>
+                        <span className="text-[11px] text-pink-700">ডিজিটাল ওয়ালেট ও সেন্ড মানি</span>
+                      </div>
+                    </div>
+
+                    {/* Toggle Switch */}
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={paymentForm?.bkash?.enabled !== false}
+                        onChange={(e) => setPaymentForm(prev => ({
+                          ...prev,
+                          bkash: { ...(prev.bkash || {}), enabled: e.target.checked }
+                        }))}
+                        className="sr-only peer"
+                      />
+                      <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#D12053]" />
+                      <span className="ml-2 text-xs font-bold text-slate-700">
+                        {paymentForm?.bkash?.enabled !== false ? 'সক্রিয়' : 'নিষ্ক্রিয়'}
+                      </span>
+                    </label>
+                  </div>
+
+                  {/* Card Body */}
+                  <div className="p-5 space-y-4 flex-1">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">
+                        বিকাশ অ্যাকাউন্ট নম্বর (Mobile No) *
+                      </label>
+                      <div className="relative">
+                        <input
+                          type="text"
+                          value={paymentForm?.bkash?.number || ''}
+                          onChange={(e) => setPaymentForm(prev => ({
+                            ...prev,
+                            bkash: { ...(prev.bkash || {}), number: e.target.value }
+                          }))}
+                          placeholder="যেমন: 01774 961757"
+                          className="w-full pl-3.5 pr-10 py-2.5 rounded-xl border border-pink-200 text-sm font-mono font-bold text-slate-900 outline-none focus:border-[#D12053] focus:ring-1 focus:ring-[#D12053]"
+                        />
+                        <Phone className="w-4 h-4 text-pink-400 absolute right-3.5 top-3" />
+                      </div>
+                      <span className="text-[11px] text-slate-500 mt-1 block">গ্রাহক এই নম্বরে সেন্ড মানি বা পেমেন্ট করবে</span>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">
+                        অ্যাকাউন্ট টাইপ (Account Type)
+                      </label>
+                      <select
+                        value={paymentForm?.bkash?.type || 'Personal'}
+                        onChange={(e) => setPaymentForm(prev => ({
+                          ...prev,
+                          bkash: { ...(prev.bkash || {}), type: e.target.value }
+                        }))}
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-800 outline-none focus:border-[#D12053]"
+                      >
+                        <option value="Personal">Personal (ব্যক্তিগত - সেন্ড মানি)</option>
+                        <option value="Merchant">Merchant (মার্চেন্ট - পেমেন্ট)</option>
+                        <option value="Agent">Agent (এজেন্ট - ক্যাশ আউট)</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">
+                        গ্রাহকের জন্য পেমেন্ট নির্দেশিকা (Instructions)
+                      </label>
+                      <textarea
+                        rows={2}
+                        value={paymentForm?.bkash?.instructions || ''}
+                        onChange={(e) => setPaymentForm(prev => ({
+                          ...prev,
+                          bkash: { ...(prev.bkash || {}), instructions: e.target.value }
+                        }))}
+                        placeholder="বিকাশ অ্যাপে গিয়ে সেন্ড মানি করুন এবং TrxID দিন..."
+                        className="w-full p-3 rounded-xl border border-slate-200 text-xs text-slate-800 outline-none focus:border-[#D12053]"
+                      />
+                    </div>
+
+                    {/* Live Preview Box */}
+                    <div className="bg-pink-50/70 border border-pink-200 rounded-2xl p-3 text-xs space-y-1">
+                      <span className="text-[10px] font-extrabold text-[#D12053] uppercase tracking-wider block">
+                        👁️ গ্রাহকের জন্য প্রিভিউ
+                      </span>
+                      <p className="font-bold text-slate-800">
+                        বিকাশ নম্বর: <code className="text-[#D12053] font-mono font-black">{paymentForm?.bkash?.number || '01774 961757'}</code> ({paymentForm?.bkash?.type || 'Personal'})
+                      </p>
+                      <p className="text-[11px] text-pink-900 leading-tight">
+                        {paymentForm?.bkash?.instructions || 'বিকাশ নম্বরটিতে টাকা পাঠিয়ে TrxID দিন।'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 2. Nagad Settings Card */}
+                <div className="bg-white rounded-3xl border border-orange-200 shadow-sm overflow-hidden flex flex-col">
+                  {/* Card Header */}
+                  <div className="p-4 bg-gradient-to-r from-orange-50 to-orange-100/60 border-b border-orange-200 flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <div className="bg-white px-2 py-1 rounded-xl border border-orange-200 shadow-2xs">
+                        <img src="/nagad-logo.png" alt="Nagad" className="h-5 object-contain" />
+                      </div>
+                      <div>
+                        <h3 className="font-black text-sm text-[#E31B23]">নগদ (Nagad) পেমেন্ট</h3>
+                        <span className="text-[11px] text-orange-700">ডাক বিভাগের ডিজিটাল ফাইন্যান্সিয়াল সার্ভিস</span>
+                      </div>
+                    </div>
+
+                    {/* Toggle Switch */}
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={paymentForm?.nagad?.enabled !== false}
+                        onChange={(e) => setPaymentForm(prev => ({
+                          ...prev,
+                          nagad: { ...(prev.nagad || {}), enabled: e.target.checked }
+                        }))}
+                        className="sr-only peer"
+                      />
+                      <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#E31B23]" />
+                      <span className="ml-2 text-xs font-bold text-slate-700">
+                        {paymentForm?.nagad?.enabled !== false ? 'সক্রিয়' : 'নিষ্ক্রিয়'}
+                      </span>
+                    </label>
+                  </div>
+
+                  {/* Card Body */}
+                  <div className="p-5 space-y-4 flex-1">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">
+                        নগদ অ্যাকাউন্ট নম্বর (Mobile No) *
+                      </label>
+                      <div className="relative">
+                        <input
+                          type="text"
+                          value={paymentForm?.nagad?.number || ''}
+                          onChange={(e) => setPaymentForm(prev => ({
+                            ...prev,
+                            nagad: { ...(prev.nagad || {}), number: e.target.value }
+                          }))}
+                          placeholder="যেমন: 01774 961757"
+                          className="w-full pl-3.5 pr-10 py-2.5 rounded-xl border border-orange-200 text-sm font-mono font-bold text-slate-900 outline-none focus:border-[#E31B23] focus:ring-1 focus:ring-[#E31B23]"
+                        />
+                        <Phone className="w-4 h-4 text-orange-400 absolute right-3.5 top-3" />
+                      </div>
+                      <span className="text-[11px] text-slate-500 mt-1 block">গ্রাহক এই নম্বরে সেন্ড মানি বা পেমেন্ট করবে</span>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">
+                        অ্যাকাউন্ট টাইপ (Account Type)
+                      </label>
+                      <select
+                        value={paymentForm?.nagad?.type || 'Personal'}
+                        onChange={(e) => setPaymentForm(prev => ({
+                          ...prev,
+                          nagad: { ...(prev.nagad || {}), type: e.target.value }
+                        }))}
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-800 outline-none focus:border-[#E31B23]"
+                      >
+                        <option value="Personal">Personal (ব্যক্তিগত - সেন্ড মানি)</option>
+                        <option value="Merchant">Merchant (মার্চেন্ট - পেমেন্ট)</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">
+                        গ্রাহকের জন্য পেমেন্ট নির্দেশিকা (Instructions)
+                      </label>
+                      <textarea
+                        rows={2}
+                        value={paymentForm?.nagad?.instructions || ''}
+                        onChange={(e) => setPaymentForm(prev => ({
+                          ...prev,
+                          nagad: { ...(prev.nagad || {}), instructions: e.target.value }
+                        }))}
+                        placeholder="নগদ অ্যাপ বা *167# এ সেন্ড মানি করে TrxID দিন..."
+                        className="w-full p-3 rounded-xl border border-slate-200 text-xs text-slate-800 outline-none focus:border-[#E31B23]"
+                      />
+                    </div>
+
+                    {/* Live Preview Box */}
+                    <div className="bg-orange-50/70 border border-orange-200 rounded-2xl p-3 text-xs space-y-1">
+                      <span className="text-[10px] font-extrabold text-[#E31B23] uppercase tracking-wider block">
+                        👁️ গ্রাহকের জন্য প্রিভিউ
+                      </span>
+                      <p className="font-bold text-slate-800">
+                        নগদ নম্বর: <code className="text-[#E31B23] font-mono font-black">{paymentForm?.nagad?.number || '01774 961757'}</code> ({paymentForm?.nagad?.type || 'Personal'})
+                      </p>
+                      <p className="text-[11px] text-orange-900 leading-tight">
+                        {paymentForm?.nagad?.instructions || 'নগদ নম্বরটিতে টাকা পাঠিয়ে TrxID দিন।'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 3. Bank Transfer Settings Card */}
+                <div className="bg-white rounded-3xl border border-blue-200 shadow-sm overflow-hidden flex flex-col lg:col-span-2">
+                  {/* Card Header */}
+                  <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-blue-200 flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-10 h-10 rounded-2xl bg-[#123184] text-white flex items-center justify-center shadow-md">
+                        <Building2 className="w-5 h-5 text-emerald-300" />
+                      </div>
+                      <div>
+                        <h3 className="font-black text-sm text-[#123184]">
+                          ব্যাংক অ্যাকাউন্ট ও ফান্ড ট্রান্সফার (Bank Transfer Management)
+                        </h3>
+                        <span className="text-[11px] text-blue-700">
+                          যেকোনো ব্যাংকের মাধ্যমে অনলাইন ট্রান্সফার, NPSB, BEFTN, Cellfin অথবা সরাসরি ডিপোজিট
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Toggle Switch */}
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={paymentForm?.bank?.enabled !== false}
+                        onChange={(e) => setPaymentForm(prev => ({
+                          ...prev,
+                          bank: { ...(prev.bank || {}), enabled: e.target.checked }
+                        }))}
+                        className="sr-only peer"
+                      />
+                      <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#123184]" />
+                      <span className="ml-2 text-xs font-bold text-slate-700">
+                        {paymentForm?.bank?.enabled !== false ? 'সক্রিয়' : 'নিষ্ক্রিয়'}
+                      </span>
+                    </label>
+                  </div>
+
+                  {/* Card Body */}
+                  <div className="p-6 space-y-5">
+                    <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 mb-1">
+                          ব্যাংকের নাম (Bank Name) *
+                        </label>
+                        <input
+                          type="text"
+                          value={paymentForm?.bank?.bankName || ''}
+                          onChange={(e) => setPaymentForm(prev => ({
+                            ...prev,
+                            bank: { ...(prev.bank || {}), bankName: e.target.value }
+                          }))}
+                          placeholder="যেমন: Islami Bank Bangladesh Ltd (IBBL)"
+                          className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-900 outline-none focus:border-[#123184] focus:ring-1 focus:ring-[#123184]"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 mb-1">
+                          হিসাবধারীর নাম (Account Title / Name) *
+                        </label>
+                        <input
+                          type="text"
+                          value={paymentForm?.bank?.accountName || ''}
+                          onChange={(e) => setPaymentForm(prev => ({
+                            ...prev,
+                            bank: { ...(prev.bank || {}), accountName: e.target.value }
+                          }))}
+                          placeholder="যেমন: Beli Pharmacy (বেলী ফার্মেসি)"
+                          className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-900 outline-none focus:border-[#123184] focus:ring-1 focus:ring-[#123184]"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 mb-1">
+                          হিসাব নম্বর (Account Number) *
+                        </label>
+                        <input
+                          type="text"
+                          value={paymentForm?.bank?.accountNumber || ''}
+                          onChange={(e) => setPaymentForm(prev => ({
+                            ...prev,
+                            bank: { ...(prev.bank || {}), accountNumber: e.target.value }
+                          }))}
+                          placeholder="যেমন: 2050 1480 2003 4567"
+                          className="w-full px-3.5 py-2.5 rounded-xl border border-blue-200 text-xs font-mono font-black text-[#123184] outline-none focus:border-[#123184] focus:ring-1 focus:ring-[#123184]"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 mb-1">
+                          শাখা (Branch Name) *
+                        </label>
+                        <input
+                          type="text"
+                          value={paymentForm?.bank?.branchName || ''}
+                          onChange={(e) => setPaymentForm(prev => ({
+                            ...prev,
+                            bank: { ...(prev.bank || {}), branchName: e.target.value }
+                          }))}
+                          placeholder="যেমন: Dupchanchia Branch, Bogura"
+                          className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-900 outline-none focus:border-[#123184] focus:ring-1 focus:ring-[#123184]"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 mb-1">
+                          রাউটিং নম্বর (Routing Number - ঐচ্ছিক)
+                        </label>
+                        <input
+                          type="text"
+                          value={paymentForm?.bank?.routingNumber || ''}
+                          onChange={(e) => setPaymentForm(prev => ({
+                            ...prev,
+                            bank: { ...(prev.bank || {}), routingNumber: e.target.value }
+                          }))}
+                          placeholder="যেমন: 125100456"
+                          className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-mono font-bold text-slate-900 outline-none focus:border-[#123184] focus:ring-1 focus:ring-[#123184]"
+                        />
+                      </div>
+
+                      <div className="sm:col-span-2 lg:col-span-3">
+                        <label className="block text-xs font-bold text-slate-700 mb-1">
+                          গ্রাহকের জন্য ব্যাংক ট্রান্সফার নির্দেশিকা (Deposit Instructions)
+                        </label>
+                        <textarea
+                          rows={2}
+                          value={paymentForm?.bank?.instructions || ''}
+                          onChange={(e) => setPaymentForm(prev => ({
+                            ...prev,
+                            bank: { ...(prev.bank || {}), instructions: e.target.value }
+                          }))}
+                          placeholder="অনলাইন ব্যাংকিং বা সরাসরি শাখায় টাকা ডিপোজিট করে ডিপোজিট স্লিপ নং দিন..."
+                          className="w-full p-3 rounded-xl border border-slate-200 text-xs text-slate-800 outline-none focus:border-[#123184]"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Live Bank Preview */}
+                    <div className="bg-sky-50/80 border border-sky-200 rounded-2xl p-4 text-xs space-y-2">
+                      <span className="text-[10px] font-extrabold text-[#123184] uppercase tracking-wider block">
+                        👁️ গ্রাহকের জন্য ব্যাংক ট্রান্সফার প্রিভিউ
+                      </span>
+                      <div className="grid sm:grid-cols-2 md:grid-cols-4 gap-3 bg-white p-3 rounded-xl border border-sky-200">
+                        <div>
+                          <span className="text-[10px] text-slate-500 font-bold block">ব্যাংক:</span>
+                          <span className="font-bold text-slate-900">{paymentForm?.bank?.bankName || 'IBBL'}</span>
+                        </div>
+                        <div>
+                          <span className="text-[10px] text-slate-500 font-bold block">অ্যাকাউন্ট নাম:</span>
+                          <span className="font-bold text-slate-900">{paymentForm?.bank?.accountName || 'Beli Pharmacy'}</span>
+                        </div>
+                        <div>
+                          <span className="text-[10px] text-slate-500 font-bold block">অ্যাকাউন্ট নং:</span>
+                          <span className="font-mono font-black text-[#123184]">{paymentForm?.bank?.accountNumber || '2050 1480 2003 4567'}</span>
+                        </div>
+                        <div>
+                          <span className="text-[10px] text-slate-500 font-bold block">শাখা ও রাউটিং:</span>
+                          <span className="font-bold text-slate-900">{paymentForm?.bank?.branchName || 'Dupchanchia'} {paymentForm?.bank?.routingNumber ? `(${paymentForm?.bank?.routingNumber})` : ''}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 4. Cash on Hand (COD) Settings Card */}
+                <div className="bg-white rounded-3xl border border-emerald-200 shadow-sm overflow-hidden flex flex-col lg:col-span-2">
+                  {/* Card Header */}
+                  <div className="p-4 bg-gradient-to-r from-emerald-50 to-teal-50 border-b border-emerald-200 flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-10 h-10 rounded-2xl bg-[#02975E] text-white flex items-center justify-center shadow-md">
+                        <Banknote className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h3 className="font-black text-sm text-emerald-950">
+                          ক্যাশ অন হ্যান্ড (Cash on Hand / COD)
+                        </h3>
+                        <span className="text-[11px] text-emerald-700">
+                          ওষুধ হাতে পেয়ে সরাসরি ডেলিভারি ম্যানকে নগদ অর্থ পরিশোধ
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Toggle Switch */}
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={paymentForm?.cod?.enabled !== false}
+                        onChange={(e) => setPaymentForm(prev => ({
+                          ...prev,
+                          cod: { ...(prev.cod || {}), enabled: e.target.checked }
+                        }))}
+                        className="sr-only peer"
+                      />
+                      <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#02975E]" />
+                      <span className="ml-2 text-xs font-bold text-slate-700">
+                        {paymentForm?.cod?.enabled !== false ? 'সক্রিয়' : 'নিষ্ক্রিয়'}
+                      </span>
+                    </label>
+                  </div>
+
+                  {/* Card Body */}
+                  <div className="p-5 grid sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">
+                        পদ্ধতির শিরোনাম (Method Title)
+                      </label>
+                      <input
+                        type="text"
+                        value={paymentForm?.cod?.title || 'Cash on Hand (হাতে নগদ)'}
+                        onChange={(e) => setPaymentForm(prev => ({
+                          ...prev,
+                          cod: { ...(prev.cod || {}), title: e.target.value }
+                        }))}
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-900 outline-none focus:border-[#02975E]"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">
+                        গ্রাহকের নির্দেশিকা (Instructions)
+                      </label>
+                      <input
+                        type="text"
+                        value={paymentForm?.cod?.instructions || ''}
+                        onChange={(e) => setPaymentForm(prev => ({
+                          ...prev,
+                          cod: { ...(prev.cod || {}), instructions: e.target.value }
+                        }))}
+                        placeholder="ওষুধ বাসায় পৌঁছানোর পর নগদ মূল্য পরিশোধ করুন..."
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs text-slate-900 outline-none focus:border-[#02975E]"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+
+              {/* 5. Recent Payments & Transaction Audit Table */}
+              <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-6 space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-xl bg-slate-100 text-[#123184] flex items-center justify-center font-black">
+                      <Receipt className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h3 className="font-extrabold text-sm text-slate-900">
+                        সাম্প্রতিক অর্ডার ও পেমেন্ট লেনদেন হিস্ট্রি ({orders?.length || 0})
+                      </h3>
+                      <p className="text-[11px] text-slate-500">
+                        গ্রাহকদের বিকাশ, নগদ ও ব্যাংক লেনদেনের TrxID ও পেমেন্ট স্ট্যাটাস অডিট
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Filter Pills */}
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    {['all', 'bkash', 'nagad', 'bank', 'cod'].map(filterKey => (
+                      <button
+                        key={filterKey}
+                        type="button"
+                        onClick={() => setPaymentFilterMethod(filterKey)}
+                        className={`px-3 py-1 rounded-xl text-xs font-bold cursor-pointer transition-all ${
+                          paymentFilterMethod === filterKey 
+                            ? 'bg-[#123184] text-white shadow-2xs' 
+                            : 'bg-slate-100 hover:bg-slate-200 text-slate-600'
+                        }`}
+                      >
+                        {filterKey === 'all' && 'সকল পেমেন্ট'}
+                        {filterKey === 'bkash' && 'বিকাশ'}
+                        {filterKey === 'nagad' && 'নগদ'}
+                        {filterKey === 'bank' && 'ব্যাংক ট্রান্সফার'}
+                        {filterKey === 'cod' && 'ক্যাশ অন হ্যান্ড'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Table */}
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead>
+                      <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold">
+                        <th className="py-2.5 px-3">অর্ডার আইডি</th>
+                        <th className="py-2.5 px-3">গ্রাহক</th>
+                        <th className="py-2.5 px-3">পেমেন্ট মেথড</th>
+                        <th className="py-2.5 px-3">TrxID / রেফারেন্স নং</th>
+                        <th className="py-2.5 px-3 text-right">মোট বিল</th>
+                        <th className="py-2.5 px-3 text-center">স্ট্যাটাস</th>
+                        <th className="py-2.5 px-3 text-right">ইনভয়েস</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {orders
+                        .filter(o => {
+                          if (paymentFilterMethod === 'all') return true;
+                          const m = String(o.paymentMethod || '').toLowerCase();
+                          if (paymentFilterMethod === 'bkash') return m.includes('bkash');
+                          if (paymentFilterMethod === 'nagad') return m.includes('nagad');
+                          if (paymentFilterMethod === 'bank') return m.includes('bank');
+                          if (paymentFilterMethod === 'cod') return m.includes('cod') || m.includes('cash');
+                          return true;
+                        })
+                        .slice(0, 15)
+                        .map(order => (
+                          <tr key={order.id} className="hover:bg-slate-50/80 transition-colors">
+                            <td className="py-2.5 px-3 font-mono font-bold text-[#123184]">
+                              {order.id}
+                            </td>
+                            <td className="py-2.5 px-3">
+                              <span className="font-bold text-slate-900 block">{order.customerName}</span>
+                              <span className="text-[10px] text-slate-500 font-mono">{order.customerPhone}</span>
+                            </td>
+                            <td className="py-2.5 px-3">
+                              {String(order.paymentMethod || '').toLowerCase().includes('bkash') ? (
+                                <span className="inline-flex items-center gap-1 font-bold text-[#D12053] bg-pink-50 px-2 py-0.5 rounded border border-pink-200">
+                                  <img src="/bkash-logo.png" alt="bKash" className="h-3 object-contain" /> bKash
+                                </span>
+                              ) : String(order.paymentMethod || '').toLowerCase().includes('nagad') ? (
+                                <span className="inline-flex items-center gap-1 font-bold text-[#E31B23] bg-orange-50 px-2 py-0.5 rounded border border-orange-200">
+                                  <img src="/nagad-logo.png" alt="Nagad" className="h-3 object-contain" /> Nagad
+                                </span>
+                              ) : String(order.paymentMethod || '').toLowerCase().includes('bank') ? (
+                                <span className="inline-flex items-center gap-1 font-bold text-[#123184] bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
+                                  <Building2 className="w-3 h-3 text-[#123184]" /> Bank
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                                  💵 Cash
+                                </span>
+                              )}
+                            </td>
+                            <td className="py-2.5 px-3">
+                              {order.trxId && order.trxId !== 'N/A' ? (
+                                <code className="font-mono font-bold text-slate-800 bg-slate-100 px-2 py-0.5 rounded border border-slate-200 text-[11px] select-all">
+                                  {order.trxId}
+                                </code>
+                              ) : (
+                                <span className="text-slate-400 font-mono text-[11px]">N/A</span>
+                              )}
+                            </td>
+                            <td className="py-2.5 px-3 text-right font-black text-slate-900">
+                              ৳{Number(order.grandTotal || 0).toFixed(2)}
+                            </td>
+                            <td className="py-2.5 px-3 text-center">
+                              <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                order.status === 'Delivered' 
+                                  ? 'bg-emerald-100 text-emerald-800' 
+                                  : 'bg-amber-100 text-amber-800'
+                              }`}>
+                                {order.status}
+                              </span>
+                            </td>
+                            <td className="py-2.5 px-3 text-right">
+                              <button
+                                type="button"
+                                onClick={() => setActiveInvoiceOrder(order)}
+                                className="px-2.5 py-1 bg-slate-100 hover:bg-[#123184] hover:text-white text-slate-700 rounded-lg text-[11px] font-bold cursor-pointer transition-colors shadow-2xs"
+                              >
+                                ইনভয়েস
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                    </tbody>
+                  </table>
+                  {orders.length === 0 && (
+                    <div className="text-center py-8 text-slate-400 text-xs">
+                      এখনো কোনো অর্ডার সম্পন্ন হয়নি।
+                    </div>
+                  )}
+                </div>
+              </div>
 
             </div>
           )}

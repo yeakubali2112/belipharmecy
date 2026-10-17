@@ -10,7 +10,11 @@ import {
   Clock, 
   ShieldCheck, 
   Banknote,
-  Receipt
+  Receipt,
+  Landmark,
+  Building2,
+  Copy,
+  Check
 } from 'lucide-react';
 import { useShop } from '../context/ShopContext';
 
@@ -23,6 +27,7 @@ export const CheckoutModal = () => {
     discountAmount, 
     couponCode,
     config, 
+    paymentSettings,
     createOrder,
     currentCustomer,
     lang 
@@ -33,10 +38,18 @@ export const CheckoutModal = () => {
   const [deliveryAddress, setDeliveryAddress] = useState(currentCustomer?.address || '');
   const [area, setArea] = useState('Dupchanchia / Bogura');
   const [deliveryType, setDeliveryType] = useState('regular'); // 'regular' or 'express'
-  const [paymentMethod, setPaymentMethod] = useState('cod'); // 'cod', 'bkash', 'nagad'
+  const [paymentMethod, setPaymentMethod] = useState('cod'); // 'cod', 'bkash', 'nagad', 'bank'
   const [trxId, setTrxId] = useState('');
   const [patientNote, setPatientNote] = useState('');
   const [orderState, setOrderState] = useState('idle'); // 'idle' | 'riding' | 'success'
+  const [copiedField, setCopiedField] = useState(null);
+
+  const handleCopy = (text, fieldName) => {
+    if (!text) return;
+    navigator.clipboard?.writeText(text);
+    setCopiedField(fieldName);
+    setTimeout(() => setCopiedField(null), 2000);
+  };
 
   React.useEffect(() => {
     if (isCheckoutModalOpen) {
@@ -68,8 +81,10 @@ export const CheckoutModal = () => {
       return;
     }
 
-    if ((paymentMethod === 'bkash' || paymentMethod === 'nagad') && !trxId.trim()) {
-      alert(lang === 'bn' ? 'অনুগ্রহ করে TrxID বা লেনদেন নম্বর দিন।' : 'Please enter your Transaction ID (TrxID).');
+    if ((paymentMethod === 'bkash' || paymentMethod === 'nagad' || paymentMethod === 'bank') && !trxId.trim()) {
+      alert(lang === 'bn' 
+        ? (paymentMethod === 'bank' ? 'অনুগ্রহ করে ব্যাংক ডিপোজিট স্লিপ বা ট্রানজেকশন রেফারেন্স নম্বর দিন।' : 'অনুগ্রহ করে TrxID বা লেনদেন নম্বর দিন।')
+        : 'Please enter your Transaction ID or Bank Reference.');
       return;
     }
 
@@ -313,89 +328,161 @@ export const CheckoutModal = () => {
           </div>
 
           {/* Payment Method Selector */}
-          <div className="space-y-2">
+          <div className="space-y-2.5">
             <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
               <Banknote className="w-4 h-4 text-emerald-600" />
-              {lang === 'bn' ? 'পেমেন্ট পদ্ধতি' : 'Payment Method'}
+              {lang === 'bn' ? 'পেমেন্ট পদ্ধতি নির্বাচন করুন' : 'Payment Method'}
             </h3>
 
-            <div className="grid grid-cols-3 gap-2 sm:gap-3">
-              {/* Cash On Delivery */}
-              <button
-                type="button"
-                onClick={() => setPaymentMethod('cod')}
-                className={`p-3 rounded-2xl border flex flex-col items-center justify-center text-center transition-all cursor-pointer ${
-                  paymentMethod === 'cod' 
-                    ? 'border-[#02975E] bg-emerald-50 text-emerald-950 font-black shadow-xs ring-2 ring-[#02975E]/30' 
-                    : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
-                }`}
-              >
-                <div className="h-8 flex items-center justify-center mb-1">
-                  <span className="text-xl">💵</span>
-                </div>
-                <span className="text-xs block font-bold leading-tight">{lang === 'bn' ? 'Cash on Hand (হাতে নগদ)' : 'Cash on Hand'}</span>
-              </button>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-2.5">
+              {/* Cash On Hand */}
+              {paymentSettings?.cod?.enabled !== false && (
+                <button
+                  type="button"
+                  onClick={() => setPaymentMethod('cod')}
+                  className={`p-2.5 sm:p-3 rounded-2xl border flex flex-col items-center justify-center text-center transition-all cursor-pointer ${
+                    paymentMethod === 'cod' 
+                      ? 'border-[#02975E] bg-emerald-50 text-emerald-950 font-black shadow-xs ring-2 ring-[#02975E]/30' 
+                      : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                  }`}
+                >
+                  <div className="h-7 flex items-center justify-center mb-1">
+                    <span className="text-xl">💵</span>
+                  </div>
+                  <span className="text-xs block font-bold leading-tight">
+                    {lang === 'bn' ? 'Cash on Hand' : 'Cash on Hand'}
+                  </span>
+                  <span className="text-[10px] text-slate-500 font-medium">হাতে নগদ</span>
+                </button>
+              )}
 
               {/* bKash */}
-              <button
-                type="button"
-                onClick={() => setPaymentMethod('bkash')}
-                className={`p-3 rounded-2xl border flex flex-col items-center justify-center text-center transition-all cursor-pointer ${
-                  paymentMethod === 'bkash' 
-                    ? 'border-[#D12053] bg-pink-50 text-[#D12053] font-black shadow-xs ring-2 ring-[#D12053]/30' 
-                    : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
-                }`}
-              >
-                <div className="h-8 flex items-center justify-center mb-1">
-                  <img 
-                    src="/bkash-logo.png" 
-                    alt="bKash বিকাশ" 
-                    className="h-7 max-w-[85px] sm:max-w-[100px] object-contain drop-shadow-2xs" 
-                  />
-                </div>
-                <span className="text-xs block font-bold leading-tight">bKash (বিকাশ)</span>
-              </button>
+              {paymentSettings?.bkash?.enabled !== false && (
+                <button
+                  type="button"
+                  onClick={() => setPaymentMethod('bkash')}
+                  className={`p-2.5 sm:p-3 rounded-2xl border flex flex-col items-center justify-center text-center transition-all cursor-pointer ${
+                    paymentMethod === 'bkash' 
+                      ? 'border-[#D12053] bg-pink-50 text-[#D12053] font-black shadow-xs ring-2 ring-[#D12053]/30' 
+                      : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                  }`}
+                >
+                  <div className="h-7 flex items-center justify-center mb-1">
+                    <img 
+                      src="/bkash-logo.png" 
+                      alt="bKash বিকাশ" 
+                      className="h-6 max-w-[75px] sm:max-w-[85px] object-contain drop-shadow-2xs" 
+                    />
+                  </div>
+                  <span className="text-xs block font-bold leading-tight">bKash</span>
+                  <span className="text-[10px] text-[#D12053] font-medium">বিকাশ পেমেন্ট</span>
+                </button>
+              )}
 
               {/* Nagad */}
-              <button
-                type="button"
-                onClick={() => setPaymentMethod('nagad')}
-                className={`p-3 rounded-2xl border flex flex-col items-center justify-center text-center transition-all cursor-pointer ${
-                  paymentMethod === 'nagad' 
-                    ? 'border-[#E31B23] bg-orange-50 text-[#E31B23] font-black shadow-xs ring-2 ring-[#E31B23]/30' 
-                    : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
-                }`}
-              >
-                <div className="h-8 flex items-center justify-center mb-1">
-                  <img 
-                    src="/nagad-logo.png" 
-                    alt="Nagad নগদ" 
-                    className="h-7 max-w-[85px] sm:max-w-[100px] object-contain drop-shadow-2xs" 
-                  />
-                </div>
-                <span className="text-xs block font-bold leading-tight">Nagad (নগদ)</span>
-              </button>
+              {paymentSettings?.nagad?.enabled !== false && (
+                <button
+                  type="button"
+                  onClick={() => setPaymentMethod('nagad')}
+                  className={`p-2.5 sm:p-3 rounded-2xl border flex flex-col items-center justify-center text-center transition-all cursor-pointer ${
+                    paymentMethod === 'nagad' 
+                      ? 'border-[#E31B23] bg-orange-50 text-[#E31B23] font-black shadow-xs ring-2 ring-[#E31B23]/30' 
+                      : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                  }`}
+                >
+                  <div className="h-7 flex items-center justify-center mb-1">
+                    <img 
+                      src="/nagad-logo.png" 
+                      alt="Nagad নগদ" 
+                      className="h-6 max-w-[75px] sm:max-w-[85px] object-contain drop-shadow-2xs" 
+                    />
+                  </div>
+                  <span className="text-xs block font-bold leading-tight">Nagad</span>
+                  <span className="text-[10px] text-[#E31B23] font-medium">নগদ পেমেন্ট</span>
+                </button>
+              )}
+
+              {/* Bank Transfer */}
+              {paymentSettings?.bank?.enabled !== false && (
+                <button
+                  type="button"
+                  onClick={() => setPaymentMethod('bank')}
+                  className={`p-2.5 sm:p-3 rounded-2xl border flex flex-col items-center justify-center text-center transition-all cursor-pointer ${
+                    paymentMethod === 'bank' 
+                      ? 'border-[#123184] bg-blue-50 text-[#123184] font-black shadow-xs ring-2 ring-[#123184]/30' 
+                      : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                  }`}
+                >
+                  <div className="h-7 flex items-center justify-center mb-1 text-[#123184]">
+                    <Building2 className="w-6 h-6" />
+                  </div>
+                  <span className="text-xs block font-bold leading-tight">Bank</span>
+                  <span className="text-[10px] text-blue-700 font-medium">ব্যাংক ট্রান্সফার</span>
+                </button>
+              )}
             </div>
+
+            {/* Cash on Hand Instructions */}
+            {paymentMethod === 'cod' && (
+              <div className="bg-emerald-50/70 border border-emerald-200 rounded-2xl p-3 text-xs text-emerald-950 flex items-center gap-2.5 animate-in fade-in">
+                <span className="text-xl shrink-0">💵</span>
+                <p className="leading-relaxed text-[11px] sm:text-xs">
+                  {paymentSettings?.cod?.instructions || (lang === 'bn' 
+                    ? 'ওষুধ বাসায় পৌঁছানোর পর ডেলিভারি ম্যানকে সরাসরি নগদ অর্থ পরিশোধ করুন।' 
+                    : 'Pay with cash upon delivery at your doorstep.')}
+                </p>
+              </div>
+            )}
 
             {/* bKash Instructions */}
             {paymentMethod === 'bkash' && (
-              <div className="bg-pink-50 border border-pink-200 rounded-2xl p-3.5 text-xs text-pink-950 space-y-2 animate-in fade-in">
-                <div className="flex items-center gap-2 border-b border-pink-200/80 pb-2">
-                  <div className="bg-white px-2 py-1 rounded-lg border border-pink-200 shadow-2xs">
-                    <img src="/bkash-logo.png" alt="bKash" className="h-5 object-contain" />
+              <div className="bg-pink-50 border border-pink-200 rounded-2xl p-3.5 text-xs text-pink-950 space-y-2.5 animate-in fade-in">
+                <div className="flex items-center justify-between border-b border-pink-200/80 pb-2">
+                  <div className="flex items-center gap-2">
+                    <div className="bg-white px-2 py-1 rounded-lg border border-pink-200 shadow-2xs">
+                      <img src="/bkash-logo.png" alt="bKash" className="h-5 object-contain" />
+                    </div>
+                    <div>
+                      <p className="font-extrabold text-[#D12053] text-xs">
+                        {lang === 'bn' ? 'বিকাশ পেমেন্ট বা সেন্ড মানি নির্দেশিকা' : 'bKash Payment Instruction'}
+                      </p>
+                      <span className="text-[10px] text-pink-700 font-medium">
+                        {paymentSettings?.bkash?.type || 'Personal / Merchant'} একাউন্ট
+                      </span>
+                    </div>
                   </div>
-                  <div>
-                    <p className="font-extrabold text-[#D12053] text-xs">
-                      {lang === 'bn' ? 'বিকাশ পেমেন্ট বা সেন্ড মানি নির্দেশিকা' : 'bKash Payment Instruction'}
-                    </p>
-                    <span className="text-[10px] text-pink-700 font-medium">নিরাপদ ও তাৎক্ষণিক ট্রানজেকশন</span>
-                  </div>
+                  <span className="text-xs font-black text-[#D12053] bg-white px-2 py-0.5 rounded-lg border border-pink-200">
+                    ৳{grandTotal.toFixed(0)}
+                  </span>
                 </div>
-                <p className="leading-relaxed">
-                  বিকাশ নম্বর: <b className="text-[#D12053] font-mono text-sm select-all bg-white px-2 py-0.5 rounded-lg border border-pink-200 font-bold">{config.bkashNumber}</b> এ <b>৳{grandTotal.toFixed(0)}</b> টাকা সেন্ড মানি করুন। এরপর নিচের বক্সে TrxID লিখুন:
+
+                <div className="flex flex-wrap items-center justify-between gap-2 bg-white/90 p-2.5 rounded-xl border border-pink-200">
+                  <div className="leading-tight">
+                    <span className="text-[10px] text-pink-800 font-bold block">বিকাশ নম্বর:</span>
+                    <span className="font-mono text-base font-black text-[#D12053] select-all tracking-wider">
+                      {paymentSettings?.bkash?.number || config.bkashNumber}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleCopy(paymentSettings?.bkash?.number || config.bkashNumber, 'bkash')}
+                    className="px-3 py-1.5 bg-pink-50 hover:bg-pink-100 text-[#D12053] rounded-lg border border-pink-300 font-bold text-xs flex items-center gap-1.5 cursor-pointer transition-colors shadow-2xs"
+                  >
+                    {copiedField === 'bkash' ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                    <span>{copiedField === 'bkash' ? 'কপিকৃত!' : 'নম্বর কপি'}</span>
+                  </button>
+                </div>
+
+                <p className="leading-relaxed text-[11px] text-pink-900">
+                  {paymentSettings?.bkash?.instructions || (lang === 'bn' 
+                    ? `উপরের বিকাশ নম্বরে মোট ৳${grandTotal.toFixed(0)} টাকা সেন্ড মানি করুন। এরপর নিচে প্রাপ্ত TrxID প্রদান করুন:`
+                    : `Send ৳${grandTotal.toFixed(0)} to the bKash number and enter TrxID below:`)}
                 </p>
+
                 <div>
-                  <label className="block text-[11px] font-bold text-pink-900 mb-1">বিকাশ ট্রানজেকশন আইডি (TrxID) *</label>
+                  <label className="block text-[11px] font-bold text-pink-900 mb-1">
+                    বিকাশ ট্রানজেকশন আইডি (TrxID) *
+                  </label>
                   <input
                     type="text"
                     required
@@ -410,23 +497,53 @@ export const CheckoutModal = () => {
 
             {/* Nagad Instructions */}
             {paymentMethod === 'nagad' && (
-              <div className="bg-orange-50 border border-orange-200 rounded-2xl p-3.5 text-xs text-orange-950 space-y-2 animate-in fade-in">
-                <div className="flex items-center gap-2 border-b border-orange-200/80 pb-2">
-                  <div className="bg-white px-2 py-1 rounded-lg border border-orange-200 shadow-2xs">
-                    <img src="/nagad-logo.png" alt="Nagad" className="h-5 object-contain" />
+              <div className="bg-orange-50 border border-orange-200 rounded-2xl p-3.5 text-xs text-orange-950 space-y-2.5 animate-in fade-in">
+                <div className="flex items-center justify-between border-b border-orange-200/80 pb-2">
+                  <div className="flex items-center gap-2">
+                    <div className="bg-white px-2 py-1 rounded-lg border border-orange-200 shadow-2xs">
+                      <img src="/nagad-logo.png" alt="Nagad" className="h-5 object-contain" />
+                    </div>
+                    <div>
+                      <p className="font-extrabold text-[#E31B23] text-xs">
+                        {lang === 'bn' ? 'নগদ পেমেন্ট বা সেন্ড মানি নির্দেশিকা' : 'Nagad Payment Instruction'}
+                      </p>
+                      <span className="text-[10px] text-orange-700 font-medium">
+                        {paymentSettings?.nagad?.type || 'Personal'} একাউন্ট
+                      </span>
+                    </div>
                   </div>
-                  <div>
-                    <p className="font-extrabold text-[#E31B23] text-xs">
-                      {lang === 'bn' ? 'নগদ পেমেন্ট বা সেন্ড মানি নির্দেশিকা' : 'Nagad Payment Instruction'}
-                    </p>
-                    <span className="text-[10px] text-orange-700 font-medium">ডাক বিভাগের ডিজিটাল লেনদেন</span>
-                  </div>
+                  <span className="text-xs font-black text-[#E31B23] bg-white px-2 py-0.5 rounded-lg border border-orange-200">
+                    ৳{grandTotal.toFixed(0)}
+                  </span>
                 </div>
-                <p className="leading-relaxed">
-                  নগদ নম্বর: <b className="text-[#E31B23] font-mono text-sm select-all bg-white px-2 py-0.5 rounded-lg border border-orange-200 font-bold">{config.nagadNumber}</b> এ <b>৳{grandTotal.toFixed(0)}</b> টাকা পাঠান এবং নিচের বক্সে TrxID দিন:
+
+                <div className="flex flex-wrap items-center justify-between gap-2 bg-white/90 p-2.5 rounded-xl border border-orange-200">
+                  <div className="leading-tight">
+                    <span className="text-[10px] text-orange-800 font-bold block">নগদ নম্বর:</span>
+                    <span className="font-mono text-base font-black text-[#E31B23] select-all tracking-wider">
+                      {paymentSettings?.nagad?.number || config.nagadNumber}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleCopy(paymentSettings?.nagad?.number || config.nagadNumber, 'nagad')}
+                    className="px-3 py-1.5 bg-orange-50 hover:bg-orange-100 text-[#E31B23] rounded-lg border border-orange-300 font-bold text-xs flex items-center gap-1.5 cursor-pointer transition-colors shadow-2xs"
+                  >
+                    {copiedField === 'nagad' ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                    <span>{copiedField === 'nagad' ? 'কপিকৃত!' : 'নম্বর কপি'}</span>
+                  </button>
+                </div>
+
+                <p className="leading-relaxed text-[11px] text-orange-900">
+                  {paymentSettings?.nagad?.instructions || (lang === 'bn' 
+                    ? `উপরের নগদ নম্বরে ৳${grandTotal.toFixed(0)} টাকা সেন্ড মানি করে নিচের বক্সে TrxID দিন:`
+                    : `Send ৳${grandTotal.toFixed(0)} to the Nagad number and enter TrxID below:`)}
                 </p>
+
                 <div>
-                  <label className="block text-[11px] font-bold text-orange-900 mb-1">নগদ ট্রানজেকশন আইডি (TrxID) *</label>
+                  <label className="block text-[11px] font-bold text-orange-900 mb-1">
+                    নগদ ট্রানজেকশন আইডি (TrxID) *
+                  </label>
                   <input
                     type="text"
                     required
@@ -434,6 +551,106 @@ export const CheckoutModal = () => {
                     onChange={(e) => setTrxId(e.target.value)}
                     placeholder="যেমন: 7GA8X10"
                     className="w-full bg-white px-3.5 py-2 rounded-xl border border-orange-300 text-xs uppercase font-mono font-bold outline-none focus:border-[#E31B23] focus:ring-1 focus:ring-[#E31B23]"
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Bank Transfer Instructions */}
+            {paymentMethod === 'bank' && (
+              <div className="bg-sky-50 border border-sky-200 rounded-2xl p-3.5 text-xs text-sky-950 space-y-3 animate-in fade-in">
+                <div className="flex items-center justify-between border-b border-sky-200/80 pb-2">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-xl bg-[#123184] text-white flex items-center justify-center shadow-xs">
+                      <Building2 className="w-4 h-4 text-emerald-300" />
+                    </div>
+                    <div>
+                      <p className="font-extrabold text-[#123184] text-xs sm:text-sm">
+                        {paymentSettings?.bank?.bankName || 'ব্যাংক ফান্ড ট্রান্সফার'}
+                      </p>
+                      <span className="text-[10px] text-sky-700 font-medium">অনলাইন ব্যাংকিং / ডিপোজিট / NPSB / BEFTN</span>
+                    </div>
+                  </div>
+                  <span className="text-xs font-black text-[#123184] bg-white px-2 py-0.5 rounded-lg border border-sky-200">
+                    ৳{grandTotal.toFixed(0)}
+                  </span>
+                </div>
+
+                {/* Bank Account Details Grid */}
+                <div className="grid sm:grid-cols-2 gap-2 bg-white/95 p-3 rounded-xl border border-sky-200 text-xs shadow-2xs">
+                  <div>
+                    <span className="text-[10px] text-slate-500 font-bold block">ব্যাংকের নাম (Bank Name):</span>
+                    <span className="font-bold text-slate-900 block mt-0.5">
+                      {paymentSettings?.bank?.bankName || 'Islami Bank Bangladesh Ltd'}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-slate-500 font-bold block">হিসাবধারীর নাম (Account Name):</span>
+                    <span className="font-bold text-slate-900 block mt-0.5">
+                      {paymentSettings?.bank?.accountName || 'Beli Pharmacy'}
+                    </span>
+                  </div>
+
+                  <div className="sm:col-span-2 flex items-center justify-between bg-sky-50/80 p-2.5 rounded-lg border border-sky-200">
+                    <div>
+                      <span className="text-[10px] text-sky-800 font-bold block">হিসাব নম্বর (Account Number):</span>
+                      <span className="font-mono font-black text-sm text-[#123184] select-all tracking-wider">
+                        {paymentSettings?.bank?.accountNumber || '2050 1480 2003 4567'}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleCopy(paymentSettings?.bank?.accountNumber, 'bank_acc')}
+                      className="px-2.5 py-1 bg-white hover:bg-sky-100 text-[#123184] rounded-lg border border-sky-300 font-bold text-[11px] flex items-center gap-1 cursor-pointer transition-colors shadow-2xs"
+                    >
+                      {copiedField === 'bank_acc' ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                      <span>{copiedField === 'bank_acc' ? 'কপিকৃত!' : 'কপি'}</span>
+                    </button>
+                  </div>
+
+                  <div>
+                    <span className="text-[10px] text-slate-500 font-bold block">শাখা (Branch Name):</span>
+                    <span className="font-bold text-slate-900 block mt-0.5">
+                      {paymentSettings?.bank?.branchName || 'Dupchanchia Branch'}
+                    </span>
+                  </div>
+
+                  {paymentSettings?.bank?.routingNumber && (
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <span className="text-[10px] text-slate-500 font-bold block">রাউটিং নম্বর (Routing No):</span>
+                        <span className="font-mono font-bold text-slate-900 mt-0.5 block">{paymentSettings?.bank?.routingNumber}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleCopy(paymentSettings?.bank?.routingNumber, 'bank_route')}
+                        className="px-2 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded text-[10px] font-bold flex items-center gap-1 cursor-pointer"
+                        title="রাউটিং কপি করুন"
+                      >
+                        {copiedField === 'bank_route' ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
+                        <span>{copiedField === 'bank_route' ? 'কপিকৃত' : 'কপি'}</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {paymentSettings?.bank?.instructions && (
+                  <p className="text-[11px] text-sky-900 bg-sky-100/60 p-2.5 rounded-xl border border-sky-200 leading-relaxed">
+                    💡 <b>নির্দেশনা:</b> {paymentSettings?.bank?.instructions}
+                  </p>
+                )}
+
+                <div>
+                  <label className="block text-[11px] font-bold text-[#123184] mb-1">
+                    ব্যাংক ডিপোজিট স্লিপ / রেফারেন্স নম্বর / TrxID *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={trxId}
+                    onChange={(e) => setTrxId(e.target.value)}
+                    placeholder="যেমন: IBBL-98213456 বা ডিপোজিট স্লিপ নং"
+                    className="w-full bg-white px-3.5 py-2 rounded-xl border border-sky-300 text-xs font-mono font-bold outline-none focus:border-[#123184] focus:ring-1 focus:ring-[#123184]"
                   />
                 </div>
               </div>

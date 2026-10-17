@@ -10,7 +10,8 @@ import {
   Phone, 
   AlertCircle,
   FileText,
-  Mic
+  Mic,
+  Building2
 } from 'lucide-react';
 import { useShop } from '../context/ShopContext';
 import { VoiceNotePlayer } from './VoiceNotePlayer';
@@ -23,6 +24,7 @@ export const OrderTrackingModal = () => {
     prescriptions,
     updateOrderPaymentMethod,
     config,
+    paymentSettings,
     setActiveInvoiceOrder,
     lang 
   } = useShop();
@@ -233,6 +235,10 @@ export const OrderTrackingModal = () => {
                               <span className="inline-flex items-center gap-1 font-bold text-[#E31B23] bg-orange-50 px-2 py-0.5 rounded border border-orange-200">
                                 <img src="/nagad-logo.png" alt="Nagad" className="h-3.5 object-contain" /> Nagad
                               </span>
+                            ) : (searchedOrder.paymentMethod === 'Bank' || searchedOrder.paymentMethod === 'bank' || searchedOrder.paymentMethod === 'Bank Transfer') ? (
+                              <span className="inline-flex items-center gap-1 font-bold text-[#123184] bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
+                                <Building2 className="w-3.5 h-3.5 text-[#123184]" /> Bank Transfer (ব্যাংক)
+                              </span>
                             ) : (
                               <span className="font-bold text-emerald-900 bg-emerald-100/60 px-2 py-0.5 rounded border border-emerald-200">
                                 💵 Cash on Hand (হাতে নগদ)
@@ -240,7 +246,7 @@ export const OrderTrackingModal = () => {
                             )}
                             {searchedOrder.trxId && searchedOrder.trxId !== 'N/A' && (
                               <span className="font-mono text-slate-800 font-bold bg-white px-2 py-0.5 border border-slate-300 rounded text-xs">
-                                TrxID: {searchedOrder.trxId}
+                                TrxID / Ref: {searchedOrder.trxId}
                               </span>
                             )}
                           </p>
@@ -254,7 +260,14 @@ export const OrderTrackingModal = () => {
                   ) : (
                     /* SELECTION & CONFIRMATION BOX - BEFORE SAVING */
                     (() => {
-                      const activeChoice = searchedOrder.paymentMethod === 'bKash' || searchedOrder.paymentMethod === 'Nagad' ? searchedOrder.paymentMethod : 'Cash on Hand';
+                      const method = searchedOrder.paymentMethod;
+                      const activeChoice = (method === 'bKash' || method === 'bkash') 
+                        ? 'bKash' 
+                        : (method === 'Nagad' || method === 'nagad')
+                        ? 'Nagad'
+                        : (method === 'bank' || method === 'Bank' || method === 'Bank Transfer')
+                        ? 'Bank Transfer'
+                        : 'Cash on Hand';
                       return (
                         <div className="bg-gradient-to-r from-emerald-50 via-blue-50/50 to-pink-50/40 border border-[#02975E] rounded-xl p-3 space-y-2 shadow-2xs animate-in fade-in">
                           <div className="flex flex-wrap items-center justify-between gap-1.5 border-b border-emerald-200/80 pb-1.5">
@@ -273,8 +286,8 @@ export const OrderTrackingModal = () => {
                             </span>
                           </div>
 
-                          {/* 3 Payment Options: Cash on Hand, bKash, Nagad */}
-                          <div className="grid grid-cols-3 gap-2">
+                          {/* 4 Payment Options: Cash on Hand, bKash, Nagad, Bank Transfer */}
+                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                             {/* Cash on Hand */}
                             <button
                               type="button"
@@ -325,6 +338,23 @@ export const OrderTrackingModal = () => {
                                 <span className="text-[9px] font-bold text-[#E31B23] bg-orange-100 px-1 rounded">✓ সিলেক্টেড</span>
                               )}
                             </button>
+
+                            {/* Bank Transfer */}
+                            <button
+                              type="button"
+                              onClick={() => updateOrderPaymentMethod(searchedOrder.id, 'Bank Transfer', searchedOrder.trxId, false)}
+                              className={`p-2 rounded-lg border flex flex-col items-center justify-center text-center gap-1 transition-all cursor-pointer ${
+                                activeChoice === 'Bank Transfer'
+                                  ? 'border-[#123184] bg-white text-[#123184] font-black shadow-xs ring-2 ring-[#123184]'
+                                  : 'border-slate-200 bg-white/80 text-slate-700 hover:bg-white'
+                              }`}
+                            >
+                              <Building2 className="w-4 h-4 text-[#123184]" />
+                              <span className="text-[11px] font-extrabold block leading-tight">Bank Transfer</span>
+                              {activeChoice === 'Bank Transfer' && (
+                                <span className="text-[9px] font-bold text-[#123184] bg-blue-100 px-1 rounded">✓ সিলেক্টেড</span>
+                              )}
+                            </button>
                           </div>
 
                           {/* Cash on Hand action */}
@@ -355,7 +385,7 @@ export const OrderTrackingModal = () => {
                                 <span className="font-bold">{lang === 'bn' ? 'বিকাশ পেমেন্ট সম্পন্ন করতে:' : 'To complete bKash payment:'}</span>
                               </div>
                               <p className="leading-relaxed">
-                                {lang === 'bn' ? 'বিকাশ নম্বর:' : 'bKash Number:'} <b className="text-[#D12053] font-mono select-all bg-pink-50 px-1.5 py-0.5 rounded">{config.bkashNumber}</b> এ <b>৳{Number(searchedOrder.grandTotal).toFixed(0)}</b> টাকা পাঠিয়ে TrxID সংরক্ষণ করুন।
+                                {lang === 'bn' ? 'বিকাশ নম্বর:' : 'bKash Number:'} <b className="text-[#D12053] font-mono select-all bg-pink-50 px-1.5 py-0.5 rounded">{paymentSettings?.bkash?.number || config.bkashNumber}</b> এ <b>৳{Number(searchedOrder.grandTotal).toFixed(0)}</b> টাকা পাঠিয়ে TrxID সংরক্ষণ করুন।
                               </p>
                               <div className="flex gap-2">
                                 <input
@@ -391,7 +421,7 @@ export const OrderTrackingModal = () => {
                                 <span className="font-bold">{lang === 'bn' ? 'নগদ পেমেন্ট সম্পন্ন করতে:' : 'To complete Nagad payment:'}</span>
                               </div>
                               <p className="leading-relaxed">
-                                {lang === 'bn' ? 'নগদ নম্বর:' : 'Nagad Number:'} <b className="text-[#E31B23] font-mono select-all bg-orange-50 px-1.5 py-0.5 rounded">{config.nagadNumber}</b> এ <b>৳{Number(searchedOrder.grandTotal).toFixed(0)}</b> টাকা পাঠিয়ে TrxID সংরক্ষণ করুন।
+                                {lang === 'bn' ? 'নগদ নম্বর:' : 'Nagad Number:'} <b className="text-[#E31B23] font-mono select-all bg-orange-50 px-1.5 py-0.5 rounded">{paymentSettings?.nagad?.number || config.nagadNumber}</b> এ <b>৳{Number(searchedOrder.grandTotal).toFixed(0)}</b> টাকা পাঠিয়ে TrxID সংরক্ষণ করুন।
                               </p>
                               <div className="flex gap-2">
                                 <input
@@ -412,6 +442,44 @@ export const OrderTrackingModal = () => {
                                     updateOrderPaymentMethod(searchedOrder.id, 'Nagad', val, true);
                                   }}
                                   className="bg-[#E31B23] hover:bg-orange-700 text-white px-4 py-1.5 rounded-lg font-bold text-xs cursor-pointer shadow-xs"
+                                >
+                                  {lang === 'bn' ? 'সংরক্ষণ' : 'Save'}
+                                </button>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Bank Transfer action */}
+                          {activeChoice === 'Bank Transfer' && (
+                            <div className="bg-white border border-blue-200 p-3 rounded-xl space-y-2 text-xs text-blue-950 animate-in fade-in">
+                              <div className="flex items-center gap-2">
+                                <Building2 className="w-4 h-4 text-[#123184]" />
+                                <span className="font-bold">{lang === 'bn' ? 'ব্যাংক ট্রান্সফার পেমেন্ট বিবরণ:' : 'Bank Transfer Details:'}</span>
+                              </div>
+                              <div className="bg-blue-50/70 p-2.5 rounded-lg border border-blue-100 text-[11px] space-y-1">
+                                <p><b>ব্যাংক:</b> {paymentSettings?.bank?.bankName || 'Islami Bank Bangladesh Ltd'}</p>
+                                <p><b>হিসাব নাম:</b> {paymentSettings?.bank?.accountName || 'Beli Pharmacy'}</p>
+                                <p><b>হিসাব নং:</b> <b className="font-mono text-[#123184] select-all">{paymentSettings?.bank?.accountNumber || '2050 1480 2003 4567'}</b> ({paymentSettings?.bank?.branchName || 'Dupchanchia Branch'})</p>
+                              </div>
+                              <div className="flex gap-2">
+                                <input
+                                  type="text"
+                                  id={`track-trx-${searchedOrder.id}`}
+                                  defaultValue={searchedOrder.trxId !== 'N/A' ? searchedOrder.trxId : ''}
+                                  placeholder="ব্যাংক ডিপোজিট স্লিপ / TrxID নম্বর"
+                                  className="flex-1 px-3 py-1.5 border border-blue-300 rounded-lg text-xs font-mono font-bold outline-none focus:border-[#123184]"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const val = document.getElementById(`track-trx-${searchedOrder.id}`)?.value?.trim();
+                                    if (!val) {
+                                      alert(lang === 'bn' ? 'অনুগ্রহ করে ব্যাংক স্লিপ বা TrxID নম্বর দিন' : 'Please enter Bank Reference or TrxID');
+                                      return;
+                                    }
+                                    updateOrderPaymentMethod(searchedOrder.id, 'Bank Transfer', val, true);
+                                  }}
+                                  className="bg-[#123184] hover:bg-[#0d2463] text-white px-4 py-1.5 rounded-lg font-bold text-xs cursor-pointer shadow-xs"
                                 >
                                   {lang === 'bn' ? 'সংরক্ষণ' : 'Save'}
                                 </button>

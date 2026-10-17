@@ -193,14 +193,77 @@ export const ShopProvider = ({ children }) => {
     showToast(lang === 'bn' ? 'ডেলিভারি চার্জ সেটিংস সফলভাবে আপডেট হয়েছে!' : 'Delivery settings updated successfully!', 'success');
   };
 
+  // Payment Methods Settings (bKash, Nagad, Bank Transfer, Cash on Hand)
+  const DEFAULT_PAYMENT_SETTINGS = {
+    bkash: {
+      enabled: true,
+      number: PHARMACY_CONFIG.bkashNumber || '01774 961757',
+      type: 'Personal / Merchant',
+      instructions: 'বিকাশ অ্যাপ বা *247# ডায়াল করে সেন্ড মানি বা পেমেন্ট সম্পন্ন করুন এবং ট্রানজেকশন আইডি (TrxID) দিন।'
+    },
+    nagad: {
+      enabled: true,
+      number: PHARMACY_CONFIG.nagadNumber || '01774 961757',
+      type: 'Personal',
+      instructions: 'নগদ অ্যাপ বা *167# ডায়াল করে সেন্ড মানি করুন এবং ট্রানজেকশন আইডি (TrxID) দিন।'
+    },
+    bank: {
+      enabled: true,
+      bankName: 'Islami Bank Bangladesh Ltd (IBBL)',
+      accountName: 'Beli Pharmacy (বেলী ফার্মেসি)',
+      accountNumber: '2050 1480 2003 4567',
+      branchName: 'Dupchanchia Branch, Bogura',
+      routingNumber: '125100456',
+      instructions: 'অনলাইন ব্যাংক অ্যাপ (iBanking / Cellfin / NexusPay) বা সরাসরি ব্যাংকে ডিপোজিট করে রেফারেন্স/ট্রানজেকশন নম্বর দিন।'
+    },
+    cod: {
+      enabled: true,
+      title: 'Cash on Hand (হাতে নগদ)',
+      instructions: 'ওষুধ বাসায় ডেলিভারি পাওয়ার পর ডেলিভারি ম্যানকে সরাসরি নগদ অর্থ পরিশোধ করুন।'
+    }
+  };
+
+  const [paymentSettings, setPaymentSettings] = useState(() => {
+    try {
+      const saved = localStorage.getItem('beli_payment_settings');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && typeof parsed === 'object') {
+          return {
+            bkash: { ...DEFAULT_PAYMENT_SETTINGS.bkash, ...(parsed.bkash || {}) },
+            nagad: { ...DEFAULT_PAYMENT_SETTINGS.nagad, ...(parsed.nagad || {}) },
+            bank: { ...DEFAULT_PAYMENT_SETTINGS.bank, ...(parsed.bank || {}) },
+            cod: { ...DEFAULT_PAYMENT_SETTINGS.cod, ...(parsed.cod || {}) }
+          };
+        }
+      }
+    } catch {}
+    return DEFAULT_PAYMENT_SETTINGS;
+  });
+
+  const updatePaymentSettings = (newSettings) => {
+    const merged = {
+      bkash: { ...DEFAULT_PAYMENT_SETTINGS.bkash, ...(newSettings.bkash || {}) },
+      nagad: { ...DEFAULT_PAYMENT_SETTINGS.nagad, ...(newSettings.nagad || {}) },
+      bank: { ...DEFAULT_PAYMENT_SETTINGS.bank, ...(newSettings.bank || {}) },
+      cod: { ...DEFAULT_PAYMENT_SETTINGS.cod, ...(newSettings.cod || {}) }
+    };
+    setPaymentSettings(merged);
+    safeSetItem('beli_payment_settings', JSON.stringify(merged));
+    saveCloudSettings({ paymentSettings: merged, deliverySettings, coupons, adBanner, heroBanner, adminUsers });
+    showToast(lang === 'bn' ? 'পেমেন্ট মেথড সেটিংস সফলভাবে আপডেট হয়েছে!' : 'Payment settings updated successfully!', 'success');
+  };
+
   // Custom admin password state (persists resets/changes for Super Admin)
   const [customAdminPassword, setCustomAdminPassword] = useState(() => {
     return localStorage.getItem('beli_custom_admin_password') || PHARMACY_CONFIG.adminPassword || '1234';
   });
 
-  // Dynamic config merging default config with admin delivery settings and active admin password
+  // Dynamic config merging default config with admin delivery settings, payment settings, and active admin password
   const config = {
     ...PHARMACY_CONFIG,
+    bkashNumber: paymentSettings?.bkash?.number || PHARMACY_CONFIG.bkashNumber,
+    nagadNumber: paymentSettings?.nagad?.number || PHARMACY_CONFIG.nagadNumber,
     adminPassword: customAdminPassword,
     deliveryFee: Number(deliverySettings.deliveryFee),
     freeDeliveryThreshold: Number(deliverySettings.freeDeliveryThreshold),
@@ -375,6 +438,7 @@ export const ShopProvider = ({ children }) => {
         'prescriptions',
         'customers',
         'medicines',
+        'payments',
         'coupons',
         'ads',
         'settings',
@@ -2193,6 +2257,8 @@ export const ShopProvider = ({ children }) => {
       exitUserPreview,
       resetAdminPassword,
       customAdminPassword,
+      paymentSettings,
+      updatePaymentSettings,
 
       // Search & Filter
       searchQuery,

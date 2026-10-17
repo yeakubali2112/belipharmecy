@@ -31,7 +31,8 @@ import {
   Power,
   Phone,
   Shield,
-  Loader2
+  Loader2,
+  CreditCard
 } from 'lucide-react';
 import { useShop } from '../context/ShopContext';
 
@@ -94,6 +95,14 @@ export const ADMIN_MODULES = [
     color: 'text-rose-600 bg-rose-50 border-rose-200' 
   },
   { 
+    id: 'payments', 
+    nameBn: 'পেমেন্ট মেথড ও সেটিংস', 
+    nameEn: 'Payment Management',
+    desc: 'বিকাশ, নগদ, ব্যাংক একাউন্ট ও ক্যাশ অন ডেলিভারি পরিচালনা', 
+    icon: CreditCard, 
+    color: 'text-emerald-600 bg-emerald-50 border-emerald-200' 
+  },
+  { 
     id: 'coupons', 
     nameBn: 'ডেলিভারি চার্জ ও কুপন', 
     nameEn: 'Delivery & Coupons',
@@ -148,8 +157,8 @@ const ROLE_PRESETS = [
   {
     role: 'full_admin',
     name: 'ম্যানেজার / অল-অ্যাক্সেস',
-    permissions: ['overview', 'sell', 'restock', 'orders', 'prescriptions', 'customers', 'medicines', 'coupons', 'ads', 'settings'],
-    desc: 'সব ১০টি অপশনের পূর্ণ অ্যাক্সেস'
+    permissions: ['overview', 'sell', 'restock', 'orders', 'prescriptions', 'customers', 'medicines', 'payments', 'coupons', 'ads', 'settings'],
+    desc: 'সব ১১টি অপশনের পূর্ণ অ্যাক্সেস'
   }
 ];
 
