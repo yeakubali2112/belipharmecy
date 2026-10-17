@@ -35,14 +35,11 @@ export const Footer = () => {
           {/* Brand & Intro */}
           <div className="space-y-4">
             <div className="inline-block bg-white p-2.5 rounded-2xl shadow-md">
-              <div className="logo-animated-wrapper">
-                <img 
-                  src="/logo.png" 
-                  alt="বেলী ফার্মেসি" 
-                  className="h-10 md:h-11 w-auto object-contain"
-                />
-                <span className="logo-animated-shine" aria-hidden="true" />
-              </div>
+              <img 
+                src="/logo.png" 
+                alt="বেলী ফার্মেসি" 
+                className="h-10 md:h-11 w-auto object-contain"
+              />
             </div>
 
             <p className="text-xs text-blue-200/80 leading-relaxed">

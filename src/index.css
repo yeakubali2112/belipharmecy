@@ -218,72 +218,7 @@
   transition: all 0.3s ease;
 }
 
-/* ===================================== */
-/* Brand Logo Lighting Animation         */
-/* ===================================== */
-@keyframes logoLightingGlow {
-  0%, 100% {
-    filter: drop-shadow(0 0 2px rgba(2, 151, 94, 0.25)) drop-shadow(0 0 6px rgba(18, 49, 132, 0.2));
-  }
-  50% {
-    filter: drop-shadow(0 0 10px rgba(2, 151, 94, 0.8)) drop-shadow(0 0 20px rgba(18, 49, 132, 0.55)) drop-shadow(0 0 30px rgba(2, 151, 94, 0.35));
-  }
-}
 
-@keyframes logoLightingSweep {
-  0% {
-    transform: translateX(-150%) skewX(-25deg);
-    opacity: 0;
-  }
-  15% {
-    opacity: 0.95;
-  }
-  50% {
-    transform: translateX(250%) skewX(-25deg);
-    opacity: 0.95;
-  }
-  100% {
-    transform: translateX(250%) skewX(-25deg);
-    opacity: 0;
-  }
-}
-
-.logo-animated-wrapper {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  overflow: hidden;
-  border-radius: 8px;
-  animation: logoLightingGlow 2.5s ease-in-out infinite;
-  transition: filter 0.3s ease;
-}
-
-.logo-animated-wrapper:hover {
-  filter: drop-shadow(0 0 12px rgba(2, 151, 94, 0.95)) drop-shadow(0 0 25px rgba(18, 49, 132, 0.75)) drop-shadow(0 0 40px rgba(2, 151, 94, 0.5));
-}
-
-.logo-animated-shine {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 50%;
-  height: 100%;
-  background: linear-gradient(
-    90deg,
-    transparent 0%,
-    rgba(255, 255, 255, 0) 10%,
-    rgba(255, 255, 255, 0.85) 50%,
-    rgba(255, 255, 255, 0) 90%,
-    transparent 100%
-  );
-  transform: translateX(-150%) skewX(-25deg);
-  pointer-events: none;
-  animation: logoLightingSweep 3.2s ease-in-out infinite;
-}
-
-.logo-animated-wrapper:hover .logo-animated-shine {
-  animation: logoLightingSweep 1.1s ease-in-out infinite;
-}
 
 
 
