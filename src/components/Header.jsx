@@ -55,6 +55,66 @@ export const Header = () => {
   const localResults = searchQuery.trim() === '' ? [] : searchMedicines(medicines, searchQuery).slice(0, 8);
   const searchResults = mergeSearchResults(localResults, medexLiveResults).slice(0, 10);
 
+  // Typewriter text animation for search placeholder
+  const searchPhrasesBn = [
+    'ওষুধের নাম লিখুন (উদা: Napa Extra, Ace Plus)...',
+    'গ্যাস্ট্রিকের ওষুধ খুঁজুন (উদা: Seclo 20mg, Pantonix)...',
+    'অ্যান্টিবায়োটিক সার্চ করুন (উদা: Ciprocin, Zithrin)...',
+    'অ্যালার্জি ও কাশির ওষুধ (উদা: Fexo 120mg, Tusca)...',
+    'প্রেসার ও ডায়াবেটিসের ওষুধ (উদা: Comet, Bicozin)...',
+    'জেনেরিক নাম লিখে খুঁজুন (উদা: Paracetamol, Omeprazole)...'
+  ];
+
+  const searchPhrasesEn = [
+    'Search medicine by name (e.g. Napa Extra, Ace Plus)...',
+    'Search gastric medicine (e.g. Seclo, Pantonix)...',
+    'Search antibiotics (e.g. Ciprocin, Zithrin)...',
+    'Search allergy & cough syrup (e.g. Fexo, Tusca)...',
+    'Search diabetes & BP meds (e.g. Comet, Bicozin)...',
+    'Search by generic name (e.g. Paracetamol, Omeprazole)...'
+  ];
+
+  const [phraseIndex, setPhraseIndex] = useState(0);
+  const [charIndex, setCharIndex] = useState(0);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const activePhrases = lang === 'bn' ? searchPhrasesBn : searchPhrasesEn;
+  const currentPhrase = activePhrases[phraseIndex % activePhrases.length] || '';
+  const animatedSearchPlaceholder = currentPhrase.slice(0, charIndex);
+
+  useEffect(() => {
+    if (searchQuery) return;
+
+    let timer;
+    if (!isDeleting) {
+      if (charIndex < currentPhrase.length) {
+        timer = setTimeout(() => {
+          setCharIndex(prev => prev + 1);
+        }, 55);
+      } else {
+        timer = setTimeout(() => {
+          setIsDeleting(true);
+        }, 2000);
+      }
+    } else {
+      if (charIndex > 0) {
+        timer = setTimeout(() => {
+          setCharIndex(prev => prev - 1);
+        }, 25);
+      } else {
+        setIsDeleting(false);
+        setPhraseIndex(prev => (prev + 1) % activePhrases.length);
+      }
+    }
+
+    return () => clearTimeout(timer);
+  }, [charIndex, isDeleting, phraseIndex, currentPhrase, searchQuery, activePhrases.length]);
+
+  useEffect(() => {
+    setCharIndex(0);
+    setIsDeleting(false);
+  }, [lang]);
+
   // Close search suggestions when clicking outside
   useEffect(() => {
     const handleClickOutside = (e) => {
@@ -139,7 +199,7 @@ export const Header = () => {
         {/* Live Search Bar with Instant Generic Dropdown */}
         <div ref={searchContainerRef} className="relative flex-1 max-w-xl mx-2 hidden sm:block">
           <div className="relative flex items-center">
-            <Search className="w-4 h-4 text-[#123184] absolute left-3.5 pointer-events-none" />
+            <Search className="w-4 h-4 text-[#123184] absolute left-3.5 pointer-events-none z-10" />
             <input
               type="text"
               value={searchQuery}
@@ -148,16 +208,22 @@ export const Header = () => {
                 setIsSearchFocused(true);
               }}
               onFocus={() => setIsSearchFocused(true)}
-              placeholder={lang === 'bn' 
-                ? "ওষুধের নাম বা জেনেরিক নাম লিখুন (উদা: Napa, Seclo, Monas)..." 
-                : "Search medicine or generic name (e.g., Napa, Seclo)..."
-              }
-              className="w-full pl-10 pr-9 py-2.5 bg-slate-50 hover:bg-white focus:bg-white border border-slate-200 focus:border-[#02975E] focus:ring-4 focus:ring-[#02975E]/15 rounded-full text-sm text-slate-800 placeholder-slate-400 outline-none transition-all"
+              aria-label={lang === 'bn' ? 'ওষুধ বা জেনেরিক অনুসন্ধান' : 'Search medicine or generic'}
+              className="w-full pl-10 pr-9 py-2.5 bg-slate-50 hover:bg-white focus:bg-white border border-slate-200 focus:border-[#02975E] focus:ring-4 focus:ring-[#02975E]/15 rounded-full text-sm text-slate-800 placeholder-transparent outline-none transition-all shadow-2xs"
             />
+            {!searchQuery && (
+              <div className="absolute left-10 right-9 top-0 bottom-0 flex items-center pointer-events-none select-none overflow-hidden pr-2 z-10">
+                <span className="text-sm text-slate-400 truncate font-normal">
+                  {animatedSearchPlaceholder}
+                </span>
+                <span className="inline-block w-[2px] h-4 bg-[#02975E] ml-0.5 animate-pulse shrink-0" />
+              </div>
+            )}
             {searchQuery && (
               <button 
                 onClick={() => setSearchQuery('')}
-                className="absolute right-3 text-slate-400 hover:text-slate-600"
+                className="absolute right-3 text-slate-400 hover:text-slate-600 z-20 cursor-pointer"
+                title="মুছুন"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -326,7 +392,7 @@ export const Header = () => {
           }}
           className="relative"
         >
-          <Search className="w-4 h-4 text-[#123184] absolute left-3.5 top-3 pointer-events-none" />
+          <Search className="w-4 h-4 text-[#123184] absolute left-3.5 top-3 pointer-events-none z-10" />
           <input
             type="search"
             value={searchQuery}
@@ -335,9 +401,17 @@ export const Header = () => {
               setIsMobileSearchFocused(true);
             }}
             onFocus={() => setIsMobileSearchFocused(true)}
-            placeholder={lang === 'bn' ? "ওষুধের নাম লিখুন (উদা: Seclo, Napa)..." : "Search medicine (e.g. Seclo, Napa)..."}
-            className="w-full pl-10 pr-9 py-2.5 bg-slate-100 focus:bg-white border border-slate-200 focus:border-[#02975E] focus:ring-2 focus:ring-[#02975E]/20 rounded-full text-sm outline-none transition-all shadow-2xs text-slate-800 placeholder-slate-400"
+            aria-label={lang === 'bn' ? 'ওষুধ বা জেনেরিক অনুসন্ধান' : 'Search medicine or generic'}
+            className="w-full pl-10 pr-9 py-2.5 bg-slate-100 focus:bg-white border border-slate-200 focus:border-[#02975E] focus:ring-2 focus:ring-[#02975E]/20 rounded-full text-sm outline-none transition-all shadow-2xs text-slate-800 placeholder-transparent"
           />
+          {!searchQuery && (
+            <div className="absolute left-10 right-9 top-0 bottom-0 flex items-center pointer-events-none select-none overflow-hidden pr-2 z-10">
+              <span className="text-xs sm:text-sm text-slate-400 truncate font-normal">
+                {animatedSearchPlaceholder}
+              </span>
+              <span className="inline-block w-[1.5px] h-3.5 bg-[#02975E] ml-0.5 animate-pulse shrink-0" />
+            </div>
+          )}
           {searchQuery && (
             <button 
               type="button" 
@@ -345,7 +419,8 @@ export const Header = () => {
                 setSearchQuery('');
                 setIsMobileSearchFocused(false);
               }} 
-              className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 p-0.5 cursor-pointer"
+              className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 p-0.5 cursor-pointer z-20"
+              title="মুছুন"
             >
               <X className="w-4 h-4" />
             </button>
