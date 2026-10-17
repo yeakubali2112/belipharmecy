@@ -27,7 +27,9 @@ import {
   Upload,
   Trash2,
   Check,
-  Mic
+  Mic,
+  Building2,
+  Copy
 } from 'lucide-react';
 import { useShop } from '../context/ShopContext';
 import { PRESET_AVATARS } from '../data/avatars';
@@ -46,6 +48,7 @@ export const CustomerProfileModal = () => {
     prescriptions, 
     setActiveInvoiceOrder,
     updateOrderPaymentMethod,
+    paymentSettings,
     config, 
     lang,
     medicines,
@@ -70,6 +73,15 @@ export const CustomerProfileModal = () => {
 
   // Selected payment method before confirming
   const [selectedMethods, setSelectedMethods] = useState({});
+  const [selectedBankId, setSelectedBankId] = useState(null);
+  const [copiedField, setCopiedField] = useState(null);
+
+  const handleCopy = (text, fieldName) => {
+    if (!text) return;
+    navigator.clipboard?.writeText(text);
+    setCopiedField(fieldName);
+    setTimeout(() => setCopiedField(null), 2000);
+  };
 
   // Login / Switch account form state
   const [loginPhone, setLoginPhone] = useState('');
@@ -751,6 +763,10 @@ export const CustomerProfileModal = () => {
                                       <span className="inline-flex items-center gap-1 font-bold text-[#E31B23] bg-orange-50 px-2 py-0.5 rounded border border-orange-200">
                                         <img src="/nagad-logo.png" alt="Nagad" className="h-3.5 object-contain" /> Nagad
                                       </span>
+                                    ) : (order.paymentMethod === 'bank' || order.paymentMethod === 'Bank' || order.paymentMethod === 'Bank Transfer' || String(order.paymentMethod || '').toLowerCase().includes('bank')) ? (
+                                      <span className="inline-flex items-center gap-1 font-bold text-[#123184] bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
+                                        <Building2 className="w-3.5 h-3.5 text-[#123184]" /> {order.paymentMethod || 'Bank Transfer'}
+                                      </span>
                                     ) : (
                                       <span className="font-bold text-emerald-900 bg-emerald-100/60 px-2 py-0.5 rounded border border-emerald-200">
                                         💵 Cash on Hand (হাতে নগদ)
@@ -772,7 +788,12 @@ export const CustomerProfileModal = () => {
                           ) : (
                             /* SELECTION & CONFIRMATION BOX - BEFORE SAVING */
                             (() => {
-                              const activeChoice = selectedMethods[order.id] || (order.paymentMethod === 'bKash' || order.paymentMethod === 'Nagad' ? order.paymentMethod : 'Cash on Hand');
+                              const activeChoice = selectedMethods[order.id] || (
+                                String(order.paymentMethod || '').toLowerCase().includes('bkash') ? 'bKash' :
+                                String(order.paymentMethod || '').toLowerCase().includes('nagad') ? 'Nagad' :
+                                String(order.paymentMethod || '').toLowerCase().includes('bank') ? 'Bank Transfer' :
+                                'Cash on Hand'
+                              );
                               return (
                                 <div className="bg-gradient-to-r from-emerald-50/90 via-blue-50/50 to-pink-50/40 border border-[#02975E] rounded-xl p-3 space-y-2 shadow-2xs animate-in fade-in">
                                   <div className="flex flex-wrap items-center justify-between gap-1.5 border-b border-emerald-200/80 pb-1.5">
@@ -791,8 +812,8 @@ export const CustomerProfileModal = () => {
                                     </span>
                                   </div>
 
-                                  {/* 3 Payment Options: Cash on Hand, bKash, Nagad */}
-                                  <div className="grid grid-cols-3 gap-2">
+                                  {/* 4 Payment Options: Cash on Hand, bKash, Nagad, Bank Transfer */}
+                                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                                     {/* Cash on Hand */}
                                     <button
                                       type="button"
@@ -843,6 +864,25 @@ export const CustomerProfileModal = () => {
                                         <span className="text-[9px] font-bold text-[#E31B23] bg-orange-100 px-1 rounded">✓ সিলেক্টেড</span>
                                       )}
                                     </button>
+
+                                    {/* Bank Transfer */}
+                                    <button
+                                      type="button"
+                                      onClick={() => setSelectedMethods(prev => ({ ...prev, [order.id]: 'Bank Transfer' }))}
+                                      className={`p-2 rounded-lg border flex flex-col items-center justify-center text-center gap-1 transition-all cursor-pointer ${
+                                        activeChoice === 'Bank Transfer'
+                                          ? 'border-[#123184] bg-white text-[#123184] font-black shadow-xs ring-2 ring-[#123184]'
+                                          : 'border-slate-200 bg-white/80 text-slate-700 hover:bg-white'
+                                      }`}
+                                    >
+                                      <div className="h-4 flex items-center justify-center text-[#123184]">
+                                        <Building2 className="w-4 h-4" />
+                                      </div>
+                                      <span className="text-[11px] font-extrabold block leading-tight">Bank Transfer</span>
+                                      {activeChoice === 'Bank Transfer' && (
+                                        <span className="text-[9px] font-bold text-[#123184] bg-blue-100 px-1 rounded">✓ সিলেক্টেড</span>
+                                      )}
+                                    </button>
                                   </div>
 
                                   {/* Cash on Hand save box */}
@@ -873,7 +913,7 @@ export const CustomerProfileModal = () => {
                                         <span className="font-bold">বিকাশ পেমেন্ট সম্পন্ন করতে:</span>
                                       </div>
                                       <p className="leading-relaxed">
-                                        বিকাশ নম্বর: <b className="text-[#D12053] font-mono select-all bg-pink-50 px-1.5 py-0.5 rounded">{config.bkashNumber}</b> এ <b>৳{Number(order.grandTotal).toFixed(0)}</b> টাকা পাঠিয়ে TrxID সংরক্ষণ করুন।
+                                        বিকাশ নম্বর: <b className="text-[#D12053] font-mono select-all bg-pink-50 px-1.5 py-0.5 rounded">{paymentSettings?.bkash?.number || config.bkashNumber}</b> এ <b>৳{Number(order.grandTotal).toFixed(0)}</b> টাকা পাঠিয়ে TrxID সংরক্ষণ করুন।
                                       </p>
                                       <div className="flex gap-2">
                                         <input
@@ -909,7 +949,7 @@ export const CustomerProfileModal = () => {
                                         <span className="font-bold">নগদ পেমেন্ট সম্পন্ন করতে:</span>
                                       </div>
                                       <p className="leading-relaxed">
-                                        নগদ নম্বর: <b className="text-[#E31B23] font-mono select-all bg-orange-50 px-1.5 py-0.5 rounded">{config.nagadNumber}</b> এ <b>৳{Number(order.grandTotal).toFixed(0)}</b> টাকা পাঠিয়ে TrxID সংরক্ষণ করুন।
+                                        নগদ নম্বর: <b className="text-[#E31B23] font-mono select-all bg-orange-50 px-1.5 py-0.5 rounded">{paymentSettings?.nagad?.number || config.nagadNumber}</b> এ <b>৳{Number(order.grandTotal).toFixed(0)}</b> টাকা পাঠিয়ে TrxID সংরক্ষণ করুন।
                                       </p>
                                       <div className="flex gap-2">
                                         <input
@@ -936,6 +976,136 @@ export const CustomerProfileModal = () => {
                                       </div>
                                     </div>
                                   )}
+
+                                  {/* Bank Transfer save box */}
+                                  {activeChoice === 'Bank Transfer' && (() => {
+                                    const availableBanks = (paymentSettings?.banks && Array.isArray(paymentSettings.banks) && paymentSettings.banks.length > 0)
+                                      ? paymentSettings.banks.filter(b => b && b.enabled !== false)
+                                      : (paymentSettings?.bank?.enabled !== false && paymentSettings?.bank ? [paymentSettings.bank] : []);
+                                    const currentBank = (selectedBankId ? availableBanks.find(b => b?.id === selectedBankId) : null) || availableBanks[0] || paymentSettings?.bank;
+
+                                    return (
+                                      <div className="bg-white border border-sky-200 p-3.5 rounded-xl space-y-2.5 text-xs text-sky-950 animate-in fade-in">
+                                        <div className="flex items-center justify-between border-b border-sky-100 pb-2">
+                                          <div className="flex items-center gap-2">
+                                            <div className="w-7 h-7 rounded-lg bg-[#123184] text-white flex items-center justify-center shadow-xs">
+                                              <Building2 className="w-3.5 h-3.5 text-emerald-300" />
+                                            </div>
+                                            <div>
+                                              <span className="font-extrabold text-xs text-[#123184] block">
+                                                {currentBank?.bankName || 'ব্যাংক ফান্ড ট্রান্সফার'}
+                                              </span>
+                                              <span className="text-[10px] text-sky-700">অনলাইন ব্যাংকিং / ডিপোজিট / NPSB / BEFTN</span>
+                                            </div>
+                                          </div>
+                                          <span className="text-xs font-black text-[#123184] bg-sky-50 px-2 py-0.5 rounded border border-sky-200">
+                                            ৳{Number(order.grandTotal).toFixed(0)}
+                                          </span>
+                                        </div>
+
+                                        {/* Multiple Banks Switcher Pills */}
+                                        {availableBanks.length > 1 && (
+                                          <div className="space-y-1">
+                                            <span className="text-[10px] font-bold text-sky-900 block">ব্যাংক নির্বাচন করুন:</span>
+                                            <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
+                                              {availableBanks.map(b => (
+                                                <button
+                                                  key={b.id}
+                                                  type="button"
+                                                  onClick={() => setSelectedBankId(b.id)}
+                                                  className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+                                                    (currentBank?.id === b.id)
+                                                      ? 'bg-[#123184] text-white shadow-2xs'
+                                                      : 'bg-white border border-sky-300 text-sky-900 hover:bg-sky-100'
+                                                  }`}
+                                                >
+                                                  🏦 {b.bankName}
+                                                </button>
+                                              ))}
+                                            </div>
+                                          </div>
+                                        )}
+
+                                        {/* Bank Account Details Grid */}
+                                        <div className="grid sm:grid-cols-2 gap-2 bg-sky-50/70 p-2.5 rounded-lg border border-sky-200 text-xs">
+                                          <div>
+                                            <span className="text-[10px] text-slate-500 font-bold block">ব্যাংকের নাম:</span>
+                                            <span className="font-bold text-slate-900 block">{currentBank?.bankName || 'Islami Bank Bangladesh Ltd'}</span>
+                                          </div>
+                                          <div>
+                                            <span className="text-[10px] text-slate-500 font-bold block">হিসাব নাম:</span>
+                                            <span className="font-bold text-slate-900 block">{currentBank?.accountName || 'Beli Pharmacy'}</span>
+                                          </div>
+                                          <div className="sm:col-span-2 flex items-center justify-between bg-white p-2 rounded border border-sky-200">
+                                            <div>
+                                              <span className="text-[10px] text-sky-800 font-bold block">হিসাব নং:</span>
+                                              <span className="font-mono font-black text-sm text-[#123184] select-all tracking-wider">
+                                                {currentBank?.accountNumber || '2050 1480 2003 4567'}
+                                              </span>
+                                            </div>
+                                            <button
+                                              type="button"
+                                              onClick={() => handleCopy(currentBank?.accountNumber, `bank_acc_${order.id}`)}
+                                              className="px-2.5 py-1 bg-sky-50 hover:bg-sky-100 text-[#123184] rounded border border-sky-300 font-bold text-[11px] flex items-center gap-1 cursor-pointer transition-colors"
+                                            >
+                                              {copiedField === `bank_acc_${order.id}` ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
+                                              <span>{copiedField === `bank_acc_${order.id}` ? 'কপিকৃত!' : 'কপি'}</span>
+                                            </button>
+                                          </div>
+                                          <div>
+                                            <span className="text-[10px] text-slate-500 font-bold block">শাখা:</span>
+                                            <span className="font-bold text-slate-900 block">{currentBank?.branchName || 'Dupchanchia Branch'}</span>
+                                          </div>
+                                          {currentBank?.routingNumber && (
+                                            <div className="flex items-center justify-between">
+                                              <div>
+                                                <span className="text-[10px] text-slate-500 font-bold block">রাউটিং:</span>
+                                                <span className="font-mono font-bold text-slate-900">{currentBank?.routingNumber}</span>
+                                              </div>
+                                              <button
+                                                type="button"
+                                                onClick={() => handleCopy(currentBank?.routingNumber, `bank_route_${order.id}`)}
+                                                className="px-2 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded text-[10px] font-bold flex items-center gap-1 cursor-pointer"
+                                              >
+                                                {copiedField === `bank_route_${order.id}` ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
+                                                <span>{copiedField === `bank_route_${order.id}` ? 'কপিকৃত' : 'কপি'}</span>
+                                              </button>
+                                            </div>
+                                          )}
+                                        </div>
+
+                                        {currentBank?.instructions && (
+                                          <p className="text-[11px] text-sky-900 bg-sky-100/60 p-2 rounded-lg border border-sky-200">
+                                            💡 {currentBank?.instructions}
+                                          </p>
+                                        )}
+
+                                        <div className="flex gap-2 pt-1">
+                                          <input
+                                            type="text"
+                                            id={`cust-trx-${order.id}`}
+                                            defaultValue={order.trxId !== 'N/A' ? order.trxId : ''}
+                                            placeholder="ব্যাংক ডিপোজিট স্লিপ / রেফারেন্স নম্বর / TrxID"
+                                            className="flex-1 px-3 py-1.5 border border-sky-300 rounded-lg text-xs font-mono font-bold outline-none focus:border-[#123184]"
+                                          />
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              const val = document.getElementById(`cust-trx-${order.id}`)?.value?.trim();
+                                              if (!val) {
+                                                alert('অনুগ্রহ করে ব্যাংক স্লিপ বা রেফারেন্স নম্বর দিন');
+                                                return;
+                                              }
+                                              updateOrderPaymentMethod(order.id, 'Bank Transfer', val, true);
+                                            }}
+                                            className="bg-[#123184] hover:bg-[#0d2463] text-white px-4 py-1.5 rounded-lg font-bold text-xs cursor-pointer shadow-xs shrink-0"
+                                          >
+                                            সংরক্ষণ
+                                          </button>
+                                        </div>
+                                      </div>
+                                    );
+                                  })()}
                                 </div>
                               );
                             })()
