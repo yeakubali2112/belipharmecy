@@ -1647,7 +1647,7 @@ export const AdminPortal = () => {
         generic: med.generic || '',
         price: unitPrice,
         unitLabel: unitLabel,
-        unitType: sellUnitType || (unitLabel === 'পাতা' ? 'strip' : 'unit'),
+        unitType: med.unitType || (unitLabel === 'পাতা' ? 'strip' : 'unit'),
         stripSize: Number(med.stripSize) || 10,
         quantity: 1,
         stock: stock
