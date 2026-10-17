@@ -624,6 +624,39 @@ export const AdminPortal = () => {
     setRxRotation(0);
   };
 
+  // Prescription Pagination (12 prescriptions per page, sorted latest first)
+  const [rxPage, setRxPage] = useState(1);
+  const rxPerPage = 12;
+
+  const sortedPrescriptions = useMemo(() => {
+    if (!Array.isArray(prescriptions)) return [];
+    return [...prescriptions].sort((a, b) => {
+      const parseRxTime = (item) => (item.timestamp && typeof item.timestamp === 'number') ? item.timestamp : (item.createdAt ? Date.parse(item.createdAt) : 0) || 0;
+      return parseRxTime(b) - parseRxTime(a);
+    });
+  }, [prescriptions]);
+
+  const totalRxPages = Math.ceil(sortedPrescriptions.length / rxPerPage) || 1;
+  const paginatedPrescriptions = sortedPrescriptions.slice(
+    (rxPage - 1) * rxPerPage,
+    (rxPage - 1) * rxPerPage + rxPerPage
+  );
+
+  useEffect(() => {
+    if (rxPage > totalRxPages) {
+      setRxPage(totalRxPages || 1);
+    }
+  }, [totalRxPages, rxPage]);
+
+  const handleRxPageChange = (newPage) => {
+    if (newPage < 1 || newPage > totalRxPages) return;
+    setRxPage(newPage);
+    const topElem = document.getElementById('admin-prescriptions-top');
+    if (topElem) {
+      topElem.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
+
   // Prescription Medicine Entry Modal State
   const [activeRxForMedicines, setActiveRxForMedicines] = useState(null);
   const [rxMedicinesList, setRxMedicinesList] = useState([]);
@@ -4747,26 +4780,32 @@ export const AdminPortal = () => {
           {/* TAB 3: PRESCRIPTIONS REVIEW */}
           {/* ================================================= */}
           {activeTab === 'prescriptions' && (
-            <div className="space-y-4">
-              <div className="bg-white p-4 rounded-none border border-slate-200 shadow-xs flex justify-between items-center">
+            <div id="admin-prescriptions-top" className="space-y-4">
+              <div className="bg-white p-4 rounded-none border border-slate-200 shadow-xs flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
                 <div>
                   <h3 className="font-extrabold text-sm sm:text-base text-slate-900">
-                    আপলোডকৃত প্রেসক্রিপশন সমূহ ({prescriptions.length}টি)
+                    আপলোডকৃত প্রেসক্রিপশন সমূহ ({sortedPrescriptions.length}টি)
                   </h3>
-                  <span className="text-xs text-slate-500">রোগীর প্রেসক্রিপশন দেখে ওষুধ কনফার্ম করুন</span>
+                  <span className="text-xs text-slate-500">
+                    রোগীর প্রেসক্রিপশন দেখে ওষুধ কনফার্ম করুন
+                    {totalRxPages > 1 && ` • পেজ ${rxPage} এর ${totalRxPages}`}
+                  </span>
                 </div>
+                {totalRxPages > 1 && (
+                  <div className="text-xs font-bold text-slate-600 bg-slate-50 px-3 py-1.5 border border-slate-200 shadow-2xs">
+                    প্রতি পেজে ১২টি প্রেসক্রিপশন
+                  </div>
+                )}
               </div>
 
-              {prescriptions.length === 0 ? (
+              {sortedPrescriptions.length === 0 ? (
                 <div className="p-12 text-center bg-white rounded-none border border-slate-200 text-slate-400">
                   কোনো প্রেসক্রিপশন পাওয়া যায়নি।
                 </div>
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 gap-3.5">
-                  {[...prescriptions].sort((a, b) => {
-                    const parseRxTime = (item) => (item.timestamp && typeof item.timestamp === 'number') ? item.timestamp : (item.createdAt ? Date.parse(item.createdAt) : 0) || 0;
-                    return parseRxTime(b) - parseRxTime(a);
-                  }).map(rx => (
+                <>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 gap-3.5">
+                    {paginatedPrescriptions.map(rx => (
                   <div key={rx.id} className="bg-white rounded-none border border-slate-200 p-3 space-y-2.5 shadow-xs flex flex-col justify-between hover:border-slate-300 transition-colors">
                     <div className="space-y-2">
                       <div className="flex justify-between items-start gap-1">
@@ -4904,7 +4943,73 @@ export const AdminPortal = () => {
                   </div>
                 ))}
               </div>
-            )}
+
+                  {/* Pagination Controls (Next / Prev / Page Numbers) */}
+                  {sortedPrescriptions.length > 0 && totalRxPages > 1 && (
+                    <div className="bg-white border border-slate-200 p-4 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-3">
+                      <div className="text-xs text-slate-600 font-medium">
+                        পেজ <strong className="text-[#123184] font-black">{rxPage}</strong> এর <strong className="text-slate-900">{totalRxPages}</strong> — মোট <strong className="text-emerald-700">{sortedPrescriptions.length}</strong> টি প্রেসক্রিপশনের মধ্যে <strong className="text-slate-900">{(rxPage - 1) * rxPerPage + 1} থেকে {Math.min(rxPage * rxPerPage, sortedPrescriptions.length)}</strong> তম দেখানো হচ্ছে
+                      </div>
+
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <button
+                          type="button"
+                          onClick={() => handleRxPageChange(rxPage - 1)}
+                          disabled={rxPage === 1}
+                          className={`px-3.5 py-2 text-xs font-bold flex items-center gap-1.5 border transition-all ${
+                            rxPage === 1
+                              ? 'opacity-40 cursor-not-allowed bg-slate-100 text-slate-400 border-slate-200'
+                              : 'bg-white text-slate-800 border-slate-300 hover:bg-[#123184] hover:text-white hover:border-[#123184] cursor-pointer'
+                          }`}
+                        >
+                          <ChevronLeft className="w-4 h-4" />
+                          <span>পূর্ববর্তী</span>
+                        </button>
+
+                        <div className="flex items-center gap-1 flex-wrap">
+                          {getVisiblePages(rxPage, totalRxPages).map((pageNum, idx) =>
+                            pageNum === '...' ? (
+                              <span
+                                key={`rx-ellipsis-${idx}`}
+                                className="w-8 h-9 flex items-center justify-center text-xs font-black text-slate-400 select-none tracking-widest"
+                              >
+                                ...
+                              </span>
+                            ) : (
+                              <button
+                                key={pageNum}
+                                type="button"
+                                onClick={() => handleRxPageChange(pageNum)}
+                                className={`w-9 h-9 text-xs font-black border transition-all rounded-none cursor-pointer ${
+                                  rxPage === pageNum
+                                    ? 'bg-[#123184] text-white border-[#123184] shadow-xs'
+                                    : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
+                                }`}
+                              >
+                                {pageNum}
+                              </button>
+                            )
+                          )}
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => handleRxPageChange(rxPage + 1)}
+                          disabled={rxPage === totalRxPages}
+                          className={`px-3.5 py-2 text-xs font-bold flex items-center gap-1.5 border transition-all ${
+                            rxPage === totalRxPages
+                              ? 'opacity-40 cursor-not-allowed bg-slate-100 text-slate-400 border-slate-200'
+                              : 'bg-white text-slate-800 border-slate-300 hover:bg-[#123184] hover:text-white hover:border-[#123184] cursor-pointer'
+                          }`}
+                        >
+                          <span>পরবর্তী (Next)</span>
+                          <ChevronRight className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
             </div>
           )}
 
