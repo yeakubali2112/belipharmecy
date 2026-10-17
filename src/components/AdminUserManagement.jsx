@@ -30,7 +30,8 @@ import {
   Plus, 
   Power,
   Phone,
-  Shield
+  Shield,
+  Loader2
 } from 'lucide-react';
 import { useShop } from '../context/ShopContext';
 
@@ -182,6 +183,9 @@ export const AdminUserManagement = () => {
   const [showFormPassword, setShowFormPassword] = useState(false);
   const [formError, setFormError] = useState('');
 
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitSuccess, setSubmitSuccess] = useState(false);
+
   // Open modal for new user
   const handleOpenAdd = () => {
     setEditingUser(null);
@@ -196,6 +200,8 @@ export const AdminUserManagement = () => {
     });
     setFormError('');
     setShowFormPassword(false);
+    setIsSubmitting(false);
+    setSubmitSuccess(false);
     setIsModalOpen(true);
   };
 
@@ -213,6 +219,8 @@ export const AdminUserManagement = () => {
     });
     setFormError('');
     setShowFormPassword(false);
+    setIsSubmitting(false);
+    setSubmitSuccess(false);
     setIsModalOpen(true);
   };
 
@@ -267,9 +275,10 @@ export const AdminUserManagement = () => {
     showToast?.('লগইন তথ্য ক্লিপবোর্ডে কপি করা হয়েছে!', 'success');
   };
 
-  // Submit form
-  const handleFormSubmit = (e) => {
+  // Submit form with loading and success feedback
+  const handleFormSubmit = async (e) => {
     e.preventDefault();
+    if (isSubmitting) return;
     setFormError('');
 
     const cleanUsername = String(formData.username || '').trim().toLowerCase();
@@ -288,6 +297,10 @@ export const AdminUserManagement = () => {
       return;
     }
 
+    setIsSubmitting(true);
+    // Smooth loading animation delay
+    await new Promise(r => setTimeout(r, 450));
+
     if (editingUser) {
       // Update
       const res = updateAdminUser(editingUser.id, {
@@ -300,9 +313,15 @@ export const AdminUserManagement = () => {
         permissions: formData.permissions
       });
       if (res && res.success !== false) {
-        setIsModalOpen(false);
-      } else if (res?.error) {
-        setFormError(res.error);
+        setSubmitSuccess(true);
+        setTimeout(() => {
+          setIsSubmitting(false);
+          setSubmitSuccess(false);
+          setIsModalOpen(false);
+        }, 700);
+      } else {
+        setIsSubmitting(false);
+        if (res?.error) setFormError(res.error);
       }
     } else {
       // Create
@@ -316,9 +335,15 @@ export const AdminUserManagement = () => {
         permissions: formData.permissions
       });
       if (res && res.success) {
-        setIsModalOpen(false);
-      } else if (res?.error) {
-        setFormError(res.error);
+        setSubmitSuccess(true);
+        setTimeout(() => {
+          setIsSubmitting(false);
+          setSubmitSuccess(false);
+          setIsModalOpen(false);
+        }, 700);
+      } else {
+        setIsSubmitting(false);
+        if (res?.error) setFormError(res.error);
       }
     }
   };
@@ -648,21 +673,21 @@ export const AdminUserManagement = () => {
       </div>
 
       {/* ======================================================== */}
-      {/* ADD / EDIT USER MODAL */}
+      {/* ADD / EDIT USER MODAL (Clean Fixed Header & Footer Layout) */}
       {/* ======================================================== */}
       {isModalOpen && (
         <div 
-          className="fixed inset-0 z-70 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto animate-in fade-in"
-          onClick={() => setIsModalOpen(false)}
+          className="fixed inset-0 z-70 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-hidden animate-in fade-in"
+          onClick={() => !isSubmitting && setIsModalOpen(false)}
         >
           <div 
-            className="bg-white rounded-2xl max-w-3xl w-full my-6 shadow-2xl border border-slate-100 overflow-hidden flex flex-col max-h-[92vh] animate-in zoom-in-95 duration-150"
+            className="bg-white rounded-3xl max-w-3xl w-full my-auto shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-150"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Modal Header */}
-            <div className="p-4 sm:p-5 border-b border-slate-200 bg-gradient-to-r from-[#123184] to-[#02975E] text-white flex items-center justify-between">
+            {/* 1. Modal Header (Fixed, shrink-0) */}
+            <div className="shrink-0 p-4 sm:p-5 border-b border-slate-200 bg-gradient-to-r from-[#123184] via-[#0d2d7c] to-[#02975E] text-white flex items-center justify-between shadow-xs">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-white/15 flex items-center justify-center text-white backdrop-blur-xs shadow-xs">
+                <div className="w-10 h-10 rounded-2xl bg-white/15 flex items-center justify-center text-white backdrop-blur-xs shadow-xs">
                   {editingUser ? <Edit3 className="w-5 h-5 text-emerald-300" /> : <UserPlus className="w-5 h-5 text-emerald-300" />}
                 </div>
                 <div>
@@ -677,28 +702,35 @@ export const AdminUserManagement = () => {
 
               <button
                 type="button"
+                disabled={isSubmitting}
                 onClick={() => setIsModalOpen(false)}
-                className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center cursor-pointer transition-colors"
+                className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center cursor-pointer transition-colors disabled:opacity-50"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            {/* Modal Form */}
-            <form onSubmit={handleFormSubmit} className="p-5 sm:p-6 space-y-5 overflow-y-auto flex-1 text-xs">
+            {/* 2. Scrollable Modal Form Content (Flex-1, with bottom spacing) */}
+            <form 
+              id="user-profile-form" 
+              onSubmit={handleFormSubmit} 
+              className="p-5 sm:p-6 space-y-5 overflow-y-auto flex-1 text-xs overscroll-contain"
+            >
               
               {/* Error Alert */}
               {formError && (
-                <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 rounded-xl flex items-center gap-2 font-semibold">
+                <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 rounded-xl flex items-center gap-2 font-semibold animate-in shake">
                   <AlertCircle className="w-4 h-4 shrink-0" />
                   <span>{formError}</span>
                 </div>
               )}
 
-              {/* Basic Info Section */}
-              <div className="space-y-3">
-                <h4 className="font-extrabold text-sm text-[#123184] flex items-center gap-1.5 border-b border-slate-100 pb-1.5">
-                  <User className="w-4 h-4 text-[#02975E]" />
+              {/* Section 1: Basic Profile & Credentials Card */}
+              <div className="bg-slate-50/80 p-4 sm:p-5 rounded-2xl border border-slate-200/80 space-y-3.5 shadow-2xs">
+                <h4 className="font-extrabold text-sm text-[#123184] flex items-center gap-2 border-b border-slate-200/80 pb-2">
+                  <span className="w-6 h-6 rounded-lg bg-[#02975E]/10 text-[#02975E] flex items-center justify-center">
+                    <User className="w-3.5 h-3.5" />
+                  </span>
                   <span>১. সাধারণ প্রোফাইল ও লগইন বিবরণ</span>
                 </h4>
 
@@ -714,7 +746,7 @@ export const AdminUserManagement = () => {
                       placeholder="যেমন: মোঃ রাসেল হাসান"
                       value={formData.name}
                       onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                      className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl focus:border-[#02975E] focus:ring-2 focus:ring-[#02975E]/10 outline-none text-slate-900 font-semibold"
+                      className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl focus:border-[#02975E] focus:ring-4 focus:ring-[#02975E]/10 outline-none text-slate-900 font-semibold transition-all shadow-2xs"
                     />
                   </div>
 
@@ -731,10 +763,10 @@ export const AdminUserManagement = () => {
                         placeholder="rasel_pos"
                         value={formData.username}
                         onChange={(e) => setFormData({ ...formData, username: e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '') })}
-                        className="w-full pl-8 pr-3.5 py-2.5 border border-slate-300 rounded-xl focus:border-[#02975E] focus:ring-2 focus:ring-[#02975E]/10 outline-none text-slate-900 font-mono font-semibold"
+                        className="w-full pl-8 pr-3.5 py-2.5 bg-white border border-slate-300 rounded-xl focus:border-[#02975E] focus:ring-4 focus:ring-[#02975E]/10 outline-none text-slate-900 font-mono font-semibold transition-all shadow-2xs"
                       />
                     </div>
-                    <span className="text-[10px] text-slate-400 mt-0.5 block">শুধু ছোট হাতের ইংরেজি ও সংখ্যা</span>
+                    <span className="text-[10px] text-slate-400 mt-0.5 block">শুধু ছোট হাতের ইংরেজি বর্ণ ও সংখ্যা</span>
                   </div>
 
                   {/* Password */}
@@ -749,12 +781,13 @@ export const AdminUserManagement = () => {
                         placeholder="পাসওয়ার্ড লিখুন (যেমন: 123456)"
                         value={formData.password}
                         onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                        className="w-full pl-3.5 pr-10 py-2.5 border border-slate-300 rounded-xl focus:border-[#02975E] focus:ring-2 focus:ring-[#02975E]/10 outline-none text-slate-900 font-mono font-semibold"
+                        className="w-full pl-3.5 pr-10 py-2.5 bg-white border border-slate-300 rounded-xl focus:border-[#02975E] focus:ring-4 focus:ring-[#02975E]/10 outline-none text-slate-900 font-mono font-semibold transition-all shadow-2xs"
                       />
                       <button
                         type="button"
                         onClick={() => setShowFormPassword(!showFormPassword)}
-                        className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 cursor-pointer"
+                        className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 cursor-pointer p-0.5 transition-colors"
+                        title={showFormPassword ? 'পাসওয়ার্ড লুকান' : 'পাসওয়ার্ড দেখুন'}
                       >
                         {showFormPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                       </button>
@@ -771,7 +804,7 @@ export const AdminUserManagement = () => {
                       placeholder="ক্যাশিয়ার, ফার্মাসিস্ট, সেলস এক্সিকিউটিভ"
                       value={formData.role}
                       onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-                      className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl focus:border-[#02975E] focus:ring-2 focus:ring-[#02975E]/10 outline-none text-slate-900"
+                      className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl focus:border-[#02975E] focus:ring-4 focus:ring-[#02975E]/10 outline-none text-slate-900 font-medium transition-all shadow-2xs"
                     />
                   </div>
 
@@ -785,11 +818,11 @@ export const AdminUserManagement = () => {
                       placeholder="01XXXXXXXXX"
                       value={formData.phone}
                       onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                      className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl focus:border-[#02975E] focus:ring-2 focus:ring-[#02975E]/10 outline-none text-slate-900"
+                      className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl focus:border-[#02975E] focus:ring-4 focus:ring-[#02975E]/10 outline-none text-slate-900 font-medium transition-all shadow-2xs"
                     />
                   </div>
 
-                  {/* Status Toggle */}
+                  {/* Status */}
                   <div>
                     <label className="block font-bold text-slate-700 mb-1">
                       অ্যাকাউন্ট স্ট্যাটাস
@@ -797,7 +830,7 @@ export const AdminUserManagement = () => {
                     <select
                       value={formData.status}
                       onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                      className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl focus:border-[#02975E] focus:ring-2 focus:ring-[#02975E]/10 outline-none text-slate-900 font-semibold"
+                      className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl focus:border-[#02975E] focus:ring-4 focus:ring-[#02975E]/10 outline-none text-slate-900 font-semibold cursor-pointer transition-all shadow-2xs"
                     >
                       <option value="active">🟢 সক্রিয় (Active - লগইন করতে পারবে)</option>
                       <option value="inactive">🔴 নিষ্ক্রিয় (Inactive - সাময়িক স্থগিত)</option>
@@ -806,27 +839,28 @@ export const AdminUserManagement = () => {
                 </div>
               </div>
 
-              {/* Permissions & Option Control Section */}
-              <div className="space-y-3 pt-2">
-                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-2">
-                  <h4 className="font-extrabold text-sm text-[#123184] flex items-center gap-1.5">
-                    <ShieldCheck className="w-4 h-4 text-[#02975E]" />
-                    <span>২. অপশন পারমিশন ম্যানেজমেন্ট (কোন কোন অপশন ব্যবহার করতে পারবে)</span>
+              {/* Section 2: Permissions & Option Control Card */}
+              <div className="bg-slate-50/80 p-4 sm:p-5 rounded-2xl border border-slate-200/80 space-y-3.5 shadow-2xs">
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200/80 pb-2">
+                  <h4 className="font-extrabold text-sm text-[#123184] flex items-center gap-2">
+                    <span className="w-6 h-6 rounded-lg bg-[#02975E]/10 text-[#02975E] flex items-center justify-center">
+                      <ShieldCheck className="w-3.5 h-3.5" />
+                    </span>
+                    <span>২. অপশন পারমিশন কন্ট্রোল (কোন কোন অপশন ব্যবহার করতে পারবে)</span>
                   </h4>
 
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex items-center gap-2">
                     <button
                       type="button"
                       onClick={selectAllPermissions}
-                      className="text-[11px] font-bold text-[#123184] hover:underline cursor-pointer"
+                      className="text-[11px] font-bold text-[#123184] hover:underline cursor-pointer bg-white px-2.5 py-1 rounded-lg border border-slate-200 hover:border-[#123184]"
                     >
                       সব সিলেক্ট করুন
                     </button>
-                    <span className="text-slate-300">•</span>
                     <button
                       type="button"
                       onClick={clearAllPermissions}
-                      className="text-[11px] font-bold text-rose-600 hover:underline cursor-pointer"
+                      className="text-[11px] font-bold text-rose-600 hover:underline cursor-pointer bg-white px-2.5 py-1 rounded-lg border border-slate-200 hover:border-rose-300"
                     >
                       সব মুছুন
                     </button>
@@ -834,9 +868,9 @@ export const AdminUserManagement = () => {
                 </div>
 
                 {/* Role Presets Pills */}
-                <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-200">
-                  <span className="text-[11px] font-bold text-slate-600 block mb-1.5">
-                    ⚡ দ্রুত সেটআপ প্রিসেট (এক ক্লিকে পারমিশন দিন):
+                <div className="bg-white p-3 rounded-xl border border-slate-200/80">
+                  <span className="text-[11px] font-extrabold text-slate-600 block mb-2">
+                    ⚡ এক ক্লিকে রোল প্রিসেট দিন:
                   </span>
                   <div className="flex flex-wrap gap-1.5">
                     {ROLE_PRESETS.map((preset) => (
@@ -844,7 +878,7 @@ export const AdminUserManagement = () => {
                         key={preset.role}
                         type="button"
                         onClick={() => applyPreset(preset)}
-                        className="px-2.5 py-1 rounded-lg bg-white hover:bg-emerald-50 text-slate-700 hover:text-emerald-800 border border-slate-200 hover:border-emerald-300 text-[11px] font-bold transition-all cursor-pointer shadow-2xs"
+                        className="px-2.5 py-1.5 rounded-lg bg-slate-50 hover:bg-emerald-50 text-slate-700 hover:text-emerald-800 border border-slate-200 hover:border-emerald-300 text-[11px] font-bold transition-all cursor-pointer shadow-2xs"
                         title={preset.desc}
                       >
                         {preset.name}
@@ -865,8 +899,8 @@ export const AdminUserManagement = () => {
                         onClick={() => togglePermission(mod.id)}
                         className={`p-3 rounded-xl border transition-all cursor-pointer flex items-start gap-3 select-none ${
                           isChecked 
-                            ? 'bg-emerald-50/70 border-emerald-400 shadow-xs' 
-                            : 'bg-white border-slate-200 hover:border-slate-300 opacity-75 hover:opacity-100'
+                            ? 'bg-emerald-50/80 border-emerald-400 shadow-xs' 
+                            : 'bg-white border-slate-200 hover:border-slate-300 opacity-80 hover:opacity-100'
                         }`}
                       >
                         <div className={`mt-0.5 w-5 h-5 rounded flex items-center justify-center shrink-0 transition-colors border ${
@@ -893,22 +927,22 @@ export const AdminUserManagement = () => {
                   })}
                 </div>
 
-                {/* Live Permission Summary Preview */}
-                <div className="p-3 bg-blue-50/70 border border-blue-200 rounded-xl">
-                  <div className="flex items-center justify-between mb-1.5">
-                    <span className="font-extrabold text-[#123184] text-[11px] flex items-center gap-1">
-                      <Eye className="w-3.5 h-3.5" />
-                      এই স্টাফের সাইডবারে যা যা দৃশ্যমান হবে:
+                {/* Live Permission Summary Preview Card */}
+                <div className="p-3.5 bg-blue-50/80 border border-blue-200 rounded-xl space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="font-extrabold text-[#123184] text-[11px] flex items-center gap-1.5">
+                      <Eye className="w-3.5 h-3.5 text-[#123184]" />
+                      <span>এই স্টাফের সাইডবারে যা যা দৃশ্যমান হবে:</span>
                     </span>
-                    <span className="text-[11px] font-black text-emerald-700">
+                    <span className="text-[11px] font-black text-emerald-700 bg-white px-2 py-0.5 rounded-full border border-emerald-200 shadow-2xs">
                       মোট {formData.permissions.length} টি অপশন অনুমোদিত
                     </span>
                   </div>
 
-                  <div className="flex flex-wrap gap-1">
+                  <div className="flex flex-wrap gap-1.5 pt-0.5">
                     {formData.permissions.length === 0 ? (
-                      <span className="text-rose-600 font-bold text-[11px]">
-                        ⚠️ কোনো অপশন সিলেক্ট করা নেই! লগইন করলে কিছুই দেখতে পাবে না।
+                      <span className="text-rose-600 font-bold text-[11px] py-1">
+                        ⚠️ কোনো অপশন সিলেক্ট করা নেই! লগইন করলে সাইডবারে কোনো মেনু দেখতে পাবে না।
                       </span>
                     ) : (
                       formData.permissions.map(permId => {
@@ -916,9 +950,10 @@ export const AdminUserManagement = () => {
                         return (
                           <span 
                             key={permId} 
-                            className="bg-white text-slate-800 border border-blue-200 px-2 py-0.5 rounded text-[10px] font-bold shadow-2xs"
+                            className="bg-white text-slate-800 border border-blue-200/80 px-2.5 py-1 rounded-lg text-[10px] font-bold shadow-2xs flex items-center gap-1"
                           >
-                            ✓ {m?.nameBn || permId}
+                            <Check className="w-3 h-3 text-[#02975E] stroke-[3]" />
+                            <span>{m?.nameBn || permId}</span>
                           </span>
                         );
                       })
@@ -928,26 +963,57 @@ export const AdminUserManagement = () => {
 
               </div>
 
-              {/* Modal Footer */}
-              <div className="pt-4 border-t border-slate-200 flex items-center justify-end gap-3 sticky bottom-0 bg-white">
+            </form>
+
+            {/* 3. Modal Footer (Fixed at bottom, completely outside scroll container!) */}
+            <div className="shrink-0 px-6 py-4 border-t border-slate-200 bg-slate-50/95 backdrop-blur-xs flex items-center justify-between gap-3 z-10 shadow-sm">
+              <div className="text-[11px] font-bold text-slate-500 hidden sm:flex items-center gap-2">
+                <span className={`w-2 h-2 rounded-full ${formData.permissions.length > 0 ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`} />
+                <span>{formData.permissions.length} টি অপশন পারমিশন দেওয়া হয়েছে</span>
+              </div>
+
+              <div className="flex items-center justify-end gap-3 w-full sm:w-auto">
                 <button
                   type="button"
+                  disabled={isSubmitting}
                   onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2.5 rounded-xl border border-slate-300 text-slate-700 font-bold hover:bg-slate-50 cursor-pointer transition-colors"
+                  className="px-5 py-2.5 rounded-xl border border-slate-300 text-slate-700 font-bold hover:bg-slate-200/60 cursor-pointer transition-colors disabled:opacity-50 text-xs"
                 >
                   বাতিল করুন
                 </button>
 
                 <button
                   type="submit"
-                  className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-[#123184] to-[#02975E] text-white font-extrabold shadow-md hover:shadow-lg cursor-pointer transition-all flex items-center gap-2"
+                  form="user-profile-form"
+                  disabled={isSubmitting}
+                  className={`min-w-[170px] px-6 py-2.5 rounded-xl text-white font-extrabold shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer text-xs ${
+                    submitSuccess 
+                      ? 'bg-emerald-600 shadow-emerald-600/30 ring-4 ring-emerald-500/20' 
+                      : isSubmitting 
+                        ? 'bg-[#123184]/80 cursor-wait' 
+                        : 'bg-gradient-to-r from-[#123184] to-[#02975E] hover:from-[#0d2463] hover:to-[#028352] hover:shadow-lg'
+                  }`}
                 >
-                  <Check className="w-4 h-4" />
-                  <span>{editingUser ? 'পরিবর্তন সেভ করুন' : 'ইউজার তৈরি সম্পন্ন করুন'}</span>
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin text-white" />
+                      <span>সংরক্ষণ করা হচ্ছে...</span>
+                    </>
+                  ) : submitSuccess ? (
+                    <>
+                      <CheckCircle2 className="w-4 h-4 text-white" />
+                      <span>সফলভাবে সম্পন্ন!</span>
+                    </>
+                  ) : (
+                    <>
+                      <Check className="w-4 h-4 stroke-[2.5]" />
+                      <span>{editingUser ? 'পরিবর্তন সেভ করুন' : 'ইউজার তৈরি সম্পন্ন করুন'}</span>
+                    </>
+                  )}
                 </button>
               </div>
+            </div>
 
-            </form>
           </div>
         </div>
       )}
