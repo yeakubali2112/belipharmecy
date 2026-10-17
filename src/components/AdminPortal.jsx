@@ -2555,6 +2555,18 @@ export const AdminPortal = () => {
           </div>
 
           <div className="flex items-center gap-2.5 flex-wrap">
+            {/* Master Cloud Sync Button */}
+            <button
+              type="button"
+              onClick={handleSyncCloudMedicines}
+              disabled={isSyncingCloudMeds}
+              className="flex items-center gap-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold px-3 py-2 rounded-none text-xs transition-all cursor-pointer shadow-xs active:scale-95 disabled:opacity-60"
+              title="সকল ব্যানার, ওষুধের ছবি ও সেটিংস ক্লাউডে সিঙ্ক করুন যাতে যেকোনো মোবাইল ও ডিভাইসে লাইভ দেখা যায়"
+            >
+              <Cloud className={`w-3.5 h-3.5 ${isSyncingCloudMeds ? 'animate-spin' : ''}`} />
+              <span>{isSyncingCloudMeds ? 'সিঙ্ক হচ্ছে...' : '🌐 ক্লাউড সিঙ্ক (Sync Cloud)'}</span>
+            </button>
+
             {/* User Profile Badge */}
             <div className="flex items-center gap-2.5 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-none shadow-2xs">
               <div className={`w-8 h-8 rounded-none text-white font-black flex items-center justify-center text-xs shrink-0 shadow-xs ${
@@ -6172,6 +6184,30 @@ export const AdminPortal = () => {
           {activeTab === 'ads' && (
             <div className="space-y-6 max-w-5xl mx-auto w-full">
               
+              {/* Cloud Sync Announcement Banner */}
+              <div className="bg-gradient-to-r from-blue-900 to-[#123184] text-white p-4 rounded-xl shadow-md border border-blue-800 flex flex-col sm:flex-row justify-between items-center gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-white/10 flex items-center justify-center shrink-0">
+                    <Cloud className="w-5 h-5 text-emerald-400" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-black">রিয়েল-টাইম ক্লাউড সিঙ্ক (Global Live Sync)</h3>
+                    <p className="text-xs text-blue-200">
+                      আপনার হিরো ব্যানার স্লাইড ও বিজ্ঞাপন যেকোনো ফোন, ট্যাবলেট বা শেয়ার করা লিংকে দেখতে ক্লাউডে সিঙ্ক করুন।
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleSyncCloudMedicines}
+                  disabled={isSyncingCloudMeds}
+                  className="w-full sm:w-auto px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 text-xs font-black rounded-lg shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60 active:scale-95 shrink-0"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${isSyncingCloudMeds ? 'animate-spin' : ''}`} />
+                  <span>{isSyncingCloudMeds ? 'ক্লাউডে সিঙ্ক হচ্ছে...' : '🌐 ক্লাউড সিঙ্ক করুন (Sync to Cloud)'}</span>
+                </button>
+              </div>
+
               {/* Sub-Tabs Switcher: Hero Banner Slider vs Popup Ads */}
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 p-1.5 bg-slate-100 rounded-2xl border border-slate-200">
                 <button

@@ -12,8 +12,9 @@ import {
   deleteCloudCustomer,
   fetchCloudMedicines,
   saveCloudMedicine,
-  batchSaveCloudMedicines
-} from '../services/firebaseService';
+  batchSaveCloudMedicines,
+  syncAllDataToCloud
+} from '../services/cloudSyncService';
 import { subscribeLiveSync, publishLiveSync, fetchRecentSyncEvents } from '../services/liveSyncService';
 import { fetchMedexSearchResults, deduplicateMedicines } from '../utils/medicineSearch';
 
@@ -164,7 +165,7 @@ export const ShopProvider = ({ children }) => {
     }
     setHeroBanner(updated);
     safeSetItem('beli_hero_banner', JSON.stringify(updated));
-    saveCloudSettings({ deliverySettings, coupons, adBanner, heroBanner: updated });
+    saveCloudSettings({ heroBanner: updated, paymentSettings, deliverySettings, coupons, adBanner, adminUsers });
     publishLiveSync({ type: 'HERO_BANNER_UPDATED', heroBanner: updated });
     showToast(lang === 'bn' ? 'হিরো ব্যানার স্লাইডার সফলভাবে আপডেট ও সেভ হয়েছে!' : 'Hero banner slider updated successfully!', 'success');
   };
@@ -177,7 +178,7 @@ export const ShopProvider = ({ children }) => {
     };
     setAdBanner(updated);
     safeSetItem('beli_ad_banner', JSON.stringify(updated));
-    saveCloudSettings({ deliverySettings, coupons, adBanner: updated, heroBanner });
+    saveCloudSettings({ heroBanner, paymentSettings, deliverySettings, coupons, adBanner: updated, adminUsers });
     publishLiveSync({ type: 'AD_BANNER_UPDATED', adBanner: updated });
     showToast(lang === 'bn' ? 'অফার বিজ্ঞাপন সফলভাবে আপডেট ও সেভ হয়েছে!' : 'Ad banner updated successfully!', 'success');
   };
@@ -190,7 +191,7 @@ export const ShopProvider = ({ children }) => {
     };
     setDeliverySettings(updated);
     safeSetItem('beli_delivery_settings', JSON.stringify(updated));
-    saveCloudSettings({ deliverySettings: updated, coupons, adBanner, heroBanner });
+    saveCloudSettings({ heroBanner, paymentSettings, deliverySettings: updated, coupons, adBanner, adminUsers });
     publishLiveSync({ type: 'DELIVERY_SETTINGS_UPDATED', deliverySettings: updated });
     showToast(lang === 'bn' ? 'ডেলিভারি চার্জ সেটিংস সফলভাবে আপডেট হয়েছে!' : 'Delivery settings updated successfully!', 'success');
   };
@@ -1633,28 +1634,62 @@ export const ShopProvider = ({ children }) => {
 
     const syncCloudDataOnce = async () => {
       try {
-        const cloudOrders = await fetchCloudOrders();
-        if (cloudOrders && Array.isArray(cloudOrders) && isMounted) {
-          if (knownOrderIdsRef.current.size > 0) {
-            const freshOrders = cloudOrders.filter(o => o && o.id && !knownOrderIdsRef.current.has(o.id));
-            if (freshOrders.length > 0) {
-              freshOrders.forEach(o => knownOrderIdsRef.current.add(o.id));
-              triggerOrderNotification(freshOrders[0]);
-            }
-          } else {
-            cloudOrders.forEach(o => o && o.id && knownOrderIdsRef.current.add(o.id));
+        // 1. Fetch Cloud Settings first (Hero Banner Slides, Payments, Delivery, Ads, Coupons, Users)
+        const cloudSettings = await fetchCloudSettings();
+        if (cloudSettings && isMounted) {
+          if (cloudSettings.deliverySettings) {
+            setDeliverySettings(cloudSettings.deliverySettings);
+            safeSetItem('beli_delivery_settings', JSON.stringify(cloudSettings.deliverySettings));
           }
-
-          setOrders(prev => {
-            const map = new Map();
-            prev.forEach(o => map.set(o.id, o));
-            cloudOrders.forEach(o => map.set(o.id, o));
-            const merged = Array.from(map.values()).sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
-            safeSetItem('beli_orders', JSON.stringify(merged));
-            return merged;
-          });
+          if (cloudSettings.paymentSettings) {
+            setPaymentSettings(cloudSettings.paymentSettings);
+            safeSetItem('beli_payment_settings', JSON.stringify(cloudSettings.paymentSettings));
+          }
+          if (cloudSettings.coupons && Array.isArray(cloudSettings.coupons)) {
+            setCoupons(cloudSettings.coupons);
+            safeSetItem('beli_coupons', JSON.stringify(cloudSettings.coupons));
+          }
+          if (cloudSettings.adBanner) {
+            setAdBanner(cloudSettings.adBanner);
+            safeSetItem('beli_ad_banner', JSON.stringify(cloudSettings.adBanner));
+          }
+          if (cloudSettings.heroBanner && Array.isArray(cloudSettings.heroBanner.slides) && cloudSettings.heroBanner.slides.length > 0) {
+            setHeroBanner(cloudSettings.heroBanner);
+            safeSetItem('beli_hero_banner', JSON.stringify(cloudSettings.heroBanner));
+          }
+          if (cloudSettings.adminUsers && Array.isArray(cloudSettings.adminUsers) && cloudSettings.adminUsers.length > 0) {
+            setAdminUsers(prev => {
+              const map = new Map();
+              DEFAULT_ADMIN_USERS.forEach(u => map.set(u.id, u));
+              prev.forEach(u => map.set(u.id, u));
+              cloudSettings.adminUsers.forEach(u => map.set(u.id, u));
+              const merged = Array.from(map.values());
+              safeSetItem('beli_admin_users', JSON.stringify(merged));
+              return merged;
+            });
+          }
         }
 
+        // 2. Auto-seed: If this device is the admin device and has hero slides in localStorage
+        // but cloud had no slides (or fewer slides), auto-push local hero banner to cloud!
+        try {
+          const localHeroRaw = localStorage.getItem('beli_hero_banner');
+          if (localHeroRaw) {
+            const parsedLocalHero = JSON.parse(localHeroRaw);
+            const hasLocalSlides = parsedLocalHero?.slides && Array.isArray(parsedLocalHero.slides) && parsedLocalHero.slides.length > 0;
+            const cloudSlidesCount = cloudSettings?.heroBanner?.slides?.length || 0;
+            if (hasLocalSlides && (cloudSlidesCount === 0 || parsedLocalHero.slides.length > cloudSlidesCount)) {
+              saveCloudSettings({
+                heroBanner: parsedLocalHero,
+                paymentSettings: JSON.parse(localStorage.getItem('beli_payment_settings') || 'null') || undefined,
+                deliverySettings: JSON.parse(localStorage.getItem('beli_delivery_settings') || 'null') || undefined,
+                adBanner: JSON.parse(localStorage.getItem('beli_ad_banner') || 'null') || undefined
+              });
+            }
+          }
+        } catch (e) {}
+
+        // 3. Fetch Custom Medicines (Custom Photos, Stock, Prices)
         const cloudMeds = await fetchCloudMedicines();
         if (cloudMeds && Array.isArray(cloudMeds) && isMounted) {
           if (cloudMeds.length > 0) {
@@ -1670,8 +1705,8 @@ export const ShopProvider = ({ children }) => {
             });
           }
 
-          // Automatic bi-directional cloud sync:
-          const cloudMap = new Map(cloudMeds.map(m => [m.id, m]));
+          // Automatic bi-directional cloud sync for medicines:
+          const cloudMap = new Map((cloudMeds || []).map(m => [m.id, m]));
           const initialMap = new Map(INITIAL_MEDICINES.map(m => [m.id, m]));
 
           const localSaved = localStorage.getItem('beli_medicines');
@@ -1701,13 +1736,37 @@ export const ShopProvider = ({ children }) => {
 
           if (unpushed.length > 0) {
             batchSaveCloudMedicines(unpushed).then(res => {
-              if (res.count > 0) {
-                publishLiveSync({ type: 'ALL_MEDICINES_SYNCED', count: res.count });
+              if (res) {
+                publishLiveSync({ type: 'ALL_MEDICINES_SYNCED', count: unpushed.length });
               }
             });
           }
         }
 
+        // 4. Fetch Cloud Orders
+        const cloudOrders = await fetchCloudOrders();
+        if (cloudOrders && Array.isArray(cloudOrders) && isMounted) {
+          if (knownOrderIdsRef.current.size > 0) {
+            const freshOrders = cloudOrders.filter(o => o && o.id && !knownOrderIdsRef.current.has(o.id));
+            if (freshOrders.length > 0) {
+              freshOrders.forEach(o => knownOrderIdsRef.current.add(o.id));
+              triggerOrderNotification(freshOrders[0]);
+            }
+          } else {
+            cloudOrders.forEach(o => o && o.id && knownOrderIdsRef.current.add(o.id));
+          }
+
+          setOrders(prev => {
+            const map = new Map();
+            prev.forEach(o => map.set(o.id, o));
+            cloudOrders.forEach(o => map.set(o.id, o));
+            const merged = Array.from(map.values()).sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+            safeSetItem('beli_orders', JSON.stringify(merged));
+            return merged;
+          });
+        }
+
+        // 5. Fetch Cloud Prescriptions
         const cloudPresc = await fetchCloudPrescriptions();
         if (cloudPresc && Array.isArray(cloudPresc) && isMounted) {
           setPrescriptions(prev => {
@@ -1720,39 +1779,17 @@ export const ShopProvider = ({ children }) => {
           });
         }
 
-        const cloudSettings = await fetchCloudSettings();
-        if (cloudSettings && isMounted) {
-          if (cloudSettings.deliverySettings) {
-            setDeliverySettings(cloudSettings.deliverySettings);
-            safeSetItem('beli_delivery_settings', JSON.stringify(cloudSettings.deliverySettings));
-          }
-          if (cloudSettings.paymentSettings) {
-            setPaymentSettings(cloudSettings.paymentSettings);
-            safeSetItem('beli_payment_settings', JSON.stringify(cloudSettings.paymentSettings));
-          }
-          if (cloudSettings.coupons && Array.isArray(cloudSettings.coupons)) {
-            setCoupons(cloudSettings.coupons);
-            safeSetItem('beli_coupons', JSON.stringify(cloudSettings.coupons));
-          }
-          if (cloudSettings.adBanner) {
-            setAdBanner(cloudSettings.adBanner);
-            safeSetItem('beli_ad_banner', JSON.stringify(cloudSettings.adBanner));
-          }
-          if (cloudSettings.heroBanner) {
-            setHeroBanner(cloudSettings.heroBanner);
-            safeSetItem('beli_hero_banner', JSON.stringify(cloudSettings.heroBanner));
-          }
-          if (cloudSettings.adminUsers && Array.isArray(cloudSettings.adminUsers) && cloudSettings.adminUsers.length > 0) {
-            setAdminUsers(prev => {
-              const map = new Map();
-              DEFAULT_ADMIN_USERS.forEach(u => map.set(u.id, u));
-              prev.forEach(u => map.set(u.id, u));
-              cloudSettings.adminUsers.forEach(u => map.set(u.id, u));
-              const merged = Array.from(map.values());
-              safeSetItem('beli_admin_users', JSON.stringify(merged));
-              return merged;
-            });
-          }
+        // 6. Fetch Cloud Customers
+        const cloudCust = await fetchCloudCustomers();
+        if (cloudCust && Array.isArray(cloudCust) && cloudCust.length > 0 && isMounted) {
+          setCustomerProfiles(prev => {
+            const map = new Map();
+            prev.forEach(c => map.set(c.phone, c));
+            cloudCust.forEach(c => map.set(c.phone, c));
+            const merged = Array.from(map.values());
+            safeSetItem('beli_customer_profiles', JSON.stringify(merged));
+            return merged;
+          });
         }
       } catch (err) {
         // Fallback silently
@@ -1761,15 +1798,22 @@ export const ShopProvider = ({ children }) => {
 
     syncCloudDataOnce();
 
-    // Throttled focus sync (max once every 5 minutes to avoid quota exhaustion)
+    // Fast focus sync (5s throttle since kvdb has no rate limit)
     const handleWindowFocus = () => {
       const now = Date.now();
-      if (now - lastCloudSyncTime > 300000) {
+      if (now - lastCloudSyncTime > 5000) {
         lastCloudSyncTime = now;
         syncCloudDataOnce();
       }
     };
     window.addEventListener('focus', handleWindowFocus);
+
+    // Periodic live cloud polling every 25 seconds for open devices/mobiles
+    const intervalId = setInterval(() => {
+      if (isMounted) {
+        syncCloudDataOnce();
+      }
+    }, 25000);
 
     // 2. Storage event listener (guaranteed instant tab-to-tab sync across all windows on same browser)
     const handleStorageChange = (e) => {
@@ -1822,6 +1866,7 @@ export const ShopProvider = ({ children }) => {
 
     return () => {
       isMounted = false;
+      clearInterval(intervalId);
       window.removeEventListener('focus', handleWindowFocus);
       window.removeEventListener('storage', handleStorageChange);
       unsubscribeSSE();
@@ -2374,7 +2419,7 @@ export const ShopProvider = ({ children }) => {
     showToast('Default catalog restored', 'info');
   };
 
-  const syncAllMedicinesToCloud = async (onProgress) => {
+  const syncAllMedicinesToCloud = async () => {
     const initialMap = new Map(INITIAL_MEDICINES.map(m => [m.id, m]));
     const customList = medicines.filter(m => {
       if (!m || !m.id) return false;
@@ -2389,29 +2434,42 @@ export const ShopProvider = ({ children }) => {
       return hasCustomPhoto || isEdited;
     });
 
-    if (customList.length === 0) {
-      showToast(lang === 'bn' ? 'সব ওষুধের ফটো ও তথ্য ইতিমধ্যে ক্লাউডে আপ-টু-ডেট রয়েছে!' : 'All medicines are already synced to cloud!', 'info');
-      return { success: true, count: 0 };
-    }
-
     showToast(
       lang === 'bn' 
-        ? `${customList.length}টি ওষুধের ফটো ক্লাউড ডাটাবেজে সিঙ্ক হচ্ছে...` 
-        : `Syncing ${customList.length} medicines to cloud...`, 
+        ? `🌐 ক্লাউড ডাটাবেজে সকল ব্যানার, ওষুধের ছবি ও সেটিংস সিঙ্ক হচ্ছে...` 
+        : `Syncing all banners, photos, and settings to cloud...`, 
       'info'
     );
 
-    const res = await batchSaveCloudMedicines(customList, onProgress);
-    if (res.success) {
-      publishLiveSync({ type: 'ALL_MEDICINES_SYNCED', count: res.count });
-      showToast(
-        lang === 'bn' 
-          ? `✓ সফলভাবে ${res.count}টি ওষুধের ফটো ও তথ্য ক্লাউডে সেভ হয়েছে! এখন যেকোনো মোবাইল বা ডিভাইসে দেখা যাবে।` 
-          : `✓ Successfully synced ${res.count} medicines to cloud! Visible across all devices now.`, 
-        'success'
-      );
-    }
-    return res;
+    const res = await syncAllDataToCloud({
+      heroBanner,
+      paymentSettings,
+      deliverySettings,
+      adBanner,
+      coupons,
+      adminUsers,
+      customMedicines: customList,
+      orders,
+      prescriptions,
+      customers: customerProfiles
+    });
+
+    publishLiveSync({ 
+      type: 'ALL_SETTINGS_SYNCED', 
+      heroBanner, 
+      paymentSettings, 
+      deliverySettings, 
+      adBanner, 
+      count: customList.length 
+    });
+
+    showToast(
+      lang === 'bn' 
+        ? `✓ সফলভাবে ক্লাউড ডাটাবেজ আপডেট হয়েছে! এখন যেকোনো মোবাইল, কম্পিউটার বা শেয়ার করা লিংকে সব স্লাইড ব্যানার ও ওষুধের ছবি লাইভ দেখা যাবে।` 
+        : `✓ Successfully synced all banners, photos, and settings to cloud! Visible live on all devices.`, 
+      'success'
+    );
+    return { success: true, count: customList.length };
   };
 
   return (
@@ -2421,6 +2479,7 @@ export const ShopProvider = ({ children }) => {
       updateDeliverySettings,
       medicines,
       syncAllMedicinesToCloud,
+      syncAllToCloud: syncAllMedicinesToCloud,
       cart,
       orders,
       prescriptions,
