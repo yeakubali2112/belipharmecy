@@ -32,7 +32,6 @@ import {
   Copy
 } from 'lucide-react';
 import { useShop } from '../context/ShopContext';
-import { PRESET_AVATARS } from '../data/avatars';
 import { VoiceNotePlayer } from './VoiceNotePlayer';
 
 export const CustomerProfileModal = () => {
@@ -68,7 +67,6 @@ export const CustomerProfileModal = () => {
 
   // Avatar Photo State & File Input Ref
   const fileInputRef = useRef(null);
-  const [showAvatarPicker, setShowAvatarPicker] = useState(false);
   const [guestAvatar, setGuestAvatar] = useState(null);
 
   // Selected payment method before confirming
@@ -142,14 +140,6 @@ export const CustomerProfileModal = () => {
     };
     reader.readAsDataURL(file);
     e.target.value = '';
-  };
-
-  const handleSelectPresetAvatar = (avatarUrl) => {
-    if (currentCustomer) {
-      updateCustomerProfile({ avatar: avatarUrl });
-    } else {
-      setGuestAvatar(avatarUrl);
-    }
   };
 
   const handleRemoveAvatar = () => {
@@ -410,8 +400,8 @@ export const CustomerProfileModal = () => {
                     </h4>
                     <p className="text-xs text-slate-500 mt-0.5">
                       {lang === 'bn' 
-                        ? 'ডিভাইস থেকে ছবি আপলোড করুন অথবা রেডিমেড অবতার পছন্দ করুন' 
-                        : 'Upload photo from device or choose a preset avatar'}
+                        ? 'ডিভাইস থেকে আপনার ছবি আপলোড করুন' 
+                        : 'Upload your photo from device'}
                     </p>
                   </div>
                 </div>
@@ -424,15 +414,6 @@ export const CustomerProfileModal = () => {
                   >
                     <Upload className="w-3.5 h-3.5" />
                     <span>{lang === 'bn' ? 'ছবি আপলোড করুন' : 'Upload Photo'}</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setShowAvatarPicker(!showAvatarPicker)}
-                    className="px-3.5 py-2 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-[#123184] text-xs font-bold flex items-center gap-1.5 shadow-xs cursor-pointer transition-all"
-                  >
-                    <Sparkles className="w-3.5 h-3.5 text-[#02975E]" />
-                    <span>{showAvatarPicker ? (lang === 'bn' ? 'অবতার লুকান' : 'Hide Avatars') : (lang === 'bn' ? 'অবতার পছন্দ করুন' : 'Pick Avatar')}</span>
                   </button>
 
                   {currentCustomer.avatar && (
@@ -448,48 +429,6 @@ export const CustomerProfileModal = () => {
                   )}
                 </div>
               </div>
-
-              {/* Ready-made Avatar Presets Gallery */}
-              {showAvatarPicker && (
-                <div className="mt-4 pt-4 border-t border-emerald-200/60 space-y-2.5 animate-in fade-in duration-200">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
-                      <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-                      {lang === 'bn' ? '১-ক্লিকে রেডিমেড অবতার সেট করুন:' : '1-Click Preset Avatars:'}
-                    </span>
-                  </div>
-                  <div className="grid grid-cols-3 sm:grid-cols-6 gap-2.5">
-                    {PRESET_AVATARS.map((preset) => {
-                      const isSelected = currentCustomer.avatar === preset.url;
-                      return (
-                        <button
-                          key={preset.id}
-                          type="button"
-                          onClick={() => handleSelectPresetAvatar(preset.url)}
-                          className={`p-2 rounded-2xl border-2 flex flex-col items-center gap-1.5 transition-all cursor-pointer bg-white ${
-                            isSelected 
-                              ? 'border-[#02975E] bg-emerald-50/60 shadow-md ring-2 ring-[#02975E]/30 scale-105' 
-                              : 'border-slate-200 hover:border-[#02975E]/50 hover:bg-slate-50'
-                          }`}
-                        >
-                          {/* Square frame with circular avatar */}
-                          <div className="w-11 h-11 rounded-xl bg-slate-100 p-0.5 border border-slate-200/80 flex items-center justify-center">
-                            <img src={preset.url} alt={preset.label} className="w-full h-full rounded-full object-cover" />
-                          </div>
-                          <span className="text-[10px] font-bold text-slate-700 truncate max-w-full text-center">
-                            {preset.label}
-                          </span>
-                          {isSelected && (
-                            <span className="text-[9px] font-black text-[#02975E] bg-emerald-100 px-1.5 py-0.5 rounded-full">
-                              সিলেক্টেড
-                            </span>
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
             </div>
 
             {/* Profile Info Summary / Inline Edit Card */}
@@ -1420,34 +1359,23 @@ export const CustomerProfileModal = () => {
                   : 'Enter your phone number to view your profile and live order tracking.'}
               </p>
 
-              {/* Quick Preset Avatars for new user */}
+              {/* Photo Upload for new user */}
               <div className="flex justify-center items-center gap-2 pt-1 flex-wrap">
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  className="text-[11px] font-bold text-[#02975E] bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-xl flex items-center gap-1 cursor-pointer hover:bg-emerald-100"
+                  className="text-[11px] font-bold text-[#02975E] bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-xl flex items-center gap-1.5 cursor-pointer hover:bg-emerald-100 shadow-2xs"
                 >
-                  <Camera className="w-3 h-3" />
-                  <span>ছবি দিন</span>
+                  <Upload className="w-3.5 h-3.5" />
+                  <span>{guestAvatar ? (lang === 'bn' ? 'ছবি পরিবর্তন করুন' : 'Change Photo') : (lang === 'bn' ? 'ছবি আপলোড করুন' : 'Upload Photo')}</span>
                 </button>
-                {PRESET_AVATARS.slice(0, 5).map((p) => (
-                  <button
-                    key={p.id}
-                    type="button"
-                    onClick={() => setGuestAvatar(p.url)}
-                    className={`w-7 h-7 rounded-lg border p-0.5 cursor-pointer transition-transform hover:scale-110 ${guestAvatar === p.url ? 'border-[#02975E] ring-2 ring-[#02975E]' : 'border-slate-200'}`}
-                    title={p.label}
-                  >
-                    <img src={p.url} alt={p.label} className="w-full h-full rounded-full object-cover" />
-                  </button>
-                ))}
                 {guestAvatar && (
                   <button
                     type="button"
                     onClick={() => setGuestAvatar(null)}
                     className="text-[10px] text-rose-600 underline font-bold ml-1 cursor-pointer"
                   >
-                    রিসেট
+                    মুছুন
                   </button>
                 )}
               </div>

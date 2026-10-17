@@ -1750,11 +1750,20 @@ export const ShopProvider = ({ children }) => {
     }
 
     // Auto-create / update Customer Profile so user can track orders in their profile
+    // Note: Profile name is NEVER overwritten by orderData.customerName (recipient/patient name).
+    // The profile name can only be changed by the user directly from their profile modal.
     if (orderData.customerPhone && orderData.customerPhone !== 'N/A' && orderData.customerPhone.length >= 6) {
+      const existingProfileName = (currentCustomer?.phone === orderData.customerPhone && currentCustomer?.name)
+        ? currentCustomer.name
+        : (existingCust?.name || null);
+
+      // If no profile exists yet, use a default title, never the order/patient name
+      const profileName = existingProfileName || 'সম্মানিত গ্রাহক';
+
       const profile = {
-        name: orderData.customerName,
+        name: profileName,
         phone: orderData.customerPhone,
-        address: orderData.deliveryAddress,
+        address: currentCustomer?.address || existingCust?.address || orderData.deliveryAddress,
         avatar: resolvedAvatar,
         createdAt: currentCustomer?.createdAt || existingCust?.createdAt || new Date().toLocaleDateString('bn-BD'),
         lastOrderDate: new Date().toLocaleDateString('bn-BD')
@@ -1787,7 +1796,7 @@ export const ShopProvider = ({ children }) => {
     showToast(
       isCounter
         ? (lang === 'bn' ? `কাউন্টার সেল সফল! চালান নং: ${newId}` : `Sale completed! Invoice ID: ${newId}`)
-        : (lang === 'bn' ? `অর্ডার সফল! আপনার প্রোফাইল তৈরি হয়েছে। আইডি: ${newId}` : `Order placed! Your profile has been created. ID: ${newId}`),
+        : (lang === 'bn' ? `অর্ডার সফল হয়েছে! চালান আইডি: ${newId}` : `Order placed successfully! ID: ${newId}`),
       'success'
     );
     return newOrder;
@@ -1828,7 +1837,7 @@ export const ShopProvider = ({ children }) => {
     if (prescData.customerPhone) {
       if (!existingCust) {
         const newProf = {
-          name: prescData.customerName || 'বেলী গ্রাহক',
+          name: currentCustomer?.name || 'সম্মানিত গ্রাহক',
           phone: prescData.customerPhone,
           address: prescData.deliveryAddress || '',
           avatar: resolvedAvatar,

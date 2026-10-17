@@ -218,7 +218,7 @@ export const CheckoutModal = () => {
             <div className="grid sm:grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  {lang === 'bn' ? 'আপনার নাম *' : 'Full Name *'}
+                  {lang === 'bn' ? 'অর্ডার গ্রহণকারী / আপনার নাম *' : 'Recipient / Full Name *'}
                 </label>
                 <input
                   type="text"
