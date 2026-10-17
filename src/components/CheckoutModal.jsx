@@ -39,6 +39,13 @@ export const CheckoutModal = () => {
   const [area, setArea] = useState('Dupchanchia / Bogura');
   const [deliveryType, setDeliveryType] = useState('regular'); // 'regular' or 'express'
   const [paymentMethod, setPaymentMethod] = useState('cod'); // 'cod', 'bkash', 'nagad', 'bank'
+  const [selectedBankId, setSelectedBankId] = useState(() => {
+    if (paymentSettings?.banks && paymentSettings.banks.length > 0) {
+      const active = paymentSettings.banks.find(b => b.enabled !== false);
+      return active ? active.id : paymentSettings.banks[0]?.id;
+    }
+    return null;
+  });
   const [trxId, setTrxId] = useState('');
   const [patientNote, setPatientNote] = useState('');
   const [orderState, setOrderState] = useState('idle'); // 'idle' | 'riding' | 'success'
@@ -54,8 +61,12 @@ export const CheckoutModal = () => {
   React.useEffect(() => {
     if (isCheckoutModalOpen) {
       setOrderState('idle');
+      if (!selectedBankId && paymentSettings?.banks && paymentSettings.banks.length > 0) {
+        const active = paymentSettings.banks.find(b => b.enabled !== false) || paymentSettings.banks[0];
+        if (active) setSelectedBankId(active.id);
+      }
     }
-  }, [isCheckoutModalOpen]);
+  }, [isCheckoutModalOpen, paymentSettings, selectedBankId]);
 
   React.useEffect(() => {
     if (currentCustomer && isCheckoutModalOpen) {
@@ -97,13 +108,19 @@ export const CheckoutModal = () => {
 
       // Step 3: Show completed state and finalize order
       setTimeout(() => {
+        const availableBanks = (paymentSettings?.banks && Array.isArray(paymentSettings.banks) && paymentSettings.banks.length > 0)
+          ? paymentSettings.banks.filter(b => b && b.enabled !== false)
+          : (paymentSettings?.bank?.enabled !== false && paymentSettings?.bank ? [paymentSettings.bank] : []);
+        const chosenBank = (selectedBankId ? availableBanks.find(b => b?.id === selectedBankId) : null) || availableBanks[0] || paymentSettings?.bank;
+
         createOrder({
           customerName,
           customerPhone,
           customerAvatar: currentCustomer?.avatar || null,
           deliveryAddress: `${deliveryAddress}, ${area}`,
           deliveryType,
-          paymentMethod,
+          paymentMethod: paymentMethod === 'bank' ? 'Bank Transfer' : paymentMethod,
+          bankName: paymentMethod === 'bank' ? chosenBank?.bankName : undefined,
           trxId: trxId || 'N/A',
           patientNote,
           subtotal: Number(cartSubtotal.toFixed(2)),
@@ -558,10 +575,10 @@ export const CheckoutModal = () => {
 
             {/* Bank Transfer Instructions */}
             {paymentMethod === 'bank' && (() => {
-              const availableBanks = (paymentSettings?.banks && paymentSettings.banks.length > 0)
-                ? paymentSettings.banks.filter(b => b.enabled !== false)
-                : (paymentSettings?.bank?.enabled !== false ? [paymentSettings.bank] : []);
-              const currentBank = availableBanks.find(b => b.id === selectedBankId) || availableBanks[0] || paymentSettings?.bank;
+              const availableBanks = (paymentSettings?.banks && Array.isArray(paymentSettings.banks) && paymentSettings.banks.length > 0)
+                ? paymentSettings.banks.filter(b => b && b.enabled !== false)
+                : (paymentSettings?.bank?.enabled !== false && paymentSettings?.bank ? [paymentSettings.bank] : []);
+              const currentBank = (selectedBankId ? availableBanks.find(b => b?.id === selectedBankId) : null) || availableBanks[0] || paymentSettings?.bank;
 
               return (
                 <div className="bg-sky-50 border border-sky-200 rounded-2xl p-3.5 text-xs text-sky-950 space-y-3 animate-in fade-in">
