@@ -1596,27 +1596,43 @@ export const ShopProvider = ({ children }) => {
     } else if (event.type === 'COUPONS_UPDATED' && event.coupons) {
       setCoupons(event.coupons);
       safeSetItem('beli_coupons', JSON.stringify(event.coupons));
-    } else if (event.type === 'SETTINGS_UPDATED' && event.settings) {
-      if (event.settings.deliverySettings) {
-        setDeliverySettings(event.settings.deliverySettings);
-        safeSetItem('beli_delivery_settings', JSON.stringify(event.settings.deliverySettings));
+    } else if (event.type === 'ALL_SETTINGS_SYNCED' || event.type === 'SETTINGS_UPDATED') {
+      const s = event.settings || event;
+      if (s.deliverySettings) {
+        setDeliverySettings(s.deliverySettings);
+        safeSetItem('beli_delivery_settings', JSON.stringify(s.deliverySettings));
       }
-      if (event.settings.paymentSettings) {
-        setPaymentSettings(event.settings.paymentSettings);
-        safeSetItem('beli_payment_settings', JSON.stringify(event.settings.paymentSettings));
+      if (s.paymentSettings) {
+        setPaymentSettings(s.paymentSettings);
+        safeSetItem('beli_payment_settings', JSON.stringify(s.paymentSettings));
       }
-      if (event.settings.coupons) {
-        setCoupons(event.settings.coupons);
-        safeSetItem('beli_coupons', JSON.stringify(event.settings.coupons));
+      if (s.coupons && Array.isArray(s.coupons)) {
+        setCoupons(s.coupons);
+        safeSetItem('beli_coupons', JSON.stringify(s.coupons));
       }
-      if (event.settings.adBanner) {
-        setAdBanner(event.settings.adBanner);
-        safeSetItem('beli_ad_banner', JSON.stringify(event.settings.adBanner));
+      if (s.adBanner) {
+        setAdBanner(s.adBanner);
+        safeSetItem('beli_ad_banner', JSON.stringify(s.adBanner));
       }
-      if (event.settings.heroBanner) {
-        setHeroBanner(event.settings.heroBanner);
-        safeSetItem('beli_hero_banner', JSON.stringify(event.settings.heroBanner));
+      if (s.heroBanner) {
+        setHeroBanner(s.heroBanner);
+        safeSetItem('beli_hero_banner', JSON.stringify(s.heroBanner));
       }
+      // Also refetch custom medicines if any were updated in the cloud
+      fetchCloudMedicines().then(cloudMeds => {
+        if (cloudMeds && Array.isArray(cloudMeds) && cloudMeds.length > 0) {
+          setMedicines(prev => {
+            const cloudMap = new Map(cloudMeds.map(m => [m.id, m]));
+            const next = prev.map(m => cloudMap.has(m.id) ? { ...m, ...cloudMap.get(m.id) } : m);
+            cloudMeds.forEach(cm => {
+              if (!next.some(m => m.id === cm.id)) next.unshift(cm);
+            });
+            const deduped = deduplicateMedicines(next);
+            safeSetItem('beli_medicines', JSON.stringify(deduped));
+            return deduped;
+          });
+        }
+      });
     }
   };
 

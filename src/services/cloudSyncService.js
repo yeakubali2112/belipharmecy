@@ -1,25 +1,89 @@
 // Global Real-Time Cloud Synchronization Service for Beli Pharmacy
 // Provides instant cross-device synchronization between Admin PC, customer mobile devices, tablets, and any shared link.
-// Powered by high-speed global Key-Value Cloud Store (kvdb.io) with zero-quota limitations.
+// Powered by high-speed global cloud store with zero quota limitations and real-time push.
 
-const CLOUD_BUCKET = 'BTVv2sHxdsgSpeo4APxdvY';
-const CLOUD_BASE_URL = `https://kvdb.io/${CLOUD_BUCKET}`;
+const CLOUD_STORE_TOPIC = 'beli_pharmacy_cloud_store_2026';
+const CLOUD_STORE_URL = `https://ntfy.sh/${CLOUD_STORE_TOPIC}`;
 
-// Helper for fetch with timeout
-const cloudFetch = async (endpoint, options = {}, timeoutMs = 6000) => {
-  const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
-  const timeoutId = controller ? setTimeout(() => controller.abort(), timeoutMs) : null;
-  
+let pollCache = null;
+let pollCacheTime = 0;
+
+// Fetches the latest file attachment URLs from the cloud store
+const getLatestAttachmentUrls = async (forceRefresh = false) => {
+  const now = Date.now();
+  if (!forceRefresh && pollCache && (now - pollCacheTime < 8000)) {
+    return pollCache;
+  }
   try {
-    const res = await fetch(`${CLOUD_BASE_URL}/${endpoint}`, {
-      ...options,
+    const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    const timeoutId = controller ? setTimeout(() => controller.abort(), 6000) : null;
+    const res = await fetch(`${CLOUD_STORE_URL}/json?poll=1&since=all`, {
+      cache: 'no-store',
       signal: controller ? controller.signal : undefined
     });
     if (timeoutId) clearTimeout(timeoutId);
-    return res;
+    if (!res || !res.ok) return pollCache || {};
+
+    const text = await res.text();
+    const lines = text.trim().split('\n').filter(Boolean);
+    const keyMap = {};
+    for (const line of lines) {
+      try {
+        const item = JSON.parse(line);
+        if (item.attachment?.name && item.attachment?.url) {
+          const k = item.attachment.name.replace('.json', '');
+          keyMap[k] = item.attachment.url;
+        }
+      } catch {}
+    }
+    pollCache = keyMap;
+    pollCacheTime = now;
+    return keyMap;
   } catch (err) {
+    return pollCache || {};
+  }
+};
+
+export const fetchCloudData = async (key) => {
+  try {
+    const urls = await getLatestAttachmentUrls();
+    const fileUrl = urls[key];
+    if (!fileUrl) return null;
+
+    const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    const timeoutId = controller ? setTimeout(() => controller.abort(), 7000) : null;
+    const res = await fetch(fileUrl, {
+      cache: 'no-store',
+      signal: controller ? controller.signal : undefined
+    });
     if (timeoutId) clearTimeout(timeoutId);
+    if (!res || !res.ok) return null;
+    return await res.json();
+  } catch (err) {
     return null;
+  }
+};
+
+export const saveCloudData = async (key, data, timeoutMs = 15000) => {
+  if (!data) return false;
+  try {
+    const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    const timeoutId = controller ? setTimeout(() => controller.abort(), timeoutMs) : null;
+    const res = await fetch(CLOUD_STORE_URL, {
+      method: 'POST',
+      headers: {
+        'Title': `Beli_${key}`,
+        'Tags': key,
+        'X-Filename': `${key}.json`
+      },
+      body: JSON.stringify(data),
+      signal: controller ? controller.signal : undefined
+    });
+    if (timeoutId) clearTimeout(timeoutId);
+    pollCacheTime = 0; // invalidate cache
+    return res && res.ok;
+  } catch (err) {
+    return false;
   }
 };
 
@@ -28,31 +92,15 @@ const cloudFetch = async (endpoint, options = {}, timeoutMs = 6000) => {
 // ==========================================
 
 export const fetchCloudSettings = async () => {
-  try {
-    const res = await cloudFetch('settings', { cache: 'no-store' });
-    if (!res || !res.ok) return null;
-    return await res.json();
-  } catch (err) {
-    return null;
-  }
+  return await fetchCloudData('settings');
 };
 
 export const saveCloudSettings = async (settings) => {
   if (!settings) return false;
-  try {
-    const payload = {
-      ...settings,
-      updatedAt: Date.now()
-    };
-    const res = await cloudFetch('settings', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-    return res && res.ok;
-  } catch (err) {
-    return false;
-  }
+  return await saveCloudData('settings', {
+    ...settings,
+    updatedAt: Date.now()
+  });
 };
 
 // ==========================================
@@ -60,28 +108,13 @@ export const saveCloudSettings = async (settings) => {
 // ==========================================
 
 export const fetchCloudCustomMedicines = async () => {
-  try {
-    const res = await cloudFetch('custom_medicines', { cache: 'no-store' });
-    if (!res || !res.ok) return null;
-    const data = await res.json();
-    return Array.isArray(data) ? data : null;
-  } catch (err) {
-    return null;
-  }
+  const data = await fetchCloudData('custom_medicines');
+  return Array.isArray(data) ? data : null;
 };
 
 export const saveCloudCustomMedicines = async (medicinesList) => {
   if (!medicinesList || !Array.isArray(medicinesList)) return false;
-  try {
-    const res = await cloudFetch('custom_medicines', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(medicinesList)
-    }, 15000);
-    return res && res.ok;
-  } catch (err) {
-    return false;
-  }
+  return await saveCloudData('custom_medicines', medicinesList, 25000);
 };
 
 export const saveSingleCloudMedicine = async (medicine) => {
@@ -120,28 +153,13 @@ export const deleteCloudCustomMedicine = async (medId) => {
 // ==========================================
 
 export const fetchCloudOrders = async () => {
-  try {
-    const res = await cloudFetch('orders', { cache: 'no-store' });
-    if (!res || !res.ok) return null;
-    const data = await res.json();
-    return Array.isArray(data) ? data : [];
-  } catch (err) {
-    return null;
-  }
+  const data = await fetchCloudData('orders');
+  return Array.isArray(data) ? data : [];
 };
 
 export const saveCloudOrders = async (ordersList) => {
   if (!ordersList || !Array.isArray(ordersList)) return false;
-  try {
-    const res = await cloudFetch('orders', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(ordersList.slice(0, 500))
-    });
-    return res && res.ok;
-  } catch (err) {
-    return false;
-  }
+  return await saveCloudData('orders', ordersList.slice(0, 500));
 };
 
 export const saveSingleCloudOrder = async (order) => {
@@ -168,28 +186,13 @@ export const saveSingleCloudOrder = async (order) => {
 // ==========================================
 
 export const fetchCloudPrescriptions = async () => {
-  try {
-    const res = await cloudFetch('prescriptions', { cache: 'no-store' });
-    if (!res || !res.ok) return null;
-    const data = await res.json();
-    return Array.isArray(data) ? data : [];
-  } catch (err) {
-    return null;
-  }
+  const data = await fetchCloudData('prescriptions');
+  return Array.isArray(data) ? data : [];
 };
 
 export const saveCloudPrescriptions = async (prescriptionsList) => {
   if (!prescriptionsList || !Array.isArray(prescriptionsList)) return false;
-  try {
-    const res = await cloudFetch('prescriptions', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(prescriptionsList.slice(0, 300))
-    });
-    return res && res.ok;
-  } catch (err) {
-    return false;
-  }
+  return await saveCloudData('prescriptions', prescriptionsList.slice(0, 300));
 };
 
 export const saveSingleCloudPrescription = async (prescription) => {
@@ -216,28 +219,13 @@ export const saveSingleCloudPrescription = async (prescription) => {
 // ==========================================
 
 export const fetchCloudCustomers = async () => {
-  try {
-    const res = await cloudFetch('customers', { cache: 'no-store' });
-    if (!res || !res.ok) return null;
-    const data = await res.json();
-    return Array.isArray(data) ? data : [];
-  } catch (err) {
-    return null;
-  }
+  const data = await fetchCloudData('customers');
+  return Array.isArray(data) ? data : [];
 };
 
 export const saveCloudCustomers = async (customersList) => {
   if (!customersList || !Array.isArray(customersList)) return false;
-  try {
-    const res = await cloudFetch('customers', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(customersList.slice(0, 500))
-    });
-    return res && res.ok;
-  } catch (err) {
-    return false;
-  }
+  return await saveCloudData('customers', customersList.slice(0, 500));
 };
 
 export const saveSingleCloudCustomer = async (customer) => {
@@ -287,14 +275,24 @@ export const syncAllDataToCloud = async ({
   prescriptions,
   customers
 }) => {
-  const results = await Promise.allSettled([
-    saveCloudSettings({ heroBanner, paymentSettings, deliverySettings, adBanner, coupons, adminUsers }),
-    customMedicines && customMedicines.length > 0 ? saveCloudCustomMedicines(customMedicines) : Promise.resolve(true),
-    orders && orders.length > 0 ? saveCloudOrders(orders) : Promise.resolve(true),
-    prescriptions && prescriptions.length > 0 ? saveCloudPrescriptions(prescriptions) : Promise.resolve(true),
-    customers && customers.length > 0 ? saveCloudCustomers(customers) : Promise.resolve(true)
-  ]);
+  const tasks = [
+    saveCloudSettings({ heroBanner, paymentSettings, deliverySettings, adBanner, coupons, adminUsers })
+  ];
 
+  if (customMedicines && customMedicines.length > 0) {
+    tasks.push(saveCloudCustomMedicines(customMedicines));
+  }
+  if (orders && orders.length > 0) {
+    tasks.push(saveCloudOrders(orders));
+  }
+  if (prescriptions && prescriptions.length > 0) {
+    tasks.push(saveCloudPrescriptions(prescriptions));
+  }
+  if (customers && customers.length > 0) {
+    tasks.push(saveCloudCustomers(customers));
+  }
+
+  const results = await Promise.allSettled(tasks);
   const allSuccess = results.every(r => r.status === 'fulfilled' && r.value !== false);
   return { success: allSuccess, results };
 };
@@ -306,4 +304,3 @@ export const saveCloudCustomer = saveSingleCloudCustomer;
 export const saveCloudMedicine = saveSingleCloudMedicine;
 export const fetchCloudMedicines = fetchCloudCustomMedicines;
 export const batchSaveCloudMedicines = saveCloudCustomMedicines;
-
