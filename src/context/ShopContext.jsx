@@ -193,6 +193,19 @@ export const ShopProvider = ({ children }) => {
     showToast(lang === 'bn' ? 'ডেলিভারি চার্জ সেটিংস সফলভাবে আপডেট হয়েছে!' : 'Delivery settings updated successfully!', 'success');
   };
 
+  const DEFAULT_BANKS = [
+    {
+      id: 'bank-1',
+      enabled: true,
+      bankName: 'Islami Bank Bangladesh Ltd (IBBL)',
+      accountName: 'Beli Pharmacy (বেলী ফার্মেসি)',
+      accountNumber: '2050 1480 2003 4567',
+      branchName: 'Dupchanchia Branch, Bogura',
+      routingNumber: '125100456',
+      instructions: 'অনলাইন ব্যাংক অ্যাপ (iBanking / Cellfin / NexusPay) বা সরাসরি ব্যাংকে ডিপোজিট করে রেফারেন্স/ট্রানজেকশন নম্বর দিন।'
+    }
+  ];
+
   // Payment Methods Settings (bKash, Nagad, Bank Transfer, Cash on Hand)
   const DEFAULT_PAYMENT_SETTINGS = {
     bkash: {
@@ -207,15 +220,8 @@ export const ShopProvider = ({ children }) => {
       type: 'Personal',
       instructions: 'নগদ অ্যাপ বা *167# ডায়াল করে সেন্ড মানি করুন এবং ট্রানজেকশন আইডি (TrxID) দিন।'
     },
-    bank: {
-      enabled: true,
-      bankName: 'Islami Bank Bangladesh Ltd (IBBL)',
-      accountName: 'Beli Pharmacy (বেলী ফার্মেসি)',
-      accountNumber: '2050 1480 2003 4567',
-      branchName: 'Dupchanchia Branch, Bogura',
-      routingNumber: '125100456',
-      instructions: 'অনলাইন ব্যাংক অ্যাপ (iBanking / Cellfin / NexusPay) বা সরাসরি ব্যাংকে ডিপোজিট করে রেফারেন্স/ট্রানজেকশন নম্বর দিন।'
-    },
+    bank: DEFAULT_BANKS[0],
+    banks: DEFAULT_BANKS,
     cod: {
       enabled: true,
       title: 'Cash on Hand (হাতে নগদ)',
@@ -229,10 +235,15 @@ export const ShopProvider = ({ children }) => {
       if (saved) {
         const parsed = JSON.parse(saved);
         if (parsed && typeof parsed === 'object') {
+          const loadedBanks = Array.isArray(parsed.banks) && parsed.banks.length > 0
+            ? parsed.banks
+            : (parsed.bank ? [{ id: 'bank-1', enabled: true, ...parsed.bank }] : DEFAULT_BANKS);
+          const primaryBank = loadedBanks.find(b => b.enabled) || loadedBanks[0] || DEFAULT_PAYMENT_SETTINGS.bank;
           return {
             bkash: { ...DEFAULT_PAYMENT_SETTINGS.bkash, ...(parsed.bkash || {}) },
             nagad: { ...DEFAULT_PAYMENT_SETTINGS.nagad, ...(parsed.nagad || {}) },
-            bank: { ...DEFAULT_PAYMENT_SETTINGS.bank, ...(parsed.bank || {}) },
+            bank: { ...DEFAULT_PAYMENT_SETTINGS.bank, ...primaryBank, ...(parsed.bank || {}) },
+            banks: loadedBanks,
             cod: { ...DEFAULT_PAYMENT_SETTINGS.cod, ...(parsed.cod || {}) }
           };
         }
@@ -242,16 +253,64 @@ export const ShopProvider = ({ children }) => {
   });
 
   const updatePaymentSettings = (newSettings) => {
+    const loadedBanks = Array.isArray(newSettings.banks) && newSettings.banks.length > 0
+      ? newSettings.banks
+      : (paymentSettings.banks || DEFAULT_BANKS);
+    const primaryBank = loadedBanks.find(b => b.enabled) || loadedBanks[0] || DEFAULT_PAYMENT_SETTINGS.bank;
+
     const merged = {
-      bkash: { ...DEFAULT_PAYMENT_SETTINGS.bkash, ...(newSettings.bkash || {}) },
-      nagad: { ...DEFAULT_PAYMENT_SETTINGS.nagad, ...(newSettings.nagad || {}) },
-      bank: { ...DEFAULT_PAYMENT_SETTINGS.bank, ...(newSettings.bank || {}) },
-      cod: { ...DEFAULT_PAYMENT_SETTINGS.cod, ...(newSettings.cod || {}) }
+      bkash: { ...DEFAULT_PAYMENT_SETTINGS.bkash, ...(paymentSettings.bkash || {}), ...(newSettings.bkash || {}) },
+      nagad: { ...DEFAULT_PAYMENT_SETTINGS.nagad, ...(paymentSettings.nagad || {}), ...(newSettings.nagad || {}) },
+      bank: { ...DEFAULT_PAYMENT_SETTINGS.bank, ...(paymentSettings.bank || {}), ...(newSettings.bank || {}), ...primaryBank },
+      banks: loadedBanks,
+      cod: { ...DEFAULT_PAYMENT_SETTINGS.cod, ...(paymentSettings.cod || {}), ...(newSettings.cod || {}) }
     };
     setPaymentSettings(merged);
     safeSetItem('beli_payment_settings', JSON.stringify(merged));
     saveCloudSettings({ paymentSettings: merged, deliverySettings, coupons, adBanner, heroBanner, adminUsers });
     showToast(lang === 'bn' ? 'পেমেন্ট মেথড সেটিংস সফলভাবে আপডেট হয়েছে!' : 'Payment settings updated successfully!', 'success');
+  };
+
+  const addBank = (bankData) => {
+    const newBank = {
+      id: `bank-${Date.now()}`,
+      enabled: true,
+      bankName: bankData.bankName || 'New Bank',
+      accountName: bankData.accountName || 'Beli Pharmacy',
+      accountNumber: bankData.accountNumber || '',
+      branchName: bankData.branchName || '',
+      routingNumber: bankData.routingNumber || '',
+      instructions: bankData.instructions || 'সরাসরি শাখায় বা অনলাইন অ্যাপে ডিপোজিট করে রেফারেন্স দিন।'
+    };
+    const updatedBanks = [...(paymentSettings.banks || DEFAULT_BANKS), newBank];
+    updatePaymentSettings({ ...paymentSettings, banks: updatedBanks });
+    showToast(lang === 'bn' ? 'নতুন ব্যাংক অ্যাকাউন্ট সফলভাবে যুক্ত হয়েছে!' : 'New bank account added successfully!', 'success');
+  };
+
+  const updateBank = (bankId, bankData) => {
+    const updatedBanks = (paymentSettings.banks || DEFAULT_BANKS).map(b => 
+      b.id === bankId ? { ...b, ...bankData } : b
+    );
+    updatePaymentSettings({ ...paymentSettings, banks: updatedBanks });
+    showToast(lang === 'bn' ? 'ব্যাংক অ্যাকাউন্টের তথ্য আপডেট হয়েছে!' : 'Bank account updated successfully!', 'success');
+  };
+
+  const deleteBank = (bankId) => {
+    const currentBanks = paymentSettings.banks || DEFAULT_BANKS;
+    if (currentBanks.length <= 1) {
+      showToast(lang === 'bn' ? 'কমপক্ষে একটি ব্যাংক অ্যাকাউন্ট তালিকায় থাকতে হবে!' : 'At least one bank account must remain!', 'error');
+      return;
+    }
+    const updatedBanks = currentBanks.filter(b => b.id !== bankId);
+    updatePaymentSettings({ ...paymentSettings, banks: updatedBanks });
+    showToast(lang === 'bn' ? 'ব্যাংক অ্যাকাউন্ট সফলভাবে মুছে ফেলা হয়েছে!' : 'Bank account removed successfully!', 'success');
+  };
+
+  const toggleBankStatus = (bankId) => {
+    const updatedBanks = (paymentSettings.banks || DEFAULT_BANKS).map(b => 
+      b.id === bankId ? { ...b, enabled: !b.enabled } : b
+    );
+    updatePaymentSettings({ ...paymentSettings, banks: updatedBanks });
   };
 
   // Custom admin password state (persists resets/changes for Super Admin)
@@ -2259,6 +2318,10 @@ export const ShopProvider = ({ children }) => {
       customAdminPassword,
       paymentSettings,
       updatePaymentSettings,
+      addBank,
+      updateBank,
+      deleteBank,
+      toggleBankStatus,
 
       // Search & Filter
       searchQuery,

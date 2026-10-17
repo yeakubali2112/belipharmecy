@@ -557,104 +557,134 @@ export const CheckoutModal = () => {
             )}
 
             {/* Bank Transfer Instructions */}
-            {paymentMethod === 'bank' && (
-              <div className="bg-sky-50 border border-sky-200 rounded-2xl p-3.5 text-xs text-sky-950 space-y-3 animate-in fade-in">
-                <div className="flex items-center justify-between border-b border-sky-200/80 pb-2">
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-xl bg-[#123184] text-white flex items-center justify-center shadow-xs">
-                      <Building2 className="w-4 h-4 text-emerald-300" />
-                    </div>
-                    <div>
-                      <p className="font-extrabold text-[#123184] text-xs sm:text-sm">
-                        {paymentSettings?.bank?.bankName || 'ব্যাংক ফান্ড ট্রান্সফার'}
-                      </p>
-                      <span className="text-[10px] text-sky-700 font-medium">অনলাইন ব্যাংকিং / ডিপোজিট / NPSB / BEFTN</span>
-                    </div>
-                  </div>
-                  <span className="text-xs font-black text-[#123184] bg-white px-2 py-0.5 rounded-lg border border-sky-200">
-                    ৳{grandTotal.toFixed(0)}
-                  </span>
-                </div>
+            {paymentMethod === 'bank' && (() => {
+              const availableBanks = (paymentSettings?.banks && paymentSettings.banks.length > 0)
+                ? paymentSettings.banks.filter(b => b.enabled !== false)
+                : (paymentSettings?.bank?.enabled !== false ? [paymentSettings.bank] : []);
+              const currentBank = availableBanks.find(b => b.id === selectedBankId) || availableBanks[0] || paymentSettings?.bank;
 
-                {/* Bank Account Details Grid */}
-                <div className="grid sm:grid-cols-2 gap-2 bg-white/95 p-3 rounded-xl border border-sky-200 text-xs shadow-2xs">
-                  <div>
-                    <span className="text-[10px] text-slate-500 font-bold block">ব্যাংকের নাম (Bank Name):</span>
-                    <span className="font-bold text-slate-900 block mt-0.5">
-                      {paymentSettings?.bank?.bankName || 'Islami Bank Bangladesh Ltd'}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-[10px] text-slate-500 font-bold block">হিসাবধারীর নাম (Account Name):</span>
-                    <span className="font-bold text-slate-900 block mt-0.5">
-                      {paymentSettings?.bank?.accountName || 'Beli Pharmacy'}
+              return (
+                <div className="bg-sky-50 border border-sky-200 rounded-2xl p-3.5 text-xs text-sky-950 space-y-3 animate-in fade-in">
+                  <div className="flex items-center justify-between border-b border-sky-200/80 pb-2">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-xl bg-[#123184] text-white flex items-center justify-center shadow-xs">
+                        <Building2 className="w-4 h-4 text-emerald-300" />
+                      </div>
+                      <div>
+                        <p className="font-extrabold text-[#123184] text-xs sm:text-sm">
+                          {currentBank?.bankName || 'ব্যাংক ফান্ড ট্রান্সফার'}
+                        </p>
+                        <span className="text-[10px] text-sky-700 font-medium">অনলাইন ব্যাংকিং / ডিপোজিট / NPSB / BEFTN</span>
+                      </div>
+                    </div>
+                    <span className="text-xs font-black text-[#123184] bg-white px-2 py-0.5 rounded-lg border border-sky-200">
+                      ৳{grandTotal.toFixed(0)}
                     </span>
                   </div>
 
-                  <div className="sm:col-span-2 flex items-center justify-between bg-sky-50/80 p-2.5 rounded-lg border border-sky-200">
+                  {/* Multiple Banks Switcher Pills */}
+                  {availableBanks.length > 1 && (
+                    <div className="space-y-1">
+                      <span className="text-[10px] font-bold text-sky-900 block">ব্যাংক নির্বাচন করুন:</span>
+                      <div className="flex items-center gap-2 overflow-x-auto pb-1">
+                        {availableBanks.map(b => (
+                          <button
+                            key={b.id}
+                            type="button"
+                            onClick={() => setSelectedBankId(b.id)}
+                            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+                              (currentBank?.id === b.id)
+                                ? 'bg-[#123184] text-white shadow-2xs'
+                                : 'bg-white border border-sky-300 text-sky-900 hover:bg-sky-100'
+                            }`}
+                          >
+                            🏦 {b.bankName}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Bank Account Details Grid */}
+                  <div className="grid sm:grid-cols-2 gap-2 bg-white/95 p-3 rounded-xl border border-sky-200 text-xs shadow-2xs">
                     <div>
-                      <span className="text-[10px] text-sky-800 font-bold block">হিসাব নম্বর (Account Number):</span>
-                      <span className="font-mono font-black text-sm text-[#123184] select-all tracking-wider">
-                        {paymentSettings?.bank?.accountNumber || '2050 1480 2003 4567'}
+                      <span className="text-[10px] text-slate-500 font-bold block">ব্যাংকের নাম (Bank Name):</span>
+                      <span className="font-bold text-slate-900 block mt-0.5">
+                        {currentBank?.bankName || 'Islami Bank Bangladesh Ltd'}
                       </span>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => handleCopy(paymentSettings?.bank?.accountNumber, 'bank_acc')}
-                      className="px-2.5 py-1 bg-white hover:bg-sky-100 text-[#123184] rounded-lg border border-sky-300 font-bold text-[11px] flex items-center gap-1 cursor-pointer transition-colors shadow-2xs"
-                    >
-                      {copiedField === 'bank_acc' ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-                      <span>{copiedField === 'bank_acc' ? 'কপিকৃত!' : 'কপি'}</span>
-                    </button>
-                  </div>
+                    <div>
+                      <span className="text-[10px] text-slate-500 font-bold block">হিসাবধারীর নাম (Account Name):</span>
+                      <span className="font-bold text-slate-900 block mt-0.5">
+                        {currentBank?.accountName || 'Beli Pharmacy'}
+                      </span>
+                    </div>
 
-                  <div>
-                    <span className="text-[10px] text-slate-500 font-bold block">শাখা (Branch Name):</span>
-                    <span className="font-bold text-slate-900 block mt-0.5">
-                      {paymentSettings?.bank?.branchName || 'Dupchanchia Branch'}
-                    </span>
-                  </div>
-
-                  {paymentSettings?.bank?.routingNumber && (
-                    <div className="flex items-center justify-between">
+                    <div className="sm:col-span-2 flex items-center justify-between bg-sky-50/80 p-2.5 rounded-lg border border-sky-200">
                       <div>
-                        <span className="text-[10px] text-slate-500 font-bold block">রাউটিং নম্বর (Routing No):</span>
-                        <span className="font-mono font-bold text-slate-900 mt-0.5 block">{paymentSettings?.bank?.routingNumber}</span>
+                        <span className="text-[10px] text-sky-800 font-bold block">হিসাব নম্বর (Account Number):</span>
+                        <span className="font-mono font-black text-sm text-[#123184] select-all tracking-wider">
+                          {currentBank?.accountNumber || '2050 1480 2003 4567'}
+                        </span>
                       </div>
                       <button
                         type="button"
-                        onClick={() => handleCopy(paymentSettings?.bank?.routingNumber, 'bank_route')}
-                        className="px-2 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded text-[10px] font-bold flex items-center gap-1 cursor-pointer"
-                        title="রাউটিং কপি করুন"
+                        onClick={() => handleCopy(currentBank?.accountNumber, 'bank_acc')}
+                        className="px-2.5 py-1 bg-white hover:bg-sky-100 text-[#123184] rounded-lg border border-sky-300 font-bold text-[11px] flex items-center gap-1 cursor-pointer transition-colors shadow-2xs"
                       >
-                        {copiedField === 'bank_route' ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
-                        <span>{copiedField === 'bank_route' ? 'কপিকৃত' : 'কপি'}</span>
+                        {copiedField === 'bank_acc' ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                        <span>{copiedField === 'bank_acc' ? 'কপিকৃত!' : 'কপি'}</span>
                       </button>
                     </div>
+
+                    <div>
+                      <span className="text-[10px] text-slate-500 font-bold block">শাখা (Branch Name):</span>
+                      <span className="font-bold text-slate-900 block mt-0.5">
+                        {currentBank?.branchName || 'Dupchanchia Branch'}
+                      </span>
+                    </div>
+
+                    {currentBank?.routingNumber && (
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <span className="text-[10px] text-slate-500 font-bold block">রাউটিং নম্বর (Routing No):</span>
+                          <span className="font-mono font-bold text-slate-900 mt-0.5 block">{currentBank?.routingNumber}</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleCopy(currentBank?.routingNumber, 'bank_route')}
+                          className="px-2 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded text-[10px] font-bold flex items-center gap-1 cursor-pointer"
+                          title="রাউটিং কপি করুন"
+                        >
+                          {copiedField === 'bank_route' ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
+                          <span>{copiedField === 'bank_route' ? 'কপিকৃত' : 'কপি'}</span>
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {currentBank?.instructions && (
+                    <p className="text-[11px] text-sky-900 bg-sky-100/60 p-2.5 rounded-xl border border-sky-200 leading-relaxed">
+                      💡 <b>নির্দেশনা:</b> {currentBank?.instructions}
+                    </p>
                   )}
-                </div>
 
-                {paymentSettings?.bank?.instructions && (
-                  <p className="text-[11px] text-sky-900 bg-sky-100/60 p-2.5 rounded-xl border border-sky-200 leading-relaxed">
-                    💡 <b>নির্দেশনা:</b> {paymentSettings?.bank?.instructions}
-                  </p>
-                )}
-
-                <div>
-                  <label className="block text-[11px] font-bold text-[#123184] mb-1">
-                    ব্যাংক ডিপোজিট স্লিপ / রেফারেন্স নম্বর / TrxID *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={trxId}
-                    onChange={(e) => setTrxId(e.target.value)}
-                    placeholder="যেমন: IBBL-98213456 বা ডিপোজিট স্লিপ নং"
-                    className="w-full bg-white px-3.5 py-2 rounded-xl border border-sky-300 text-xs font-mono font-bold outline-none focus:border-[#123184] focus:ring-1 focus:ring-[#123184]"
-                  />
+                  <div>
+                    <label className="block text-[11px] font-bold text-[#123184] mb-1">
+                      ব্যাংক ডিপোজিট স্লিপ / রেফারেন্স নম্বর / TrxID *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={trxId}
+                      onChange={(e) => setTrxId(e.target.value)}
+                      placeholder="যেমন: IBBL-98213456 বা ডিপোজিট স্লিপ নং"
+                      className="w-full bg-white px-3.5 py-2 rounded-xl border border-sky-300 text-xs font-mono font-bold outline-none focus:border-[#123184] focus:ring-1 focus:ring-[#123184]"
+                    />
+                  </div>
                 </div>
-              </div>
-            )}
+              );
+            })()}
           </div>
 
           {/* Optional Patient/Doctor Note */}
