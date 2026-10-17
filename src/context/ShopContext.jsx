@@ -1706,9 +1706,9 @@ export const ShopProvider = ({ children }) => {
         } catch (e) {}
 
         // 3. Fetch Custom Medicines (Custom Photos, Stock, Prices)
-        const cloudMeds = await fetchCloudMedicines();
-        if (cloudMeds && Array.isArray(cloudMeds) && isMounted) {
-          if (cloudMeds.length > 0) {
+        const cloudMeds = (await fetchCloudMedicines()) || [];
+        if (isMounted) {
+          if (Array.isArray(cloudMeds) && cloudMeds.length > 0) {
             setMedicines(prev => {
               const cloudMap = new Map(cloudMeds.map(m => [m.id, m]));
               const next = prev.map(m => cloudMap.has(m.id) ? { ...m, ...cloudMap.get(m.id) } : m);
@@ -2488,6 +2488,102 @@ export const ShopProvider = ({ children }) => {
     return { success: true, count: customList.length };
   };
 
+  // One-Click Local/Cloud Universal JSON Backup Export
+  const exportAllDataBackup = () => {
+    try {
+      const initialMap = new Map(INITIAL_MEDICINES.map(m => [m.id, m]));
+      const customMedicines = medicines.filter(m => {
+        if (!m || !m.id) return false;
+        const init = initialMap.get(m.id);
+        if (!init) return true;
+        return (m.image && m.image !== init.image) || 
+               m.pricePerStrip !== init.pricePerStrip || 
+               m.stock !== init.stock || 
+               m.discountPercent !== init.discountPercent ||
+               m.name !== init.name ||
+               m.generic !== init.generic;
+      });
+
+      const backupData = {
+        version: '1.0',
+        exportedAt: new Date().toISOString(),
+        medicines: customMedicines,
+        heroBanner,
+        paymentSettings,
+        deliverySettings,
+        adBanner,
+        coupons,
+        adminUsers
+      };
+
+      const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `beli_pharmacy_backup_${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showToast(lang === 'bn' ? '✓ সফলভাবে ব্যাকআপ ফাইল ডাউনলোড হয়েছে!' : '✓ Backup downloaded successfully!', 'success');
+      return true;
+    } catch (err) {
+      showToast(lang === 'bn' ? 'ব্যাকআপ ডাউনলোড করতে সমস্যা হয়েছে' : 'Failed to export backup', 'error');
+      return false;
+    }
+  };
+
+  // One-Click Universal JSON Backup Import (Restores custom medicine photos and settings to any device instantly)
+  const importAllDataBackup = (fileContent) => {
+    try {
+      const data = typeof fileContent === 'string' ? JSON.parse(fileContent) : fileContent;
+      if (!data || typeof data !== 'object') {
+        showToast(lang === 'bn' ? 'ভুল বা নষ্ট ব্যাকআপ ফাইল' : 'Invalid backup file', 'error');
+        return false;
+      }
+
+      if (data.medicines && Array.isArray(data.medicines)) {
+        setMedicines(prev => {
+          const map = new Map(data.medicines.map(m => [m.id, m]));
+          const next = prev.map(m => map.has(m.id) ? { ...m, ...map.get(m.id) } : m);
+          data.medicines.forEach(m => {
+            if (!next.some(item => item.id === m.id)) next.unshift(m);
+          });
+          const deduped = deduplicateMedicines(next);
+          safeSetItem('beli_medicines', JSON.stringify(deduped));
+          return deduped;
+        });
+      }
+
+      if (data.heroBanner) {
+        setHeroBanner(data.heroBanner);
+        safeSetItem('beli_hero_banner', JSON.stringify(data.heroBanner));
+      }
+      if (data.paymentSettings) {
+        setPaymentSettings(data.paymentSettings);
+        safeSetItem('beli_payment_settings', JSON.stringify(data.paymentSettings));
+      }
+      if (data.deliverySettings) {
+        setDeliverySettings(data.deliverySettings);
+        safeSetItem('beli_delivery_settings', JSON.stringify(data.deliverySettings));
+      }
+      if (data.adBanner) {
+        setAdBanner(data.adBanner);
+        safeSetItem('beli_ad_banner', JSON.stringify(data.adBanner));
+      }
+      if (data.coupons && Array.isArray(data.coupons)) {
+        setCoupons(data.coupons);
+        safeSetItem('beli_coupons', JSON.stringify(data.coupons));
+      }
+
+      showToast(lang === 'bn' ? '✓ সফলভাবে সব ছবি ও সেটিংস রিস্টোর হয়েছে!' : '✓ Successfully restored all photos and settings!', 'success');
+      return true;
+    } catch (err) {
+      showToast(lang === 'bn' ? 'ব্যাকআপ ফাইল পড়তে সমস্যা হয়েছে' : 'Error importing backup file', 'error');
+      return false;
+    }
+  };
+
   return (
     <ShopContext.Provider value={{
       config,
@@ -2496,6 +2592,8 @@ export const ShopProvider = ({ children }) => {
       medicines,
       syncAllMedicinesToCloud,
       syncAllToCloud: syncAllMedicinesToCloud,
+      exportAllDataBackup,
+      importAllDataBackup,
       cart,
       orders,
       prescriptions,

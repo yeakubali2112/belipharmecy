@@ -32,6 +32,7 @@ import {
   X,
   Camera,
   Upload,
+  Download,
   Image as ImageIcon,
   ChevronLeft,
   ChevronRight,
@@ -133,6 +134,8 @@ export const AdminPortal = () => {
     updateBank,
     deleteBank,
     toggleBankStatus,
+    exportAllDataBackup,
+    importAllDataBackup,
     lang 
   } = useShop();
 
@@ -1200,6 +1203,22 @@ export const AdminPortal = () => {
     } finally {
       setIsSyncingCloudMeds(false);
     }
+  };
+
+  const backupFileInputRef = useRef(null);
+
+  const handleBackupFileSelect = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const content = event.target?.result;
+      if (content) {
+        importAllDataBackup(content);
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
   };
 
   const handleStartEdit = (med) => {
@@ -2564,7 +2583,35 @@ export const AdminPortal = () => {
               title="সকল ব্যানার, ওষুধের ছবি ও সেটিংস ক্লাউডে সিঙ্ক করুন যাতে যেকোনো মোবাইল ও ডিভাইসে লাইভ দেখা যায়"
             >
               <Cloud className={`w-3.5 h-3.5 ${isSyncingCloudMeds ? 'animate-spin' : ''}`} />
-              <span>{isSyncingCloudMeds ? 'সিঙ্ক হচ্ছে...' : '🌐 ক্লাউড সিঙ্ক (Sync Cloud)'}</span>
+              <span>{isSyncingCloudMeds ? 'সিঙ্ক হচ্ছে...' : '🌐 ক্লাউড সিঙ্ক'}</span>
+            </button>
+
+            {/* Universal Data Backup Export & Import */}
+            <button
+              type="button"
+              onClick={exportAllDataBackup}
+              className="flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold px-3 py-2 rounded-none text-xs border border-slate-300 transition-all cursor-pointer shadow-2xs active:scale-95"
+              title="কম্পিউটারে থাকা সকল ওষুধের ছবি, ব্যানার ও সেটিংস ফাইল হিসেবে ডাউনলোড করুন যাতে অন্য ডিভাইসে সরাসরি নেওয়া যায়"
+            >
+              <Download className="w-3.5 h-3.5 text-blue-600" />
+              <span>📥 ব্যাকআপ ডাউনলোড</span>
+            </button>
+
+            <input
+              type="file"
+              ref={backupFileInputRef}
+              onChange={handleBackupFileSelect}
+              accept=".json"
+              className="hidden"
+            />
+            <button
+              type="button"
+              onClick={() => backupFileInputRef.current?.click()}
+              className="flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold px-3 py-2 rounded-none text-xs border border-slate-300 transition-all cursor-pointer shadow-2xs active:scale-95"
+              title="অন্য ডিভাইস বা মোবাইল থেকে ব্যাকআপ ফাইল আপলোড করে ছবি ও সেটিংস রিস্টোর করুন"
+            >
+              <Upload className="w-3.5 h-3.5 text-emerald-600" />
+              <span>📤 রিস্টোর করুন</span>
             </button>
 
             {/* User Profile Badge */}
