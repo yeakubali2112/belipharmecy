@@ -179,12 +179,24 @@ export const AdminPortal = () => {
     enabled: true
   });
 
-  // Cash search & filter
+  // Cash search & filter & pagination (15 transactions per page)
   const [cashSearchTerm, setCashSearchTerm] = useState('');
+  const [cashPage, setCashPage] = useState(1);
+  const cashPerPage = 15;
 
-  // All History filter & search
+  // All History filter & search & pagination (15 transactions per page)
   const [historyGatewayFilter, setHistoryGatewayFilter] = useState('all');
   const [historySearchTerm, setHistorySearchTerm] = useState('');
+  const [historyPage, setHistoryPage] = useState(1);
+  const historyPerPage = 15;
+
+  useEffect(() => {
+    setCashPage(1);
+  }, [cashSearchTerm]);
+
+  useEffect(() => {
+    setHistoryPage(1);
+  }, [historyGatewayFilter, historySearchTerm]);
 
   useEffect(() => {
     if (paymentSettings) {
@@ -7136,7 +7148,7 @@ export const AdminPortal = () => {
             const pendingCashOrders = cashOrders.filter(o => o.status !== 'Delivered');
             const pendingCashAmount = pendingCashOrders.reduce((acc, o) => acc + Number(o.grandTotal || 0), 0);
 
-            // Filtered cash orders
+            // Filtered cash orders & pagination (15 per page)
             const filteredCashOrders = cashOrders.filter(o => {
               if (!cashSearchTerm.trim()) return true;
               const q = cashSearchTerm.toLowerCase();
@@ -7146,6 +7158,13 @@ export const AdminPortal = () => {
                 (o.customerPhone && o.customerPhone.includes(q))
               );
             });
+
+            const totalCashPages = Math.ceil(filteredCashOrders.length / cashPerPage) || 1;
+            const currentCashPage = Math.min(Math.max(1, cashPage), totalCashPages);
+            const paginatedCashOrders = filteredCashOrders.slice(
+              (currentCashPage - 1) * cashPerPage,
+              currentCashPage * cashPerPage
+            );
 
             // All orders calculations for Payment History
             const allOrders = orders || [];
@@ -7162,7 +7181,7 @@ export const AdminPortal = () => {
 
             const cashTotalAll = cashOrders.reduce((acc, o) => acc + Number(o.grandTotal || 0), 0);
 
-            // Filtered orders for Payment History
+            // Filtered orders for Payment History & pagination (15 per page)
             const filteredHistoryOrders = allOrders.filter(o => {
               const m = String(o.paymentMethod || '').toLowerCase();
               if (historyGatewayFilter === 'bkash' && !m.includes('bkash')) return false;
@@ -7179,6 +7198,13 @@ export const AdminPortal = () => {
                 (o.trxId && o.trxId.toLowerCase().includes(q))
               );
             });
+
+            const totalHistoryPages = Math.ceil(filteredHistoryOrders.length / historyPerPage) || 1;
+            const currentHistoryPage = Math.min(Math.max(1, historyPage), totalHistoryPages);
+            const paginatedHistoryOrders = filteredHistoryOrders.slice(
+              (currentHistoryPage - 1) * historyPerPage,
+              currentHistoryPage * historyPerPage
+            );
 
             return (
               <div className="space-y-6 max-w-6xl mx-auto w-full animate-in fade-in">
@@ -7800,6 +7826,7 @@ export const AdminPortal = () => {
                           </h3>
                           <span className="text-[11px] text-slate-500">
                             যেসব অর্ডারে সরাসরি হাতে নগদ (Cash on Hand) এর মাধ্যমে পেমেন্ট সংগ্রহ করা হয়েছে বা হচ্ছে
+                            {totalCashPages > 1 && ` • পেজ ${currentCashPage} এর ${totalCashPages} (প্রতি পেজে ১৫টি)`}
                           </span>
                         </div>
 
@@ -7830,7 +7857,7 @@ export const AdminPortal = () => {
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-slate-100">
-                            {filteredCashOrders.map(order => (
+                            {paginatedCashOrders.map(order => (
                               <tr key={order.id} className="hover:bg-slate-50/80 transition-colors">
                                 <td className="py-2.5 px-3 font-mono font-bold text-[#123184]">
                                   {order.id}
@@ -7876,6 +7903,74 @@ export const AdminPortal = () => {
                           </div>
                         )}
                       </div>
+
+                      {/* Pagination Controls for Cash Receive (15 per page) */}
+                      {filteredCashOrders.length > 0 && totalCashPages > 1 && (
+                        <div className="pt-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3">
+                          <div className="text-xs text-slate-600 font-medium">
+                            পেজ <strong className="text-[#02975E] font-black">{currentCashPage}</strong> এর <strong className="text-slate-900">{totalCashPages}</strong> — মোট <strong className="text-emerald-700">{filteredCashOrders.length}</strong> টি ক্যাশ অর্ডারের মধ্যে <strong className="text-slate-900">{(currentCashPage - 1) * cashPerPage + 1} থেকে {Math.min(currentCashPage * cashPerPage, filteredCashOrders.length)}</strong> তম দেখানো হচ্ছে
+                          </div>
+
+                          <div className="flex items-center gap-2 flex-wrap">
+                            {/* Previous Button */}
+                            <button
+                              type="button"
+                              onClick={() => setCashPage(prev => Math.max(1, prev - 1))}
+                              disabled={currentCashPage === 1}
+                              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 border transition-all ${
+                                currentCashPage === 1
+                                  ? 'opacity-40 cursor-not-allowed bg-slate-100 text-slate-400 border-slate-200'
+                                  : 'bg-white text-slate-800 border-slate-300 hover:bg-[#02975E] hover:text-white hover:border-[#02975E] cursor-pointer shadow-2xs'
+                              }`}
+                            >
+                              <ChevronLeft className="w-4 h-4" />
+                              <span>পূর্ববর্তী</span>
+                            </button>
+
+                            {/* Page Numbers */}
+                            <div className="flex items-center gap-1 flex-wrap">
+                              {getVisiblePages(currentCashPage, totalCashPages).map((pageNum, idx) =>
+                                pageNum === '...' ? (
+                                  <span
+                                    key={`cash-ellipsis-${idx}`}
+                                    className="w-8 h-8 flex items-center justify-center text-xs font-black text-slate-400 select-none tracking-widest"
+                                  >
+                                    ...
+                                  </span>
+                                ) : (
+                                  <button
+                                    key={`cash-page-${pageNum}`}
+                                    type="button"
+                                    onClick={() => setCashPage(pageNum)}
+                                    className={`w-8 h-8 rounded-xl text-xs font-black border transition-all cursor-pointer ${
+                                      currentCashPage === pageNum
+                                        ? 'bg-[#02975E] text-white border-[#02975E] shadow-xs'
+                                        : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100 shadow-2xs'
+                                    }`}
+                                  >
+                                    {pageNum}
+                                  </button>
+                                )
+                              )}
+                            </div>
+
+                            {/* Next Button */}
+                            <button
+                              type="button"
+                              onClick={() => setCashPage(prev => Math.min(totalCashPages, prev + 1))}
+                              disabled={currentCashPage === totalCashPages}
+                              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 border transition-all ${
+                                currentCashPage === totalCashPages
+                                  ? 'opacity-40 cursor-not-allowed bg-slate-100 text-slate-400 border-slate-200'
+                                  : 'bg-[#02975E] text-white border-[#02975E] hover:bg-[#027e4e] cursor-pointer shadow-xs'
+                              }`}
+                            >
+                              <span>পরবর্তী (Next)</span>
+                              <ChevronRight className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
@@ -7927,6 +8022,7 @@ export const AdminPortal = () => {
                           </h3>
                           <span className="text-[11px] text-slate-500">
                             কোন গেটওয়ে থেকে পেমেন্ট করা হয়েছে, TrxID ও পেমেন্ট স্ট্যাটাস হিস্ট্রি
+                            {totalHistoryPages > 1 && ` • পেজ ${currentHistoryPage} এর ${totalHistoryPages} (প্রতি পেজে ১৫টি)`}
                           </span>
                         </div>
 
@@ -7986,7 +8082,7 @@ export const AdminPortal = () => {
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-slate-100">
-                            {filteredHistoryOrders.map(order => {
+                            {paginatedHistoryOrders.map(order => {
                               const m = String(order.paymentMethod || '').toLowerCase();
                               const isBkash = m.includes('bkash');
                               const isNagad = m.includes('nagad');
@@ -8080,6 +8176,74 @@ export const AdminPortal = () => {
                           </div>
                         )}
                       </div>
+
+                      {/* Pagination Controls for Payment History (15 per page) */}
+                      {filteredHistoryOrders.length > 0 && totalHistoryPages > 1 && (
+                        <div className="pt-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3">
+                          <div className="text-xs text-slate-600 font-medium">
+                            পেজ <strong className="text-[#123184] font-black">{currentHistoryPage}</strong> এর <strong className="text-slate-900">{totalHistoryPages}</strong> — মোট <strong className="text-[#123184]">{filteredHistoryOrders.length}</strong> টি লেনদেনের মধ্যে <strong className="text-slate-900">{(currentHistoryPage - 1) * historyPerPage + 1} থেকে {Math.min(currentHistoryPage * historyPerPage, filteredHistoryOrders.length)}</strong> তম দেখানো হচ্ছে
+                          </div>
+
+                          <div className="flex items-center gap-2 flex-wrap">
+                            {/* Previous Button */}
+                            <button
+                              type="button"
+                              onClick={() => setHistoryPage(prev => Math.max(1, prev - 1))}
+                              disabled={currentHistoryPage === 1}
+                              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 border transition-all ${
+                                currentHistoryPage === 1
+                                  ? 'opacity-40 cursor-not-allowed bg-slate-100 text-slate-400 border-slate-200'
+                                  : 'bg-white text-slate-800 border-slate-300 hover:bg-[#123184] hover:text-white hover:border-[#123184] cursor-pointer shadow-2xs'
+                              }`}
+                            >
+                              <ChevronLeft className="w-4 h-4" />
+                              <span>পূর্ববর্তী</span>
+                            </button>
+
+                            {/* Page Numbers */}
+                            <div className="flex items-center gap-1 flex-wrap">
+                              {getVisiblePages(currentHistoryPage, totalHistoryPages).map((pageNum, idx) =>
+                                pageNum === '...' ? (
+                                  <span
+                                    key={`hist-ellipsis-${idx}`}
+                                    className="w-8 h-8 flex items-center justify-center text-xs font-black text-slate-400 select-none tracking-widest"
+                                  >
+                                    ...
+                                  </span>
+                                ) : (
+                                  <button
+                                    key={`hist-page-${pageNum}`}
+                                    type="button"
+                                    onClick={() => setHistoryPage(pageNum)}
+                                    className={`w-8 h-8 rounded-xl text-xs font-black border transition-all cursor-pointer ${
+                                      currentHistoryPage === pageNum
+                                        ? 'bg-[#123184] text-white border-[#123184] shadow-xs'
+                                        : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100 shadow-2xs'
+                                    }`}
+                                  >
+                                    {pageNum}
+                                  </button>
+                                )
+                              )}
+                            </div>
+
+                            {/* Next Button */}
+                            <button
+                              type="button"
+                              onClick={() => setHistoryPage(prev => Math.min(totalHistoryPages, prev + 1))}
+                              disabled={currentHistoryPage === totalHistoryPages}
+                              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 border transition-all ${
+                                currentHistoryPage === totalHistoryPages
+                                  ? 'opacity-40 cursor-not-allowed bg-slate-100 text-slate-400 border-slate-200'
+                                  : 'bg-[#123184] text-white border-[#123184] hover:bg-[#0d2463] cursor-pointer shadow-xs'
+                              }`}
+                            >
+                              <span>পরবর্তী (Next)</span>
+                              <ChevronRight className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
