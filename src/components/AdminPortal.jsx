@@ -6631,37 +6631,37 @@ export const AdminPortal = () => {
                         <span className="text-[11px] text-slate-400">অনুপাত ৪:১ (1280×320)</span>
                       </div>
 
-                      {/* Mockup Container with interactive slide controls */}
-                      <div className="relative rounded-2xl overflow-hidden shadow-lg border border-slate-300 aspect-[4/1.2] min-h-[220px] flex flex-col justify-center group bg-slate-900">
+                      {/* Mockup Container with interactive slide controls (Sized to exact red marked box: ~300px width × 152px height) */}
+                      <div className="relative rounded-2xl overflow-hidden shadow-lg border border-slate-300 w-full max-w-[300px] h-[152px] aspect-[2/1] flex flex-col justify-center group bg-slate-900">
                         {heroSlides.length === 0 ? (
                           /* No Slides -> Default Gradient Mockup */
-                          <div className="absolute inset-0 bg-gradient-to-r from-[#123184] via-[#0d235c] to-[#02975E] flex items-center">
-                            <div className="absolute -top-12 -left-12 w-48 h-48 bg-emerald-400/20 rounded-full blur-2xl pointer-events-none"></div>
-                            <div className="absolute -bottom-12 -right-12 w-48 h-48 bg-blue-400/20 rounded-full blur-2xl pointer-events-none"></div>
+                          <div className="absolute inset-0 bg-gradient-to-r from-[#123184] via-[#0d235c] to-[#02975E] flex items-center p-3 text-white">
+                            <div className="absolute -top-12 -left-12 w-32 h-32 bg-emerald-400/20 rounded-full blur-2xl pointer-events-none"></div>
+                            <div className="absolute -bottom-12 -right-12 w-32 h-32 bg-blue-400/20 rounded-full blur-2xl pointer-events-none"></div>
 
-                            <div className="relative z-10 p-5 text-white space-y-2">
-                              <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-white/10 backdrop-blur-md text-[10px] text-emerald-300 font-bold border border-white/10">
+                            <div className="relative z-10 space-y-1">
+                              <div className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-white/10 backdrop-blur-md text-[9px] text-emerald-300 font-bold border border-white/10">
                                 <span>{config.name}</span>
                                 <span>•</span>
-                                <span>২৪/৭ হোম ডেলিভারি</span>
+                                <span>২৪/৭ ডেলিভারি</span>
                               </div>
-                              <h2 className="text-base sm:text-lg font-black leading-tight drop-shadow-md">
+                              <h2 className="text-xs sm:text-sm font-black leading-tight drop-shadow-md">
                                 প্রয়োজনে দ্রুত আসল ওষুধ <br />
                                 <span className="text-emerald-400">পৌঁছে যাবে আপনার দোরগোড়ায়</span>
                               </h2>
-                              <p className="text-[11px] text-slate-200 line-clamp-2 max-w-sm drop-shadow-xs">
+                              <p className="text-[10px] text-slate-200 line-clamp-1 max-w-xs drop-shadow-xs">
                                 প্রেসক্রিপশন আপলোড করুন অথবা নাম দিয়ে ওষুধ খুঁজুন...
                               </p>
                             </div>
                           </div>
                         ) : (
-                          /* Render All Slides with Active Slide Visible */
+                          /* Render All Slides with Active Slide Visible (Framed to red box) */
                           heroSlides.map((slide, sIdx) => {
                             const isCurrent = sIdx === adminPreviewIndex;
                             return (
                               <div 
                                 key={slide.id || sIdx}
-                                className={`absolute inset-0 bg-cover bg-center transition-opacity duration-500 ${
+                                className={`absolute inset-0 bg-cover bg-left transition-opacity duration-500 ${
                                   isCurrent ? 'opacity-100 z-10' : 'opacity-0 z-0'
                                 }`}
                                 style={{ backgroundImage: `url(${slide.imageUrl})` }}
@@ -6676,23 +6676,23 @@ export const AdminPortal = () => {
                             <button
                               type="button"
                               onClick={() => setAdminPreviewIndex(prev => (prev - 1 + heroSlides.length) % heroSlides.length)}
-                              className="absolute left-2 top-1/2 -translate-y-1/2 z-20 w-7 h-7 rounded-full bg-black/50 hover:bg-black/80 text-white flex items-center justify-center transition-all cursor-pointer shadow-md"
+                              className="absolute left-1.5 top-1/2 -translate-y-1/2 z-20 w-6 h-6 rounded-full bg-black/50 hover:bg-black/80 text-white flex items-center justify-center transition-all cursor-pointer shadow-md"
                               title="পূর্ববর্তী স্লাইড"
                             >
-                              <ChevronLeft className="w-4 h-4" />
+                              <ChevronLeft className="w-3.5 h-3.5" />
                             </button>
 
                             <button
                               type="button"
                               onClick={() => setAdminPreviewIndex(prev => (prev + 1) % heroSlides.length)}
-                              className="absolute right-2 top-1/2 -translate-y-1/2 z-20 w-7 h-7 rounded-full bg-black/50 hover:bg-black/80 text-white flex items-center justify-center transition-all cursor-pointer shadow-md"
+                              className="absolute right-1.5 top-1/2 -translate-y-1/2 z-20 w-6 h-6 rounded-full bg-black/50 hover:bg-black/80 text-white flex items-center justify-center transition-all cursor-pointer shadow-md"
                               title="পরবর্তী স্লাইড"
                             >
-                              <ChevronRight className="w-4 h-4" />
+                              <ChevronRight className="w-3.5 h-3.5" />
                             </button>
 
                             {/* Pagination Dots in Preview */}
-                            <div className="absolute bottom-2 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5 bg-black/40 backdrop-blur-sm px-2.5 py-1 rounded-full border border-white/10">
+                            <div className="absolute bottom-1.5 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1 bg-black/40 backdrop-blur-sm px-2 py-0.5 rounded-full border border-white/10">
                               {heroSlides.map((_, pIdx) => (
                                 <button
                                   key={pIdx}
@@ -6700,8 +6700,8 @@ export const AdminPortal = () => {
                                   onClick={() => setAdminPreviewIndex(pIdx)}
                                   className={`rounded-full transition-all cursor-pointer ${
                                     pIdx === adminPreviewIndex 
-                                      ? 'w-4 h-1.5 bg-[#02975E]' 
-                                      : 'w-1.5 h-1.5 bg-white/50 hover:bg-white/80'
+                                      ? 'w-3.5 h-1 bg-[#02975E]' 
+                                      : 'w-1 h-1 bg-white/50 hover:bg-white/80'
                                   }`}
                                 />
                               ))}
