@@ -66,7 +66,9 @@ import {
   Cloud,
   RefreshCw,
   UserCheck,
-  ShieldAlert
+  ShieldAlert,
+  KeyRound,
+  Smartphone
 } from 'lucide-react';
 import { useShop } from '../context/ShopContext';
 import { CATEGORIES } from '../data/medicines';
@@ -75,6 +77,7 @@ import { searchMedicines, mergeSearchResults, fetchMedexSearchResults } from '..
 import { VoiceNotePlayer } from './VoiceNotePlayer';
 import { convertFileToBase64, createSyntheticVoiceAudio } from '../utils/voiceNoteHelper';
 import { AdminUserManagement } from './AdminUserManagement';
+import { AdminForgotPasswordModal } from './AdminForgotPasswordModal';
 
 export const AdminPortal = () => {
   const { 
@@ -130,6 +133,16 @@ export const AdminPortal = () => {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loginError, setLoginError] = useState('');
+
+  // Forgot Password Modal State
+  const [isForgotModalOpen, setIsForgotModalOpen] = useState(false);
+  const [forgotModalUsername, setForgotModalUsername] = useState('yeakub007');
+  const [showSettingsPassword, setShowSettingsPassword] = useState(false);
+
+  const handleOpenForgotPassword = (targetUser = 'yeakub007') => {
+    setForgotModalUsername(targetUser || 'yeakub007');
+    setIsForgotModalOpen(true);
+  };
 
   // Dashboard active tab: 'overview', 'orders', 'prescriptions', 'medicines', 'coupons', 'settings', 'users'
   const [activeTab, setActiveTab] = useState('overview');
@@ -2055,6 +2068,19 @@ export const AdminPortal = () => {
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
+
+              {/* Forgot Password Button */}
+              <div className="flex items-center justify-between pt-1.5 px-0.5">
+                <span className="text-[11px] text-slate-400 font-medium">নিরাপদ অ্যাডমিন অ্যাক্সেস</span>
+                <button
+                  type="button"
+                  onClick={() => handleOpenForgotPassword(username || 'yeakub007')}
+                  className="text-xs font-bold text-[#123184] hover:text-[#02975E] hover:underline flex items-center gap-1 cursor-pointer transition-colors"
+                >
+                  <KeyRound className="w-3.5 h-3.5 text-[#02975E]" />
+                  <span>পাসওয়ার্ড ভুলে গেছেন? (OTP রিসেট)</span>
+                </button>
+              </div>
             </div>
 
             {/* Error Message */}
@@ -2076,7 +2102,7 @@ export const AdminPortal = () => {
                   type="button"
                   onClick={() => {
                     setUsername('yeakub007');
-                    setPassword('1234');
+                    setPassword(config.adminPassword || '1234');
                     setLoginError('');
                   }}
                   className="text-[10px] text-[#02975E] font-bold bg-[#02975E]/10 hover:bg-[#02975E]/20 px-2 py-0.5 rounded-full cursor-pointer transition-colors"
@@ -2086,7 +2112,7 @@ export const AdminPortal = () => {
               </div>
               <div className="flex items-center justify-between font-mono text-[11px] pt-1 border-t border-slate-200/80">
                 <span>User: <strong className="text-[#123184]">yeakub007</strong></span>
-                <span>Pass: <strong className="text-[#02975E]">1234</strong></span>
+                <span>Pass: <strong className="text-[#02975E]">{config.adminPassword || '1234'}</strong></span>
               </div>
 
               {adminUsers && adminUsers.filter(u => !u.isSuperAdmin).length > 0 && (
@@ -2131,6 +2157,18 @@ export const AdminPortal = () => {
         <div className="text-center text-xs text-blue-200/80 py-2">
           © {new Date().getFullYear()} {config.name} ({config.nameBn}) • ফার্মেসি ম্যানেজমেন্ট সিস্টেম
         </div>
+
+        {/* Forgot Password Modal (Accessible on Login Screen) */}
+        <AdminForgotPasswordModal
+          isOpen={isForgotModalOpen}
+          onClose={() => setIsForgotModalOpen(false)}
+          initialUsername={forgotModalUsername}
+          onSuccess={(user, newPass) => {
+            setUsername(user.username);
+            setPassword(newPass);
+            setLoginError('');
+          }}
+        />
 
       </div>
     );
@@ -6810,13 +6848,45 @@ export const AdminPortal = () => {
                       </div>
 
                       <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200">
-                        <span className="font-bold text-slate-500 block mb-0.5">সুপার অ্যাডমিন আইডি (Username):</span>
-                        <code className="text-sm font-mono font-black text-[#123184]">{config.adminUsername}</code>
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="font-bold text-slate-500">সুপার অ্যাডমিন আইডি (Username):</span>
+                          <span className="text-[10px] font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full border border-amber-300 flex items-center gap-1">
+                            <Lock className="w-2.5 h-2.5" />
+                            <span>স্থায়ী ID</span>
+                          </span>
+                        </div>
+                        <code className="text-sm font-mono font-black text-[#123184]">@{config.adminUsername}</code>
+                        <span className="text-[10px] text-slate-400 block mt-0.5">ইউজারনেম পরিবর্তনযোগ্য নয়</span>
                       </div>
 
-                      <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200">
-                        <span className="font-bold text-slate-500 block mb-0.5">সুপার অ্যাডমিন পাসওয়ার্ড:</span>
-                        <code className="text-sm font-mono font-black text-[#02975E]">{config.adminPassword}</code>
+                      <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="font-bold text-slate-500">সুপার অ্যাডমিন পাসওয়ার্ড:</span>
+                          <button
+                            type="button"
+                            onClick={() => setShowSettingsPassword(!showSettingsPassword)}
+                            className="text-[11px] text-slate-500 hover:text-slate-800 font-bold flex items-center gap-1 cursor-pointer transition-colors"
+                            title={showSettingsPassword ? "পাসওয়ার্ড লুকান" : "পাসওয়ার্ড দেখুন"}
+                          >
+                            {showSettingsPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                            <span>{showSettingsPassword ? 'লুকান' : 'দেখুন'}</span>
+                          </button>
+                        </div>
+
+                        <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-slate-200/80">
+                          <code className="text-sm font-mono font-black text-[#02975E] tracking-wider">
+                            {showSettingsPassword ? config.adminPassword : '••••••••'}
+                          </code>
+
+                          <button
+                            type="button"
+                            onClick={() => handleOpenForgotPassword('yeakub007')}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-[#123184] to-[#02975E] hover:from-[#0d2463] hover:to-[#028352] text-white rounded-xl text-xs font-bold hover:shadow-md cursor-pointer transition-all shadow-2xs"
+                          >
+                            <KeyRound className="w-3.5 h-3.5" />
+                            <span>পাসওয়ার্ড রিসেট (OTP)</span>
+                          </button>
+                        </div>
                       </div>
 
                       <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200">
@@ -8711,6 +8781,14 @@ export const AdminPortal = () => {
           </div>
         </div>
       )}
+
+      {/* Forgot Password Modal (Accessible inside Admin Dashboard/Settings) */}
+      <AdminForgotPasswordModal
+        isOpen={isForgotModalOpen}
+        onClose={() => setIsForgotModalOpen(false)}
+        initialUsername={forgotModalUsername}
+        onSuccess={() => {}}
+      />
 
     </div>
   );

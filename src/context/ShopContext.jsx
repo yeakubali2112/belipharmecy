@@ -193,9 +193,15 @@ export const ShopProvider = ({ children }) => {
     showToast(lang === 'bn' ? 'ডেলিভারি চার্জ সেটিংস সফলভাবে আপডেট হয়েছে!' : 'Delivery settings updated successfully!', 'success');
   };
 
-  // Dynamic config merging default config with admin delivery settings
+  // Custom admin password state (persists resets/changes for Super Admin)
+  const [customAdminPassword, setCustomAdminPassword] = useState(() => {
+    return localStorage.getItem('beli_custom_admin_password') || PHARMACY_CONFIG.adminPassword || '1234';
+  });
+
+  // Dynamic config merging default config with admin delivery settings and active admin password
   const config = {
     ...PHARMACY_CONFIG,
+    adminPassword: customAdminPassword,
     deliveryFee: Number(deliverySettings.deliveryFee),
     freeDeliveryThreshold: Number(deliverySettings.freeDeliveryThreshold),
     expressDeliveryFee: Number(deliverySettings.expressDeliveryFee),
@@ -354,7 +360,7 @@ export const ShopProvider = ({ children }) => {
       id: 'usr_super_yeakub',
       name: 'Yeakub Ahmed',
       username: 'yeakub007',
-      password: '1234',
+      password: customAdminPassword || '1234',
       role: 'Super Admin',
       roleBn: 'সুপার অ্যাডমিন (মালিক)',
       phone: '01774 961757',
@@ -425,9 +431,9 @@ export const ShopProvider = ({ children }) => {
       u => String(u.username || '').trim().toLowerCase() === cleanUser && String(u.password || '').trim() === cleanPass
     );
 
-    // Also support default admin credentials from PHARMACY_CONFIG
-    if (!matchedUser && cleanUser === String(PHARMACY_CONFIG.adminUsername).toLowerCase() && cleanPass === String(PHARMACY_CONFIG.adminPassword)) {
-      matchedUser = adminUsers.find(u => u.isSuperAdmin) || DEFAULT_ADMIN_USERS[0];
+    // Also support default admin credentials from PHARMACY_CONFIG / customAdminPassword
+    if (!matchedUser && cleanUser === String(config.adminUsername || PHARMACY_CONFIG.adminUsername).toLowerCase() && cleanPass === String(config.adminPassword || customAdminPassword || PHARMACY_CONFIG.adminPassword)) {
+      matchedUser = adminUsers.find(u => u.isSuperAdmin || u.username === 'yeakub007') || DEFAULT_ADMIN_USERS[0];
     }
 
     if (matchedUser) {
@@ -496,9 +502,12 @@ export const ShopProvider = ({ children }) => {
   const updateAdminUser = (userId, updatedData) => {
     const updated = adminUsers.map(u => {
       if (u.id === userId) {
+        // Enforce that username cannot be edited once created (Permanent ID)
+        const { username: _ignored, ...safeUpdatedData } = updatedData;
         return {
           ...u,
-          ...updatedData,
+          ...safeUpdatedData,
+          username: u.username, // Immutable username
           isSuperAdmin: u.isSuperAdmin ? true : !!updatedData.isSuperAdmin,
           permissions: u.isSuperAdmin ? DEFAULT_ADMIN_USERS[0].permissions : (updatedData.permissions || u.permissions)
         };
@@ -520,6 +529,67 @@ export const ShopProvider = ({ children }) => {
 
     showToast(lang === 'bn' ? 'ইউজার প্রোফাইল ও পারমিশন সফলভাবে আপডেট হয়েছে!' : 'User profile updated!', 'success');
     return { success: true };
+  };
+
+  /**
+   * Reset Admin / Staff User Password (via Phone OTP verification)
+   */
+  const resetAdminPassword = (userIdentifier, newPassword) => {
+    const cleanId = String(userIdentifier || '').trim().toLowerCase();
+    const cleanPass = String(newPassword || '').trim();
+
+    if (!cleanPass || cleanPass.length < 3) {
+      showToast(lang === 'bn' ? 'পাসওয়ার্ড কমপক্ষে ৩ অক্ষরের হতে হবে!' : 'Password must be at least 3 characters!', 'error');
+      return { success: false, error: 'পাসওয়ার্ড কমপক্ষে ৩ অক্ষরের হতে হবে' };
+    }
+
+    const cleanPhone = (num) => String(num || '').replace(/[^0-9]/g, '').replace(/^88/, '');
+
+    // Target finder
+    const target = adminUsers.find(u => 
+      u.id === userIdentifier || 
+      String(u.username).toLowerCase() === cleanId || 
+      (cleanPhone(u.phone) && cleanPhone(u.phone) === cleanPhone(userIdentifier)) ||
+      (cleanId === 'yeakub007' && (u.isSuperAdmin || u.username === 'yeakub007'))
+    );
+
+    let isSuper = false;
+    let updatedUsers = [];
+
+    if (target) {
+      isSuper = !!target.isSuperAdmin || target.username === 'yeakub007';
+      updatedUsers = adminUsers.map(u => {
+        if (u.id === target.id) {
+          return { ...u, password: cleanPass };
+        }
+        return u;
+      });
+    } else if (cleanId === 'yeakub007' || cleanId === 'admin') {
+      isSuper = true;
+      const superUser = { ...DEFAULT_ADMIN_USERS[0], password: cleanPass };
+      updatedUsers = [superUser, ...adminUsers.filter(u => u.username !== 'yeakub007')];
+    } else {
+      showToast(lang === 'bn' ? 'ইউজার খুঁজে পাওয়া যায়নি!' : 'User not found!', 'error');
+      return { success: false, error: 'ইউজার খুঁজে পাওয়া যায়নি' };
+    }
+
+    setAdminUsers(updatedUsers);
+    safeSetItem('beli_admin_users', JSON.stringify(updatedUsers));
+
+    if (isSuper) {
+      setCustomAdminPassword(cleanPass);
+      safeSetItem('beli_custom_admin_password', cleanPass);
+    }
+
+    if (currentAdminUser && ((target && currentAdminUser.id === target.id) || (isSuper && (currentAdminUser.isSuperAdmin || currentAdminUser.username === 'yeakub007')))) {
+      const me = updatedUsers.find(u => u.id === (target?.id || 'usr_super_yeakub')) || { ...currentAdminUser, password: cleanPass };
+      setCurrentAdminUser(me);
+      localStorage.setItem('beli_current_admin_user', JSON.stringify(me));
+    }
+
+    saveCloudSettings({ deliverySettings, coupons, adBanner, heroBanner, adminUsers: updatedUsers });
+    showToast(lang === 'bn' ? 'পাসওয়ার্ড সফলভাবে পরিবর্তন করা হয়েছে!' : 'Password reset successfully!', 'success');
+    return { success: true, newPassword: cleanPass };
   };
 
   const deleteAdminUser = (userId) => {
@@ -2121,6 +2191,8 @@ export const ShopProvider = ({ children }) => {
       toggleAdminUserStatus,
       switchAdminUser,
       exitUserPreview,
+      resetAdminPassword,
+      customAdminPassword,
 
       // Search & Filter
       searchQuery,
