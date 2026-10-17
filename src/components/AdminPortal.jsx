@@ -2484,12 +2484,7 @@ export const AdminPortal = () => {
                 }`}
               >
                 <CreditCard className="w-4 h-4 text-emerald-300" />
-                <div className="flex-1 flex items-center justify-between">
-                  <span>পেমেন্ট মেথড ও ব্যাংক</span>
-                  <span className="text-[10px] bg-emerald-400/20 text-emerald-300 px-1.5 py-0.5 rounded font-bold">
-                    bKash/নগদ/Bank
-                  </span>
-                </div>
+                <span>পেমেন্ট মেথড ও ব্যাংক</span>
               </button>
             )}
 
@@ -7201,11 +7196,6 @@ export const AdminPortal = () => {
                   >
                     <Building2 className="w-4 h-4 text-emerald-300" />
                     <span>Bank List (ব্যাংক)</span>
-                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-mono font-bold ${
-                      paymentSubTab === 'bank' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'
-                    }`}>
-                      {currentBanks.length} টি
-                    </span>
                   </button>
 
                   <button
@@ -7219,11 +7209,6 @@ export const AdminPortal = () => {
                   >
                     <Smartphone className="w-4 h-4" />
                     <span>Online Payment (বিকাশ ও নগদ)</span>
-                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-mono font-bold ${
-                      paymentSubTab === 'online' ? 'bg-white/20 text-white' : 'bg-pink-100 text-[#D12053]'
-                    }`}>
-                      bKash / নগদ
-                    </span>
                   </button>
 
                   <button
@@ -7237,11 +7222,6 @@ export const AdminPortal = () => {
                   >
                     <Banknote className="w-4 h-4" />
                     <span>Cash Receive (ক্যাশ রিসিভ)</span>
-                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-mono font-bold ${
-                      paymentSubTab === 'cash' ? 'bg-white/20 text-white' : 'bg-emerald-100 text-emerald-800'
-                    }`}>
-                      ৳{totalCashCollected.toFixed(0)}
-                    </span>
                   </button>
 
                   <button
@@ -7255,11 +7235,6 @@ export const AdminPortal = () => {
                   >
                     <Receipt className="w-4 h-4 text-amber-300" />
                     <span>Payment History (সকল হিস্ট্রি)</span>
-                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-mono font-bold ${
-                      paymentSubTab === 'history' ? 'bg-white/20 text-white' : 'bg-blue-100 text-[#123184]'
-                    }`}>
-                      {allOrders.length} টি
-                    </span>
                   </button>
                 </div>
 
