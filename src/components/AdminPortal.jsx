@@ -2323,41 +2323,15 @@ export const AdminPortal = () => {
 
             {canAccessTab('settings') && (
               <button
-                onClick={() => {
-                  setActiveTab('settings');
-                  setSettingsSubTab('profile');
-                }}
+                onClick={() => setActiveTab('settings')}
                 className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all cursor-pointer text-left ${
-                  activeTab === 'settings' && settingsSubTab === 'profile'
+                  activeTab === 'settings' 
                     ? 'bg-white/20 text-white shadow-md backdrop-blur-xs border border-white/20' 
                     : 'text-blue-100/80 hover:bg-white/10'
                 }`}
               >
                 <Settings className="w-4 h-4 text-emerald-300" />
                 <span>ফার্মেসি সেটিংস ও প্রোফাইল</span>
-              </button>
-            )}
-
-            {/* Dedicated User & Staff Permission Option */}
-            {canAccessTab('users') && (
-              <button
-                onClick={() => {
-                  setActiveTab('users');
-                  setSettingsSubTab('users');
-                }}
-                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-all cursor-pointer text-left ${
-                  activeTab === 'users' || (activeTab === 'settings' && settingsSubTab === 'users')
-                    ? 'bg-gradient-to-r from-emerald-500/35 to-teal-500/30 text-white shadow-md backdrop-blur-xs border border-emerald-400/40 font-bold' 
-                    : 'text-blue-100/80 hover:bg-white/10'
-                }`}
-              >
-                <span className="flex items-center gap-3">
-                  <UserCheck className="w-4 h-4 text-emerald-300" />
-                  <span>ইউজার ও পারমিশন</span>
-                </span>
-                <span className="bg-emerald-500 text-white text-[9px] font-mono font-bold px-1.5 py-0.2 rounded-full shadow-xs">
-                  {adminUsers?.length || 1}
-                </span>
               </button>
             )}
           </nav>
@@ -6815,24 +6789,13 @@ export const AdminPortal = () => {
               {activeTab === 'settings' && settingsSubTab === 'profile' && (
                 <div className="space-y-4">
                   <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-4">
-                    <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
-                      <div>
-                        <h3 className="font-extrabold text-base text-[#123184]">
-                          ফার্মেসি প্রোফাইল ও লগইন বিবরণ
-                        </h3>
-                        <p className="text-xs text-slate-500">
-                          বেলী ফার্মেসির প্রাতিষ্ঠানিক তথ্য ও লাইসেন্স বিবরণ
-                        </p>
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={() => setSettingsSubTab('users')}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-[#02975E] font-bold text-xs border border-emerald-200 transition-colors cursor-pointer"
-                      >
-                        <UserCheck className="w-3.5 h-3.5" />
-                        <span>ইউজার ও স্টাফ পারমিশন পরিচালনা করুন →</span>
-                      </button>
+                    <div className="border-b border-slate-100 pb-3">
+                      <h3 className="font-extrabold text-base text-[#123184]">
+                        ফার্মেসি প্রোফাইল ও লগইন বিবরণ
+                      </h3>
+                      <p className="text-xs text-slate-500">
+                        বেলী ফার্মেসির প্রাতিষ্ঠানিক তথ্য ও লাইসেন্স বিবরণ
+                      </p>
                     </div>
 
                     <div className="grid sm:grid-cols-2 gap-4 text-xs">
@@ -6871,31 +6834,6 @@ export const AdminPortal = () => {
                       <ShieldCheck className="w-4 h-4 text-[#02975E]" />
                       <span>লাইসেন্স নং: DA-DH-2024-9182 • ড্রাগ কন্ট্রোল অ্যাডমিনিস্ট্রেশন</span>
                     </div>
-                  </div>
-
-                  {/* Promo Callout to User Management */}
-                  <div className="bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-blue-500/10 border border-emerald-200 p-5 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4">
-                    <div className="flex items-center gap-3.5">
-                      <div className="w-12 h-12 rounded-2xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-md">
-                        <UserCheck className="w-6 h-6" />
-                      </div>
-                      <div>
-                        <h4 className="font-extrabold text-slate-900 text-sm sm:text-base">
-                          নতুন ইউজার প্রোফাইল ও পারমিশন কন্ট্রোল
-                        </h4>
-                        <p className="text-xs text-slate-600">
-                          আপনার ফার্মেসির সেলসম্যান, ক্যাশিয়ার বা স্টাফদের আলাদা অ্যাকাউন্ট দিন এবং তারা কোন কোন অপশন দেখতে পারবে তা নির্ধারণ করুন।
-                        </p>
-                      </div>
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={() => setSettingsSubTab('users')}
-                      className="px-5 py-2.5 rounded-xl bg-[#02975E] hover:bg-[#028352] text-white font-extrabold text-xs shadow-md transition-all cursor-pointer shrink-0"
-                    >
-                      ইউজার ম্যানেজমেন্ট খুলুন ⚡
-                    </button>
                   </div>
                 </div>
               )}
