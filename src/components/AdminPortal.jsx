@@ -2186,7 +2186,7 @@ export const AdminPortal = () => {
         {/* Sidebar Header & Nav */}
         <div>
           {/* Logo container */}
-          <div className="p-4 border-b border-white/10 flex items-center justify-between">
+          <div className="p-4 border-b border-white/10 flex items-center">
             <div className="bg-white p-2 rounded-xl shadow-xs">
               <div className="logo-animated-wrapper">
                 <img 
@@ -2197,9 +2197,6 @@ export const AdminPortal = () => {
                 <span className="logo-animated-shine" aria-hidden="true" />
               </div>
             </div>
-            <span className="bg-gradient-to-r from-[#02975E] to-emerald-400 text-white text-[9px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider shadow-xs">
-              Admin
-            </span>
           </div>
 
           {/* Navigation Links */}
@@ -2221,38 +2218,28 @@ export const AdminPortal = () => {
             {canAccessTab('sell') && (
               <button
                 onClick={() => setActiveTab('sell')}
-                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-all cursor-pointer text-left ${
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all cursor-pointer text-left ${
                   activeTab === 'sell' 
                     ? 'bg-gradient-to-r from-emerald-500/35 to-teal-500/30 text-white shadow-md backdrop-blur-xs border border-emerald-400/40 font-bold' 
                     : 'text-blue-100/80 hover:bg-white/10'
                 }`}
               >
-                <span className="flex items-center gap-3">
-                  <ShoppingCart className="w-4 h-4 text-emerald-300" />
-                  <span>সেল (Sell / POS)</span>
-                </span>
-                <span className="bg-[#02975E] text-white text-[9px] px-2 py-0.5 rounded-full font-black tracking-wider uppercase shadow-xs">
-                  Sell
-                </span>
+                <ShoppingCart className="w-4 h-4 text-emerald-300" />
+                <span>সেল (Sell / POS)</span>
               </button>
             )}
 
             {canAccessTab('restock') && (
               <button
                 onClick={() => setActiveTab('restock')}
-                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-all cursor-pointer text-left ${
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all cursor-pointer text-left ${
                   activeTab === 'restock' 
                     ? 'bg-gradient-to-r from-teal-500/35 to-emerald-500/35 text-white shadow-md backdrop-blur-xs border border-emerald-400/40 font-bold' 
                     : 'text-blue-100/80 hover:bg-white/10'
                 }`}
               >
-                <span className="flex items-center gap-3">
-                  <PackagePlus className="w-4 h-4 text-emerald-300" />
-                  <span>স্টক ইন ও রিস্টক</span>
-                </span>
-                <span className="bg-gradient-to-r from-teal-500 to-emerald-600 text-white text-[9px] px-2 py-0.5 rounded-full font-black tracking-wider uppercase shadow-xs">
-                  Stock In
-                </span>
+                <PackagePlus className="w-4 h-4 text-emerald-300" />
+                <span>স্টক ইন ও রিস্টক</span>
               </button>
             )}
 
