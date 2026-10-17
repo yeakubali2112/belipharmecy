@@ -29,7 +29,8 @@ import {
   Check,
   Mic,
   Building2,
-  Copy
+  Copy,
+  Search
 } from 'lucide-react';
 import { useShop } from '../context/ShopContext';
 import { VoiceNotePlayer } from './VoiceNotePlayer';
@@ -68,6 +69,9 @@ export const CustomerProfileModal = () => {
   // Avatar Photo State & File Input Ref
   const fileInputRef = useRef(null);
   const [guestAvatar, setGuestAvatar] = useState(null);
+
+  // Search orders by BP number
+  const [bpSearchQuery, setBpSearchQuery] = useState('');
 
   // Selected payment method before confirming
   const [selectedMethods, setSelectedMethods] = useState({});
@@ -160,6 +164,27 @@ export const CustomerProfileModal = () => {
       currentCustomer.phone.includes(o.customerPhone)
     )
   );
+
+  // Filter orders by BP number or search query
+  const displayedOrders = customerOrders.filter(order => {
+    if (!bpSearchQuery.trim()) return true;
+    const cleanSearch = bpSearchQuery.trim().toLowerCase().replace(/[^a-z0-9]/gi, '');
+    const cleanId = String(order.id || '').toLowerCase().replace(/[^a-z0-9]/gi, '');
+    const idMatches = cleanId.includes(cleanSearch) || String(order.id || '').toLowerCase().includes(bpSearchQuery.trim().toLowerCase());
+    const phoneMatches = order.customerPhone && order.customerPhone.includes(bpSearchQuery.trim());
+    return idMatches || phoneMatches;
+  });
+
+  // Global fallback if searching a specific BP
+  const globalBpMatches = (!displayedOrders.length && bpSearchQuery.trim())
+    ? orders.filter(o => {
+        const cleanSearch = bpSearchQuery.trim().toLowerCase().replace(/[^a-z0-9]/gi, '');
+        const cleanId = String(o.id || '').toLowerCase().replace(/[^a-z0-9]/gi, '');
+        return cleanId.includes(cleanSearch) || String(o.id || '').toLowerCase().includes(bpSearchQuery.trim().toLowerCase());
+      })
+    : [];
+
+  const finalOrderList = displayedOrders.length > 0 ? displayedOrders : globalBpMatches;
 
   const customerPrescriptions = prescriptions.filter(p => 
     currentCustomer && p.customerPhone && (
@@ -516,94 +541,122 @@ export const CustomerProfileModal = () => {
               )}
             </div>
 
-            {/* Navigation Tabs */}
-            <div className="flex border-b border-slate-200 gap-2">
-              <button
-                onClick={() => setActiveTab('orders')}
-                className={`pb-3 px-4 text-xs font-extrabold flex items-center gap-2 border-b-2 transition-colors cursor-pointer ${
-                  activeTab === 'orders' 
-                    ? 'border-[#123184] text-[#123184]' 
-                    : 'border-transparent text-slate-500 hover:text-slate-800'
-                }`}
-              >
-                <Package className="w-4 h-4 text-[#123184]" />
-                <span>{lang === 'bn' ? 'আমার অর্ডারসমূহ' : 'My Orders'}</span>
-                <span className="bg-[#123184]/10 text-[#123184] text-[11px] px-2 py-0.5 rounded-full font-bold">
-                  {customerOrders.length}
-                </span>
-              </button>
+            {/* Navigation Tabs & Search BP */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 border-b border-slate-200 pb-2">
+              <div className="flex items-center gap-1 overflow-x-auto">
+                <button
+                  onClick={() => setActiveTab('orders')}
+                  className={`pb-2 px-3 sm:px-4 text-xs font-extrabold flex items-center gap-1.5 border-b-2 transition-colors cursor-pointer whitespace-nowrap ${
+                    activeTab === 'orders' 
+                      ? 'border-[#123184] text-[#123184]' 
+                      : 'border-transparent text-slate-500 hover:text-slate-800'
+                  }`}
+                >
+                  <Package className="w-3.5 h-3.5 text-[#123184]" />
+                  <span>{lang === 'bn' ? 'আমার অর্ডারসমূহ' : 'My Orders'}</span>
+                  <span className="bg-[#123184]/10 text-[#123184] text-[10px] sm:text-[11px] px-2 py-0.5 rounded-full font-bold">
+                    {bpSearchQuery.trim() ? `${finalOrderList.length}/${customerOrders.length}` : customerOrders.length}
+                  </span>
+                </button>
 
-              <button
-                onClick={() => setActiveTab('prescriptions')}
-                className={`pb-3 px-4 text-xs font-extrabold flex items-center gap-2 border-b-2 transition-colors cursor-pointer ${
-                  activeTab === 'prescriptions' 
-                    ? 'border-[#02975E] text-[#02975E]' 
-                    : 'border-transparent text-slate-500 hover:text-slate-800'
-                }`}
-              >
-                <FileText className="w-4 h-4 text-[#02975E]" />
-                <span>{lang === 'bn' ? 'আপলোডকৃত প্রেসক্রিপশন' : 'Prescriptions'}</span>
-                <span className="bg-[#02975E]/10 text-[#02975E] text-[11px] px-2 py-0.5 rounded-full font-bold">
-                  {customerPrescriptions.length}
-                </span>
-              </button>
+                <button
+                  onClick={() => setActiveTab('prescriptions')}
+                  className={`pb-2 px-3 sm:px-4 text-xs font-extrabold flex items-center gap-1.5 border-b-2 transition-colors cursor-pointer whitespace-nowrap ${
+                    activeTab === 'prescriptions' 
+                      ? 'border-[#02975E] text-[#02975E]' 
+                      : 'border-transparent text-slate-500 hover:text-slate-800'
+                  }`}
+                >
+                  <FileText className="w-3.5 h-3.5 text-[#02975E]" />
+                  <span>{lang === 'bn' ? 'আপলোডকৃত প্রেসক্রিপশন' : 'Prescriptions'}</span>
+                  <span className="bg-[#02975E]/10 text-[#02975E] text-[10px] sm:text-[11px] px-2 py-0.5 rounded-full font-bold">
+                    {customerPrescriptions.length}
+                  </span>
+                </button>
+              </div>
+
+              {/* Red-Bordered BP Search Box (as marked with red box by user) */}
+              {activeTab === 'orders' && (
+                <div className="flex items-center">
+                  <div className="w-full sm:w-56 flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border-2 border-rose-500 bg-white hover:border-rose-600 focus-within:border-rose-600 focus-within:ring-2 focus-within:ring-rose-200 transition-all shadow-xs">
+                    <Search className="w-3.5 h-3.5 text-rose-500 shrink-0" />
+                    <input
+                      type="text"
+                      value={bpSearchQuery}
+                      onChange={(e) => setBpSearchQuery(e.target.value)}
+                      placeholder="Search BP (যেমন: 1224)"
+                      className="w-full bg-transparent text-xs font-semibold text-slate-800 placeholder:text-rose-400 outline-none"
+                    />
+                    {bpSearchQuery && (
+                      <button
+                        type="button"
+                        onClick={() => setBpSearchQuery('')}
+                        className="text-slate-400 hover:text-rose-600 p-0.5 cursor-pointer"
+                        title="ক্লিয়ার"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* TAB 1: ORDERS LIST WITH LIVE TIMELINE */}
             {activeTab === 'orders' && (
-              <div className="space-y-4">
-                {customerOrders.length > 0 ? (
-                  customerOrders.map((order) => {
+              <div className="space-y-3">
+                {finalOrderList.length > 0 ? (
+                  finalOrderList.map((order) => {
                     const statusInfo = getOrderStatusInfo(order.status);
                     return (
                       <div 
                         key={order.id}
-                        className="bg-white border border-slate-200 rounded-3xl p-4 sm:p-5 shadow-xs hover:border-[#123184]/30 transition-all space-y-4"
+                        className="bg-white border border-slate-200/90 rounded-2xl p-3.5 sm:p-4 shadow-xs hover:border-[#123184]/35 hover:shadow-md transition-all space-y-3"
                       >
-                        {/* Order Header */}
-                        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
+                        {/* Order Header (Cute & Compact) */}
+                        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-2">
                           <div className="space-y-0.5">
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 flex-wrap">
                               <button
                                 type="button"
                                 onClick={() => setActiveInvoiceOrder(order)}
-                                className="font-extrabold text-sm text-[#123184] hover:text-[#02975E] hover:underline decoration-dotted underline-offset-2 cursor-pointer transition-colors"
+                                className="font-mono font-black text-xs sm:text-sm text-[#123184] hover:text-[#02975E] bg-[#123184]/5 hover:bg-[#123184]/10 border border-[#123184]/15 px-2.5 py-0.5 rounded-lg cursor-pointer transition-colors shadow-2xs"
                                 title="ক্যাশ মেমো / ইনভয়েস দেখতে ক্লিক করুন"
                               >
                                 #{order.id}
                               </button>
-                              <span className="text-slate-400">•</span>
-                              <span className="text-xs text-slate-500">
+                              <span className="text-slate-400 text-xs">•</span>
+                              <span className="text-[11px] text-slate-500 font-medium">
                                 {order.createdAt}
                               </span>
                             </div>
-                            <p className="text-[11px] text-slate-500 flex items-center gap-1">
-                              <MapPin className="w-3 h-3 text-[#02975E]" />
-                              <span>{order.deliveryAddress}</span>
+                            <p className="text-[11px] text-slate-500 flex items-center gap-1 truncate max-w-sm sm:max-w-md">
+                              <MapPin className="w-3 h-3 text-[#02975E] shrink-0" />
+                              <span className="truncate">{order.deliveryAddress}</span>
                             </p>
                           </div>
 
                           {/* Live Status Badge */}
-                          <div className="flex items-center gap-2">
-                            <span className={`text-xs font-bold px-3 py-1 rounded-full border flex items-center gap-1.5 ${statusInfo.badgeColor}`}>
-                              <span className={`w-2 h-2 rounded-full ${order.status === 'Delivered' ? 'bg-[#02975E]' : 'bg-amber-500 animate-pulse'}`}></span>
+                          <div className="flex items-center gap-1.5">
+                            <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full border flex items-center gap-1.5 shadow-2xs ${statusInfo.badgeColor}`}>
+                              <span className={`w-1.5 h-1.5 rounded-full ${order.status === 'Delivered' ? 'bg-[#02975E]' : 'bg-amber-500 animate-pulse'}`}></span>
                               {statusInfo.labelBn}
                             </span>
                           </div>
                         </div>
 
-                        {/* LIVE PROGRESS TIMELINE BAR (4 STEPS) */}
+                        {/* LIVE PROGRESS TIMELINE BAR (4 STEPS - Compact & Cute) */}
                         {order.status !== 'Cancelled' ? (
-                          <div className="py-2 px-1">
+                          <div className="py-1 px-1">
                             <div className="relative">
                               {/* Background Gray Line */}
-                              <div className="absolute top-4 left-6 right-6 h-1 bg-slate-200 -z-0"></div>
+                              <div className="absolute top-3 left-4 right-4 h-0.5 bg-slate-200 -z-0"></div>
                               
                               {/* Active Green Line */}
                               <div 
-                                className="absolute top-4 left-6 h-1 bg-gradient-to-r from-[#123184] to-[#02975E] -z-0 transition-all duration-500"
+                                className="absolute top-3 left-4 h-0.5 bg-gradient-to-r from-[#123184] to-[#02975E] -z-0 transition-all duration-500"
                                 style={{
-                                  width: statusInfo.step === 1 ? '10%' : statusInfo.step === 2 ? '40%' : statusInfo.step === 3 ? '75%' : '90%'
+                                  width: statusInfo.step === 1 ? '10%' : statusInfo.step === 2 ? '40%' : statusInfo.step === 3 ? '75%' : '92%'
                                 }}
                               ></div>
 
@@ -612,48 +665,48 @@ export const CustomerProfileModal = () => {
                                 
                                 {/* Step 1: Placed */}
                                 <div className="flex flex-col items-center">
-                                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shadow-md transition-all ${
-                                    statusInfo.step >= 1 ? 'bg-[#123184] text-white ring-4 ring-blue-100' : 'bg-slate-200 text-slate-400'
+                                  <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold shadow-xs transition-all ${
+                                    statusInfo.step >= 1 ? 'bg-[#123184] text-white ring-2 ring-blue-100' : 'bg-slate-200 text-slate-400'
                                   }`}>
                                     1
                                   </div>
-                                  <span className={`text-[10px] sm:text-xs font-bold mt-1.5 ${statusInfo.step >= 1 ? 'text-[#123184]' : 'text-slate-400'}`}>
+                                  <span className={`text-[10px] font-bold mt-1 ${statusInfo.step >= 1 ? 'text-[#123184]' : 'text-slate-400'}`}>
                                     অর্ডার গৃহীত
                                   </span>
                                 </div>
 
                                 {/* Step 2: Processing */}
                                 <div className="flex flex-col items-center">
-                                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shadow-md transition-all ${
-                                    statusInfo.step >= 2 ? 'bg-[#123184] text-white ring-4 ring-blue-100' : 'bg-slate-200 text-slate-400'
+                                  <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold shadow-xs transition-all ${
+                                    statusInfo.step >= 2 ? 'bg-[#123184] text-white ring-2 ring-blue-100' : 'bg-slate-200 text-slate-400'
                                   }`}>
                                     2
                                   </div>
-                                  <span className={`text-[10px] sm:text-xs font-bold mt-1.5 ${statusInfo.step >= 2 ? 'text-[#123184]' : 'text-slate-400'}`}>
+                                  <span className={`text-[10px] font-bold mt-1 ${statusInfo.step >= 2 ? 'text-[#123184]' : 'text-slate-400'}`}>
                                     প্রসেসিং
                                   </span>
                                 </div>
 
                                 {/* Step 3: Out for delivery */}
                                 <div className="flex flex-col items-center">
-                                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shadow-md transition-all ${
-                                    statusInfo.step >= 3 ? 'bg-[#02975E] text-white ring-4 ring-emerald-100' : 'bg-slate-200 text-slate-400'
+                                  <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold shadow-xs transition-all ${
+                                    statusInfo.step >= 3 ? 'bg-[#02975E] text-white ring-2 ring-emerald-100' : 'bg-slate-200 text-slate-400'
                                   }`}>
                                     3
                                   </div>
-                                  <span className={`text-[10px] sm:text-xs font-bold mt-1.5 ${statusInfo.step >= 3 ? 'text-[#02975E]' : 'text-slate-400'}`}>
+                                  <span className={`text-[10px] font-bold mt-1 ${statusInfo.step >= 3 ? 'text-[#02975E]' : 'text-slate-400'}`}>
                                     ডেলিভারিতে
                                   </span>
                                 </div>
 
                                 {/* Step 4: Delivered */}
                                 <div className="flex flex-col items-center">
-                                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shadow-md transition-all ${
-                                    statusInfo.step >= 4 ? 'bg-[#02975E] text-white ring-4 ring-emerald-100' : 'bg-slate-200 text-slate-400'
+                                  <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold shadow-xs transition-all ${
+                                    statusInfo.step >= 4 ? 'bg-[#02975E] text-white ring-2 ring-emerald-100' : 'bg-slate-200 text-slate-400'
                                   }`}>
                                     ✓
                                   </div>
-                                  <span className={`text-[10px] sm:text-xs font-bold mt-1.5 ${statusInfo.step >= 4 ? 'text-[#02975E]' : 'text-slate-400'}`}>
+                                  <span className={`text-[10px] font-bold mt-1 ${statusInfo.step >= 4 ? 'text-[#02975E]' : 'text-slate-400'}`}>
                                     সম্পন্ন
                                   </span>
                                 </div>
@@ -662,13 +715,13 @@ export const CustomerProfileModal = () => {
                             </div>
 
                             {/* Status Helper Notice */}
-                            <div className="mt-3 bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-[11px] text-slate-600 flex items-center gap-2">
-                              <Clock className="w-3.5 h-3.5 text-[#02975E] shrink-0" />
-                              <span>{statusInfo.descBn}</span>
+                            <div className="mt-2 bg-slate-50 border border-slate-100 rounded-lg py-1 px-2.5 text-[10px] sm:text-[11px] text-slate-600 flex items-center gap-1.5">
+                              <Clock className="w-3 h-3 text-[#02975E] shrink-0" />
+                              <span className="truncate">{statusInfo.descBn}</span>
                             </div>
                           </div>
                         ) : (
-                          <div className="bg-rose-50 border border-rose-200 rounded-xl p-3 text-xs text-rose-700 flex items-center gap-2">
+                          <div className="bg-rose-50 border border-rose-200 rounded-xl p-2.5 text-xs text-rose-700 flex items-center gap-2">
                             <AlertCircle className="w-4 h-4 shrink-0" />
                             <span>এই অর্ডারটি বাতিল করা হয়েছে। কোনো জিজ্ঞাসা থাকলে আমাদের হেল্পলাইনে কল করুন।</span>
                           </div>
@@ -677,42 +730,42 @@ export const CustomerProfileModal = () => {
                         {/* When order is Delivered / সম্পন্ন: Payment Method Option (Cash on Hand, bKash, Nagad) */}
                         {order.status === 'Delivered' && (
                           order.paymentConfirmed ? (
-                            /* LOCKED CONFIRMED PAYMENT DISPLAY - NO EDITING, OTHER OPTIONS HIDDEN */
-                            <div className="bg-emerald-50/90 border border-[#02975E] rounded-xl p-3 flex flex-wrap items-center justify-between gap-2 shadow-2xs animate-in fade-in">
-                              <div className="flex items-center gap-2.5">
-                                <div className="w-7 h-7 rounded-full bg-[#02975E] text-white flex items-center justify-center text-xs font-black shadow-xs">
+                            /* LOCKED CONFIRMED PAYMENT DISPLAY - COMPACT & CUTE */
+                            <div className="bg-gradient-to-r from-emerald-50/90 via-teal-50/70 to-emerald-50/90 border border-[#02975E] rounded-xl p-2.5 flex flex-wrap items-center justify-between gap-2 shadow-2xs animate-in fade-in">
+                              <div className="flex items-center gap-2">
+                                <div className="w-5 h-5 rounded-full bg-[#02975E] text-white flex items-center justify-center text-[10px] font-black shadow-xs shrink-0">
                                   ✓
                                 </div>
                                 <div>
-                                  <div className="flex items-center gap-1.5">
-                                    <h4 className="font-extrabold text-xs text-emerald-950">
-                                      পেমেন্ট সফলভাবে সংরক্ষিত ও নিশ্চিত
-                                    </h4>
-                                    <span className="text-[10px] font-bold text-emerald-700 bg-white border border-emerald-300 px-1.5 py-0.2 rounded-full">
+                                  <div className="flex items-center gap-1.5 flex-wrap">
+                                    <span className="font-extrabold text-[11px] text-emerald-950">
+                                      পেমেন্ট সংরক্ষিত ও নিশ্চিত
+                                    </span>
+                                    <span className="text-[9px] font-bold text-emerald-700 bg-white border border-emerald-300 px-1 py-0.2 rounded">
                                       🔒 অপরিবর্তনযোগ্য
                                     </span>
                                   </div>
-                                  <p className="text-[11px] text-slate-700 mt-0.5 flex flex-wrap items-center gap-1.5">
-                                    <span className="font-semibold">পদ্ধতি:</span>
+                                  <p className="text-[10px] sm:text-[11px] text-slate-700 mt-0.5 flex flex-wrap items-center gap-1.5">
+                                    <span className="font-semibold text-slate-500">পদ্ধতি:</span>
                                     {(order.paymentMethod === 'bKash' || order.paymentMethod === 'bkash') ? (
-                                      <span className="inline-flex items-center gap-1 font-bold text-[#D12053] bg-pink-50 px-2 py-0.5 rounded border border-pink-200">
-                                        <img src="/bkash-logo.png" alt="bKash" className="h-3.5 object-contain" /> bKash
+                                      <span className="inline-flex items-center gap-1 font-bold text-[#D12053] bg-pink-50 px-1.5 py-0.2 rounded border border-pink-200 text-[10px]">
+                                        <img src="/bkash-logo.png" alt="bKash" className="h-3 object-contain" /> bKash
                                       </span>
                                     ) : (order.paymentMethod === 'Nagad' || order.paymentMethod === 'nagad') ? (
-                                      <span className="inline-flex items-center gap-1 font-bold text-[#E31B23] bg-orange-50 px-2 py-0.5 rounded border border-orange-200">
-                                        <img src="/nagad-logo.png" alt="Nagad" className="h-3.5 object-contain" /> Nagad
+                                      <span className="inline-flex items-center gap-1 font-bold text-[#E31B23] bg-orange-50 px-1.5 py-0.2 rounded border border-orange-200 text-[10px]">
+                                        <img src="/nagad-logo.png" alt="Nagad" className="h-3 object-contain" /> Nagad
                                       </span>
                                     ) : (order.paymentMethod === 'bank' || order.paymentMethod === 'Bank' || order.paymentMethod === 'Bank Transfer' || String(order.paymentMethod || '').toLowerCase().includes('bank')) ? (
-                                      <span className="inline-flex items-center gap-1 font-bold text-[#123184] bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
-                                        <Building2 className="w-3.5 h-3.5 text-[#123184]" /> {order.paymentMethod || 'Bank Transfer'}
+                                      <span className="inline-flex items-center gap-1 font-bold text-[#123184] bg-blue-50 px-1.5 py-0.2 rounded border border-blue-200 text-[10px]">
+                                        <Building2 className="w-3 h-3 text-[#123184]" /> {order.paymentMethod || 'Bank Transfer'}
                                       </span>
                                     ) : (
-                                      <span className="font-bold text-emerald-900 bg-emerald-100/60 px-2 py-0.5 rounded border border-emerald-200">
-                                        💵 Cash on Hand (হাতে নগদ)
+                                      <span className="font-bold text-emerald-900 bg-emerald-100/60 px-1.5 py-0.2 rounded border border-emerald-200 text-[10px]">
+                                        💵 Cash on Hand
                                       </span>
                                     )}
                                     {order.trxId && order.trxId !== 'N/A' && (
-                                      <span className="font-mono text-slate-800 font-bold bg-white px-2 py-0.5 border border-slate-300 rounded text-xs">
+                                      <span className="font-mono text-slate-800 font-bold bg-white px-1.5 py-0.2 border border-slate-300 rounded text-[10px]">
                                         TrxID: {order.trxId}
                                       </span>
                                     )}
@@ -720,7 +773,7 @@ export const CustomerProfileModal = () => {
                                 </div>
                               </div>
 
-                              <span className="text-xs font-black text-[#123184] bg-white px-2.5 py-1 rounded-lg border border-emerald-200 shadow-2xs">
+                              <span className="text-[11px] font-black text-[#123184] bg-white px-2 py-0.5 rounded-lg border border-emerald-200 shadow-2xs">
                                 মোট পরিশোধ: ৳{Number(order.grandTotal || 0).toFixed(2)}
                               </span>
                             </div>
@@ -1051,18 +1104,18 @@ export const CustomerProfileModal = () => {
                           )
                         )}
 
-                        {/* Order Items Breakdown */}
-                        <div className="bg-slate-50/60 rounded-2xl p-3 border border-slate-100 space-y-1.5">
+                        {/* Order Items Breakdown (Cute & Compact) */}
+                        <div className="bg-slate-50/70 rounded-xl p-2.5 border border-slate-100 space-y-1">
                           <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
                             অর্ডারের ওষুধসমূহ ({order.items ? order.items.length : 0} টি আইটেম):
                           </span>
-                          <div className="space-y-1 text-xs">
+                          <div className="space-y-0.5 text-[11px]">
                             {order.items && order.items.map((it, idx) => (
                               <div key={idx} className="flex justify-between items-center text-slate-700">
-                                <span className="font-medium">
-                                  • {it.name} <span className="text-slate-400 text-[11px]">({it.quantity} {it.unitLabel || 'পাতা'})</span>
+                                <span className="font-medium truncate max-w-[70%]">
+                                  • {it.name} <span className="text-slate-400 text-[10px]">({it.quantity} {it.unitLabel || 'পাতা'})</span>
                                 </span>
-                                <span className="font-bold text-slate-900">
+                                <span className="font-bold text-slate-900 text-xs">
                                   ৳{(Number(it.price) * it.quantity).toFixed(2)}
                                 </span>
                               </div>
@@ -1070,41 +1123,31 @@ export const CustomerProfileModal = () => {
                           </div>
                         </div>
 
-                        {/* Total Bill & Action Buttons */}
-                        <div className="flex flex-wrap items-center justify-between gap-3 pt-1 border-t border-slate-100">
-                          <div>
-                            <span className="text-[11px] text-slate-500 flex items-center gap-1.5 mb-0.5">
-                              <span>পেমেন্ট মেথড:</span>
-                              {(order.paymentMethod === 'bKash' || order.paymentMethod === 'bkash') ? (
-                                <span className="inline-flex items-center gap-1 text-[#D12053] font-bold">
-                                  <img src="/bkash-logo.png" alt="bKash" className="h-3.5 object-contain" /> bKash
-                                </span>
-                              ) : (order.paymentMethod === 'Nagad' || order.paymentMethod === 'nagad') ? (
-                                <span className="inline-flex items-center gap-1 text-[#E31B23] font-bold">
-                                  <img src="/nagad-logo.png" alt="Nagad" className="h-3.5 object-contain" /> Nagad
-                                </span>
-                              ) : (
-                                <b className="text-slate-800 font-bold">💵 Cash on Hand</b>
-                              )}
-                              {order.trxId && order.trxId !== 'N/A' && <span className="font-mono text-slate-600 font-bold">({order.trxId})</span>}
-                            </span>
-                            <span className="text-base font-black text-[#123184]">
+                        {/* Total Bill & Action Buttons (Compact & Cute) */}
+                        <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-slate-100">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm sm:text-base font-black text-[#123184]">
                               মোট বিল: ৳{Number(order.grandTotal || 0).toFixed(2)}
                             </span>
+                            {order.paymentMethod && (
+                              <span className="text-[10px] text-slate-400 font-medium hidden sm:inline">
+                                ({order.paymentMethod})
+                              </span>
+                            )}
                           </div>
 
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-1.5">
                             <button
                               onClick={() => setActiveInvoiceOrder(order)}
-                              className="px-3.5 py-2 rounded-xl bg-[#123184] hover:bg-[#0d2463] text-white font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow-sm transition-colors"
+                              className="px-3 py-1.5 rounded-xl bg-[#123184] hover:bg-[#0d2463] text-white font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow-xs transition-colors"
                             >
-                              <Receipt className="w-3.5 h-3.5" />
+                              <Receipt className="w-3.5 h-3.5 text-emerald-300" />
                               <span>ক্যাশ মেমো / ইনভয়েস</span>
                             </button>
 
                             <a
                               href={`tel:${config.phone}`}
-                              className="px-3 py-2 rounded-xl border border-slate-200 hover:border-slate-300 text-slate-700 hover:text-[#02975E] font-bold text-xs flex items-center gap-1.5 cursor-pointer transition-colors"
+                              className="px-2.5 py-1.5 rounded-xl border border-slate-200 hover:border-slate-300 text-slate-600 hover:text-[#02975E] font-bold text-xs flex items-center gap-1 cursor-pointer transition-colors"
                               title="সরাসরি কল দিন"
                             >
                               <PhoneCall className="w-3.5 h-3.5 text-[#02975E]" />
@@ -1116,6 +1159,25 @@ export const CustomerProfileModal = () => {
                       </div>
                     );
                   })
+                ) : bpSearchQuery.trim() ? (
+                  <div className="text-center py-8 px-4 bg-rose-50/40 rounded-2xl border-2 border-rose-200 space-y-2.5 animate-in fade-in">
+                    <div className="w-10 h-10 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center mx-auto">
+                      <Search className="w-5 h-5" />
+                    </div>
+                    <h4 className="font-bold text-slate-800 text-sm">
+                      "{bpSearchQuery}" নম্বরের কোনো অর্ডার পাওয়া যায়নি
+                    </h4>
+                    <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                      অনুগ্রহ করে সঠিক BP চালান নম্বর (যেমন: 1224 বা BP-2026-1224) দিয়ে আবার চেষ্টা করুন।
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setBpSearchQuery('')}
+                      className="px-4 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs cursor-pointer shadow-xs transition-colors"
+                    >
+                      সব অর্ডার দেখুন
+                    </button>
+                  </div>
                 ) : (
                   <div className="text-center py-10 px-4 bg-slate-50 rounded-3xl border border-slate-200 space-y-3">
                     <ShoppingBag className="w-12 h-12 text-slate-300 mx-auto" />
