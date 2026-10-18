@@ -5648,23 +5648,6 @@ export const AdminPortal = () => {
 
                 <div className="flex gap-2 flex-wrap">
 
-                  <button
-                    onClick={() => {
-                      requestConfirm({
-                        title: lang === 'bn' ? 'ডিফল্ট ক্যাটালগ রিস্টোর' : 'Restore Default Catalog',
-                        message: lang === 'bn' ? 'আপনি কি সকল ওষুধ রিসেট করে ডিফল্ট ক্যাটালগে ফিরতে চান?' : 'Are you sure you want to reset all medicines to the default catalog?',
-                        subMessage: lang === 'bn' ? 'আপনার যোগ করা কাস্টম ওষুধ ও পরিবর্তিত মূল্য রিসেট হয়ে মূল ডিফল্ট তালিকায় ফিরবে।' : 'Custom added medicines and edited prices will be reset to default.',
-                        confirmText: lang === 'bn' ? 'হ্যাঁ, ডিফল্ট করুন' : 'Yes, Restore Default',
-                        cancelText: lang === 'bn' ? 'বাতিল' : 'Cancel',
-                        isDanger: true,
-                        onConfirm: () => resetToDefaultMedicines()
-                      });
-                    }}
-                    className="flex items-center gap-1.5 text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold px-3 py-2 rounded-none cursor-pointer"
-                  >
-                    <RotateCcw className="w-3.5 h-3.5" />
-                    <span>ডিফল্ট ক্যাটালগ</span>
-                  </button>
 
                   <button
                     onClick={() => setShowAddForm(!showAddForm)}
