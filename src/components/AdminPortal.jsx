@@ -5586,36 +5586,6 @@ export const AdminPortal = () => {
           {activeTab === 'medicines' && (
             <div id="admin-med-table-top" className="space-y-4">
               
-              {/* Real-time Cloud Photo Sync Banner */}
-              <div className="bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 text-white p-4 rounded-2xl shadow-md border border-blue-800/50 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-white/10 text-emerald-400 flex items-center justify-center shrink-0 border border-white/10 shadow-xs">
-                    <Cloud className="w-5 h-5 text-emerald-400" />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-black text-white">সব ডিভাইসে ওষুধ ও ফটোর লাইভ ক্লাউড সিঙ্ক</span>
-                      <span className="text-[10px] bg-emerald-500 text-slate-950 font-black px-2 py-0.5 rounded-full">স্বয়ংক্রিয় ক্লাউড সিঙ্ক চালু</span>
-                    </div>
-                    <p className="text-[11px] text-blue-200/90 leading-tight">
-                      আপনি যেসব ওষুধের ফটো পরিবর্তন করেছেন তা স্বয়ংক্রিয়ভাবে ক্লাউড ডাটাবেজে সিঙ্ক হয়। মোবাইল ফোন বা যেকোনো ডিভাইসে সাথে সাথে এই ফটো দেখা যাবে।
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2 shrink-0">
-                  <button
-                    type="button"
-                    onClick={handleSyncCloudMedicines}
-                    disabled={isSyncingCloudMeds}
-                    className="w-full sm:w-auto px-4 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 text-xs font-black rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60 active:scale-95"
-                  >
-                    <RefreshCw className={`w-3.5 h-3.5 ${isSyncingCloudMeds ? 'animate-spin' : ''}`} />
-                    <span>{isSyncingCloudMeds ? 'ক্লাউডে সিঙ্ক হচ্ছে...' : 'সব ডিভাইসে ফটো সিঙ্ক করুন (Sync Cloud)'}</span>
-                  </button>
-                </div>
-              </div>
-
               {/* Top Action Bar */}
               <div className="bg-white p-4 rounded-none border border-slate-200 shadow-xs flex flex-wrap justify-between items-center gap-3">
                 <div className="flex items-center gap-3">
