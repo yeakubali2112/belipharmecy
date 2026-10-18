@@ -81,15 +81,11 @@ import { VoiceNotePlayer } from './VoiceNotePlayer';
 import { convertFileToBase64, createSyntheticVoiceAudio } from '../utils/voiceNoteHelper';
 import { AdminUserManagement } from './AdminUserManagement';
 import { AdminForgotPasswordModal } from './AdminForgotPasswordModal';
-import { AdminDatabaseManager } from './AdminDatabaseManager';
 import { 
   uploadImageToImgBB, 
   uploadMedicinePhoto, 
-  uploadBannerSlideImage,
-  IMGBB_API_KEY 
+  uploadBannerSlideImage 
 } from '../services/imgbbService';
-import { checkDatabaseStatus, initDatabaseSchema } from '../services/cloudSyncService';
-import { Database, Server } from 'lucide-react';
 
 export const PRESET_OFFER_BANNERS = [
   {
@@ -301,7 +297,7 @@ export const AdminPortal = () => {
     if (!currentAdminUser) return true;
     if (currentAdminUser.isSuperAdmin) return true;
     const perms = currentAdminUser.permissions || [];
-    if (tabId === 'users' || tabId === 'database') {
+    if (tabId === 'users') {
       return perms.includes('users') || perms.includes('settings');
     }
     return perms.includes(tabId);
@@ -2603,19 +2599,7 @@ export const AdminPortal = () => {
               </button>
             )}
 
-            {canAccessTab('database') && (
-              <button
-                onClick={() => setActiveTab('database')}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all cursor-pointer text-left ${
-                  activeTab === 'database' 
-                    ? 'bg-gradient-to-r from-cyan-500/35 to-blue-500/35 text-white shadow-md backdrop-blur-xs border border-cyan-400/40 font-bold' 
-                    : 'text-blue-100/80 hover:bg-white/10'
-                }`}
-              >
-                <Database className="w-4 h-4 text-cyan-300" />
-                <span>ডাটাবেজ ও ImgBB ক্লাউড</span>
-              </button>
-            )}
+
           </nav>
         </div>
       </aside>
@@ -2657,7 +2641,6 @@ export const AdminPortal = () => {
               {activeTab === 'payments' && 'পেমেন্ট গেটওয়ে, বিকাশ, নগদ ও ব্যাংক অ্যাকাউন্ট ব্যবস্থাপনা'}
               {activeTab === 'settings' && (settingsSubTab === 'users' ? 'ইউজার প্রোফাইল ও অপশন পারমিশন কন্ট্রোল' : 'ফার্মেসি প্রোফাইল ও কনফিগারেশন')}
               {activeTab === 'users' && 'ইউজার প্রোফাইল ও অপশন পারমিশন কন্ট্রোল'}
-              {activeTab === 'database' && 'Supabase PostgreSQL ডাটাবেজ ও ImgBB ইমেজ ক্লাউড হাব'}
             </h1>
             <span className="text-xs text-slate-500">
               বেলী ফার্মেসি ম্যানেজমেন্ট সিস্টেম • রিয়েল-টাইম লাইভ ডাটা
@@ -8196,12 +8179,7 @@ export const AdminPortal = () => {
             );
           })()}
 
-          {/* ================================================= */}
-          {/* TAB: DATABASE & IMGBB CLOUD HUB */}
-          {/* ================================================= */}
-          {activeTab === 'database' && canAccessTab('database') && (
-            <AdminDatabaseManager />
-          )}
+
 
           {/* Unauthorized Access Fallback Screen */}
           {!canAccessTab(activeTab) && (
