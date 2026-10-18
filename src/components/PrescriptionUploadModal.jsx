@@ -12,6 +12,7 @@ import {
   Mic
 } from 'lucide-react';
 import { useShop } from '../context/ShopContext';
+import { uploadPrescriptionImage } from '../services/imgbbService';
 
 export const PrescriptionUploadModal = () => {
   const { 
@@ -131,8 +132,16 @@ export const PrescriptionUploadModal = () => {
 
     setUploadState('loading');
     try {
-      // Smooth visual loading animation delay (1.2s)
-      await new Promise(resolve => setTimeout(resolve, 1200));
+      // Upload image to ImgBB Cloud CDN
+      let finalImageUrl = previewImage;
+      try {
+        const uploadRes = await uploadPrescriptionImage(previewImage, customerPhone.trim());
+        if (uploadRes && uploadRes.success && uploadRes.url) {
+          finalImageUrl = uploadRes.url;
+        }
+      } catch (uploadErr) {
+        console.warn('ImgBB prescription upload fallback to local:', uploadErr);
+      }
 
       uploadPrescription({
         customerName: customerName.trim(),
@@ -140,7 +149,7 @@ export const PrescriptionUploadModal = () => {
         customerAvatar: currentCustomer?.avatar || null,
         deliveryAddress: deliveryAddress.trim() || 'ঠিকানা ফোনে কনফার্ম করা হবে',
         notes: notes.trim(),
-        image: previewImage
+        image: finalImageUrl
       });
 
       // Switch to success state: "Upload done"

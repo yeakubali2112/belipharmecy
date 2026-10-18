@@ -2,17 +2,43 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 
-function medexDevPlugin() {
+function apiDevPlugin() {
   return {
-    name: 'medex-api-dev-server',
+    name: 'api-dev-server',
     configureServer(server) {
       server.middlewares.use(async (req, res, next) => {
-        if (req.url && req.url.startsWith('/api/medex-search')) {
+        if (req.url && req.url.startsWith('/api/')) {
           try {
             const url = new URL(req.url, 'http://localhost');
-            const q = url.searchParams.get('q') || '';
-            const { default: handler } = await server.ssrLoadModule('/api/medex-search.js');
-            const mockReq = { query: { q }, method: req.method };
+            const routeName = url.pathname.replace(/^\/api\//, '').split('/')[0];
+            const filePath = `/api/${routeName}.js`;
+
+            // Read request body for POST/PUT
+            let body = null;
+            if (req.method === 'POST' || req.method === 'PUT' || req.method === 'PATCH') {
+              const buffers = [];
+              for await (const chunk of req) {
+                buffers.push(chunk);
+              }
+              const rawBody = Buffer.concat(buffers).toString();
+              try {
+                body = JSON.parse(rawBody);
+              } catch {
+                body = rawBody;
+              }
+            }
+
+            const query = Object.fromEntries(url.searchParams.entries());
+            const { default: handler } = await server.ssrLoadModule(filePath);
+
+            const mockReq = {
+              url: req.url,
+              method: req.method,
+              query,
+              body,
+              headers: req.headers
+            };
+
             const mockRes = {
               setHeader: (k, v) => res.setHeader(k, v),
               status: (code) => {
@@ -26,12 +52,14 @@ function medexDevPlugin() {
                 };
               }
             };
+
             await handler(mockReq, mockRes);
             return;
           } catch (err) {
-            console.error('MedEx dev server error:', err);
+            console.error('[API Dev Server Error]:', err);
             res.statusCode = 500;
-            res.end(JSON.stringify({ error: err.message, results: [], count: 0 }));
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({ error: err.message }));
             return;
           }
         }
@@ -46,6 +74,6 @@ export default defineConfig({
   plugins: [
     react(),
     tailwindcss(),
-    medexDevPlugin(),
+    apiDevPlugin(),
   ],
 })

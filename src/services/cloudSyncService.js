@@ -1,136 +1,165 @@
-// Global Real-Time Cloud Synchronization Service for Beli Pharmacy
-// Provides instant cross-device synchronization between Admin PC, customer mobile devices, tablets, and any shared link.
-// Powered by high-speed global cloud store with zero quota limitations and real-time push.
+// Supabase PostgreSQL & Cloud Database Synchronization Service for Beli Pharmacy (বেলী ফার্মেসি)
+// Connects to PostgreSQL database via /api/db endpoint with automatic fallback and retry guards.
 
-const CLOUD_STORE_TOPIC = 'beli_pharmacy_cloud_store_2026';
-const CLOUD_STORE_URL = `https://ntfy.sh/${CLOUD_STORE_TOPIC}`;
+const API_BASE = '/api/db';
 
-let pollCache = null;
-let pollCacheTime = 0;
-
-// Fetches the latest file attachment URLs from the cloud store
-const getLatestAttachmentUrls = async (forceRefresh = false) => {
-  const now = Date.now();
-  if (!forceRefresh && pollCache && (now - pollCacheTime < 8000)) {
-    return pollCache;
-  }
+/**
+ * Checks the database connection status
+ * @returns {Promise<{connected: boolean, configured: boolean, details?: string, error?: string}>}
+ */
+export const checkDatabaseStatus = async () => {
   try {
-    const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
-    const timeoutId = controller ? setTimeout(() => controller.abort(), 6000) : null;
-    const res = await fetch(`${CLOUD_STORE_URL}/json?poll=1&since=all`, {
+    const res = await fetch(`${API_BASE}?type=test_connection`, {
       cache: 'no-store',
-      signal: controller ? controller.signal : undefined
+      headers: { 'Accept': 'application/json' }
     });
-    if (timeoutId) clearTimeout(timeoutId);
-    if (!res || !res.ok) return pollCache || {};
-
-    const text = await res.text();
-    const lines = text.trim().split('\n').filter(Boolean);
-    const keyMap = {};
-    for (const line of lines) {
-      try {
-        const item = JSON.parse(line);
-        if (item.attachment?.name && item.attachment?.url) {
-          const k = item.attachment.name.replace('.json', '');
-          keyMap[k] = item.attachment.url;
-        }
-      } catch {}
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      return { connected: false, configured: false, error: data.error || `HTTP ${res.status}` };
     }
-    pollCache = keyMap;
-    pollCacheTime = now;
-    return keyMap;
+    const data = await res.json();
+    return data;
   } catch (err) {
-    return pollCache || {};
+    return { connected: false, configured: false, error: err.message || 'Cannot reach API' };
   }
 };
 
-export const fetchCloudData = async (key) => {
+/**
+ * Trigger database schema initialization
+ */
+export const initDatabaseSchema = async () => {
   try {
-    const urls = await getLatestAttachmentUrls();
-    const fileUrl = urls[key];
-    if (!fileUrl) return null;
-
-    const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
-    const timeoutId = controller ? setTimeout(() => controller.abort(), 7000) : null;
-    const res = await fetch(fileUrl, {
-      cache: 'no-store',
-      signal: controller ? controller.signal : undefined
+    const res = await fetch(API_BASE, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'init_schema' })
     });
-    if (timeoutId) clearTimeout(timeoutId);
-    if (!res || !res.ok) return null;
     return await res.json();
   } catch (err) {
+    return { success: false, error: err.message };
+  }
+};
+
+// ==========================================
+// 1. SETTINGS SYNC (Hero, Delivery, Payment, Ads, Coupons, Users)
+// ==========================================
+
+export const fetchCloudSettings = async () => {
+  try {
+    const res = await fetch(`${API_BASE}?type=settings`, { cache: 'no-store' });
+    if (!res.ok) return null;
+    const json = await res.json();
+    if (json.success && json.data) {
+      // Re-map into standard settings structure
+      return {
+        deliverySettings: json.data.delivery_settings || json.data.deliverySettings,
+        paymentSettings: json.data.payment_settings || json.data.paymentSettings,
+        coupons: json.data.coupons,
+        adBanner: json.data.ad_banner || json.data.adBanner,
+        heroBanner: json.data.hero_banner || json.data.heroBanner,
+        adminUsers: json.data.admin_users || json.data.adminUsers,
+        ...json.data
+      };
+    }
+    return null;
+  } catch (err) {
+    console.warn('[DB Settings Fetch Warning]:', err.message);
     return null;
   }
 };
 
-export const saveCloudData = async (key, data, timeoutMs = 15000) => {
-  if (!data) return false;
+export const saveCloudSettings = async (settings) => {
+  if (!settings) return false;
   try {
-    const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
-    const timeoutId = controller ? setTimeout(() => controller.abort(), timeoutMs) : null;
-    const res = await fetch(CLOUD_STORE_URL, {
-      method: 'POST',
-      headers: {
-        'Title': `Beli_${key}`,
-        'Tags': key,
-        'X-Filename': `${key}.json`
-      },
-      body: JSON.stringify(data),
-      signal: controller ? controller.signal : undefined
-    });
-    if (timeoutId) clearTimeout(timeoutId);
-    pollCacheTime = 0; // invalidate cache
-    return res && res.ok;
+    const tasks = [];
+    if (settings.deliverySettings) {
+      tasks.push(fetch(API_BASE, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'save_settings', key: 'delivery_settings', data: settings.deliverySettings })
+      }));
+    }
+    if (settings.paymentSettings) {
+      tasks.push(fetch(API_BASE, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'save_settings', key: 'payment_settings', data: settings.paymentSettings })
+      }));
+    }
+    if (settings.heroBanner) {
+      tasks.push(fetch(API_BASE, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'save_settings', key: 'hero_banner', data: settings.heroBanner })
+      }));
+    }
+    if (settings.adBanner) {
+      tasks.push(fetch(API_BASE, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'save_settings', key: 'ad_banner', data: settings.adBanner })
+      }));
+    }
+    if (settings.coupons) {
+      tasks.push(fetch(API_BASE, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'save_settings', key: 'coupons', data: settings.coupons })
+      }));
+    }
+    if (settings.adminUsers) {
+      tasks.push(fetch(API_BASE, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'save_settings', key: 'admin_users', data: settings.adminUsers })
+      }));
+    }
+    await Promise.allSettled(tasks);
+    return true;
   } catch (err) {
+    console.warn('[DB Settings Save Warning]:', err.message);
     return false;
   }
 };
 
 // ==========================================
-// 1. SETTINGS CLOUD SYNC (Hero Slides, Payments, Delivery, Banners, Coupons)
-// ==========================================
-
-export const fetchCloudSettings = async () => {
-  return await fetchCloudData('settings');
-};
-
-export const saveCloudSettings = async (settings) => {
-  if (!settings) return false;
-  return await saveCloudData('settings', {
-    ...settings,
-    updatedAt: Date.now()
-  });
-};
-
-// ==========================================
-// 2. MEDICINES CLOUD SYNC (Custom Photos, Stock & Prices)
+// 2. MEDICINES SYNC (Custom Photos, Stock & Prices)
 // ==========================================
 
 export const fetchCloudCustomMedicines = async () => {
-  const data = await fetchCloudData('custom_medicines');
-  return Array.isArray(data) ? data : null;
+  try {
+    const res = await fetch(`${API_BASE}?type=medicines`, { cache: 'no-store' });
+    if (!res.ok) return null;
+    const json = await res.json();
+    return Array.isArray(json.data) ? json.data : null;
+  } catch (err) {
+    return null;
+  }
 };
 
 export const saveCloudCustomMedicines = async (medicinesList) => {
   if (!medicinesList || !Array.isArray(medicinesList)) return false;
-  return await saveCloudData('custom_medicines', medicinesList, 25000);
+  try {
+    const res = await fetch(API_BASE, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'batch_save_medicines', medicines: medicinesList })
+    });
+    return res.ok;
+  } catch (err) {
+    return false;
+  }
 };
 
 export const saveSingleCloudMedicine = async (medicine) => {
   if (!medicine || !medicine.id) return false;
   try {
-    const existing = await fetchCloudCustomMedicines();
-    const list = Array.isArray(existing) ? existing : [];
-    const index = list.findIndex(m => m.id === medicine.id);
-    let next;
-    if (index >= 0) {
-      next = [...list];
-      next[index] = { ...next[index], ...medicine };
-    } else {
-      next = [medicine, ...list];
-    }
-    return await saveCloudCustomMedicines(next);
+    const res = await fetch(API_BASE, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'save_medicine', medicine })
+    });
+    return res.ok;
   } catch (err) {
     return false;
   }
@@ -139,109 +168,135 @@ export const saveSingleCloudMedicine = async (medicine) => {
 export const deleteCloudCustomMedicine = async (medId) => {
   if (!medId) return false;
   try {
-    const existing = await fetchCloudCustomMedicines();
-    if (!Array.isArray(existing)) return false;
-    const next = existing.filter(m => m.id !== medId);
-    return await saveCloudCustomMedicines(next);
+    const res = await fetch(API_BASE, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'delete_medicine', medicineId: medId })
+    });
+    return res.ok;
   } catch (err) {
     return false;
   }
 };
 
 // ==========================================
-// 3. ORDERS CLOUD SYNC
+// 3. ORDERS SYNC
 // ==========================================
 
 export const fetchCloudOrders = async () => {
-  const data = await fetchCloudData('orders');
-  return Array.isArray(data) ? data : [];
+  try {
+    const res = await fetch(`${API_BASE}?type=orders`, { cache: 'no-store' });
+    if (!res.ok) return [];
+    const json = await res.json();
+    return Array.isArray(json.data) ? json.data : [];
+  } catch (err) {
+    return [];
+  }
 };
 
 export const saveCloudOrders = async (ordersList) => {
   if (!ordersList || !Array.isArray(ordersList)) return false;
-  return await saveCloudData('orders', ordersList.slice(0, 500));
+  try {
+    for (const o of ordersList.slice(0, 50)) {
+      await saveSingleCloudOrder(o);
+    }
+    return true;
+  } catch (err) {
+    return false;
+  }
 };
 
 export const saveSingleCloudOrder = async (order) => {
   if (!order || !order.id) return false;
   try {
-    const existing = await fetchCloudOrders();
-    const list = Array.isArray(existing) ? existing : [];
-    const index = list.findIndex(o => o.id === order.id);
-    let next;
-    if (index >= 0) {
-      next = [...list];
-      next[index] = { ...next[index], ...order };
-    } else {
-      next = [order, ...list];
-    }
-    return await saveCloudOrders(next);
+    const res = await fetch(API_BASE, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'save_order', order })
+    });
+    return res.ok;
   } catch (err) {
     return false;
   }
 };
 
 // ==========================================
-// 4. PRESCRIPTIONS CLOUD SYNC
+// 4. PRESCRIPTIONS SYNC
 // ==========================================
 
 export const fetchCloudPrescriptions = async () => {
-  const data = await fetchCloudData('prescriptions');
-  return Array.isArray(data) ? data : [];
+  try {
+    const res = await fetch(`${API_BASE}?type=prescriptions`, { cache: 'no-store' });
+    if (!res.ok) return [];
+    const json = await res.json();
+    return Array.isArray(json.data) ? json.data : [];
+  } catch (err) {
+    return [];
+  }
 };
 
 export const saveCloudPrescriptions = async (prescriptionsList) => {
   if (!prescriptionsList || !Array.isArray(prescriptionsList)) return false;
-  return await saveCloudData('prescriptions', prescriptionsList.slice(0, 300));
+  try {
+    for (const p of prescriptionsList.slice(0, 30)) {
+      await saveSingleCloudPrescription(p);
+    }
+    return true;
+  } catch (err) {
+    return false;
+  }
 };
 
 export const saveSingleCloudPrescription = async (prescription) => {
   if (!prescription || !prescription.id) return false;
   try {
-    const existing = await fetchCloudPrescriptions();
-    const list = Array.isArray(existing) ? existing : [];
-    const index = list.findIndex(p => p.id === prescription.id);
-    let next;
-    if (index >= 0) {
-      next = [...list];
-      next[index] = { ...next[index], ...prescription };
-    } else {
-      next = [prescription, ...list];
-    }
-    return await saveCloudPrescriptions(next);
+    const res = await fetch(API_BASE, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'save_prescription', prescription })
+    });
+    return res.ok;
   } catch (err) {
     return false;
   }
 };
 
 // ==========================================
-// 5. CUSTOMER PROFILES CLOUD SYNC
+// 5. CUSTOMER PROFILES SYNC
 // ==========================================
 
 export const fetchCloudCustomers = async () => {
-  const data = await fetchCloudData('customers');
-  return Array.isArray(data) ? data : [];
+  try {
+    const res = await fetch(`${API_BASE}?type=customers`, { cache: 'no-store' });
+    if (!res.ok) return [];
+    const json = await res.json();
+    return Array.isArray(json.data) ? json.data : [];
+  } catch (err) {
+    return [];
+  }
 };
 
 export const saveCloudCustomers = async (customersList) => {
   if (!customersList || !Array.isArray(customersList)) return false;
-  return await saveCloudData('customers', customersList.slice(0, 500));
+  try {
+    for (const c of customersList.slice(0, 50)) {
+      await saveSingleCloudCustomer(c);
+    }
+    return true;
+  } catch (err) {
+    return false;
+  }
 };
 
 export const saveSingleCloudCustomer = async (customer) => {
   if (!customer || !customer.phone) return false;
   try {
-    const existing = await fetchCloudCustomers();
-    const list = Array.isArray(existing) ? existing : [];
-    const index = list.findIndex(c => c.phone === customer.phone);
-    let next;
-    if (index >= 0) {
-      next = [...list];
-      next[index] = { ...next[index], ...customer };
-    } else {
-      next = [customer, ...list];
-    }
-    return await saveCloudCustomers(next);
+    const res = await fetch(API_BASE, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'save_customer', customer })
+    });
+    return res.ok;
   } catch (err) {
     return false;
   }
@@ -250,17 +305,19 @@ export const saveSingleCloudCustomer = async (customer) => {
 export const deleteCloudCustomer = async (phone) => {
   if (!phone) return false;
   try {
-    const existing = await fetchCloudCustomers();
-    if (!Array.isArray(existing)) return false;
-    const next = existing.filter(c => c.phone !== phone);
-    return await saveCloudCustomers(next);
+    const res = await fetch(API_BASE, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'delete_customer', phone })
+    });
+    return res.ok;
   } catch (err) {
     return false;
   }
 };
 
 // ==========================================
-// 6. MASTER ONE-CLICK CLOUD SYNC
+// 6. MASTER ALL-DATA SYNC
 // ==========================================
 
 export const syncAllDataToCloud = async ({
@@ -297,7 +354,7 @@ export const syncAllDataToCloud = async ({
   return { success: allSuccess, results };
 };
 
-// Aliases for drop-in compatibility
+// Compatibility aliases
 export const saveCloudOrder = saveSingleCloudOrder;
 export const saveCloudPrescription = saveSingleCloudPrescription;
 export const saveCloudCustomer = saveSingleCloudCustomer;

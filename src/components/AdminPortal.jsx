@@ -81,6 +81,15 @@ import { VoiceNotePlayer } from './VoiceNotePlayer';
 import { convertFileToBase64, createSyntheticVoiceAudio } from '../utils/voiceNoteHelper';
 import { AdminUserManagement } from './AdminUserManagement';
 import { AdminForgotPasswordModal } from './AdminForgotPasswordModal';
+import { AdminDatabaseManager } from './AdminDatabaseManager';
+import { 
+  uploadImageToImgBB, 
+  uploadMedicinePhoto, 
+  uploadBannerSlideImage,
+  IMGBB_API_KEY 
+} from '../services/imgbbService';
+import { checkDatabaseStatus, initDatabaseSchema } from '../services/cloudSyncService';
+import { Database, Server } from 'lucide-react';
 
 export const AdminPortal = () => {
   const { 
@@ -265,7 +274,7 @@ export const AdminPortal = () => {
     if (!currentAdminUser) return true;
     if (currentAdminUser.isSuperAdmin) return true;
     const perms = currentAdminUser.permissions || [];
-    if (tabId === 'users') {
+    if (tabId === 'users' || tabId === 'database') {
       return perms.includes('users') || perms.includes('settings');
     }
     return perms.includes(tabId);
@@ -386,7 +395,19 @@ export const AdminPortal = () => {
 
           setIsUploadingImage(false);
           if (e.target) e.target.value = '';
-          showToast?.('ছবি সফলভাবে যোগ ও সেভ হয়েছে! বিজ্ঞাপন সক্রিয় রয়েছে।', 'success');
+          showToast?.('ছবি সফলভাবে প্রসেস হয়েছে!', 'success');
+
+          // Upload to ImgBB Cloud in background for permanent hosted CDN URL
+          uploadBannerSlideImage(compressedDataUrl, 'ad_banner')
+            .then(res => {
+              if (res && res.success && res.url) {
+                const finalUpdated = { ...updated, imageUrl: res.url };
+                setAdForm(finalUpdated);
+                updateAdBanner(finalUpdated);
+                showToast?.('ImgBB ক্লাউডে ছবি স্থায়ীভাবে সেভ হয়েছে! ☁️', 'success');
+              }
+            })
+            .catch(err => console.warn('ImgBB banner upload fallback:', err));
         };
         img.onerror = () => {
           setIsUploadingImage(false);
@@ -517,10 +538,20 @@ export const AdminPortal = () => {
           ctx.drawImage(img, 0, 0, width, height);
           const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.80);
 
-          setSlideForm({ imageUrl: compressedDataUrl });
+          setSlideForm(prev => ({ ...prev, imageUrl: compressedDataUrl }));
           setIsUploadingSlide(false);
           if (e.target) e.target.value = '';
           showToast?.('ছবি সফলভাবে প্রসেস হয়েছে!', 'success');
+
+          // Upload to ImgBB Cloud in background for permanent hosted CDN URL
+          uploadBannerSlideImage(compressedDataUrl, 'hero_slide')
+            .then(res => {
+              if (res && res.success && res.url) {
+                setSlideForm(prev => ({ ...prev, imageUrl: res.url }));
+                showToast?.('ImgBB ক্লাউডে স্লাইডার ছবি সেভ হয়েছে! ☁️', 'success');
+              }
+            })
+            .catch(err => console.warn('ImgBB slide upload fallback:', err));
         };
         img.onerror = () => {
           setIsUploadingSlide(false);
@@ -1178,6 +1209,15 @@ export const AdminPortal = () => {
     if (!file) return;
     compressProductImage(file, (base64) => {
       setEditingMed(prev => prev ? ({ ...prev, image: base64 }) : null);
+      // Upload to ImgBB Cloud in background for permanent hosted CDN URL
+      uploadMedicinePhoto(base64, editingMed?.name || 'medicine')
+        .then(res => {
+          if (res && res.success && res.url) {
+            setEditingMed(prev => prev ? ({ ...prev, image: res.url }) : null);
+            showToast?.('ImgBB ক্লাউডে ওষুধের ছবি সেভ হয়েছে! ☁️', 'success');
+          }
+        })
+        .catch(err => console.warn('ImgBB med upload fallback:', err));
     });
     e.target.value = '';
   };
@@ -1187,6 +1227,15 @@ export const AdminPortal = () => {
     if (!file) return;
     compressProductImage(file, (base64) => {
       setNewMed(prev => ({ ...prev, image: base64 }));
+      // Upload to ImgBB Cloud in background for permanent hosted CDN URL
+      uploadMedicinePhoto(base64, newMed?.name || 'medicine')
+        .then(res => {
+          if (res && res.success && res.url) {
+            setNewMed(prev => ({ ...prev, image: res.url }));
+            showToast?.('ImgBB ক্লাউডে ওষুধের ছবি সেভ হয়েছে! ☁️', 'success');
+          }
+        })
+        .catch(err => console.warn('ImgBB new med upload fallback:', err));
     });
     e.target.value = '';
   };
@@ -2526,6 +2575,20 @@ export const AdminPortal = () => {
                 <span>ফার্মেসি সেটিংস ও প্রোফাইল</span>
               </button>
             )}
+
+            {canAccessTab('database') && (
+              <button
+                onClick={() => setActiveTab('database')}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all cursor-pointer text-left ${
+                  activeTab === 'database' 
+                    ? 'bg-gradient-to-r from-cyan-500/35 to-blue-500/35 text-white shadow-md backdrop-blur-xs border border-cyan-400/40 font-bold' 
+                    : 'text-blue-100/80 hover:bg-white/10'
+                }`}
+              >
+                <Database className="w-4 h-4 text-cyan-300" />
+                <span>ডাটাবেজ ও ImgBB ক্লাউড</span>
+              </button>
+            )}
           </nav>
         </div>
       </aside>
@@ -2567,6 +2630,7 @@ export const AdminPortal = () => {
               {activeTab === 'payments' && 'পেমেন্ট গেটওয়ে, বিকাশ, নগদ ও ব্যাংক অ্যাকাউন্ট ব্যবস্থাপনা'}
               {activeTab === 'settings' && (settingsSubTab === 'users' ? 'ইউজার প্রোফাইল ও অপশন পারমিশন কন্ট্রোল' : 'ফার্মেসি প্রোফাইল ও কনফিগারেশন')}
               {activeTab === 'users' && 'ইউজার প্রোফাইল ও অপশন পারমিশন কন্ট্রোল'}
+              {activeTab === 'database' && 'Supabase PostgreSQL ডাটাবেজ ও ImgBB ইমেজ ক্লাউড হাব'}
             </h1>
             <span className="text-xs text-slate-500">
               বেলী ফার্মেসি ম্যানেজমেন্ট সিস্টেম • রিয়েল-টাইম লাইভ ডাটা
@@ -8430,6 +8494,13 @@ export const AdminPortal = () => {
               </div>
             );
           })()}
+
+          {/* ================================================= */}
+          {/* TAB: DATABASE & IMGBB CLOUD HUB */}
+          {/* ================================================= */}
+          {activeTab === 'database' && canAccessTab('database') && (
+            <AdminDatabaseManager />
+          )}
 
           {/* Unauthorized Access Fallback Screen */}
           {!canAccessTab(activeTab) && (

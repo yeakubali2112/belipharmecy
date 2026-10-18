@@ -34,6 +34,7 @@ import {
 } from 'lucide-react';
 import { useShop } from '../context/ShopContext';
 import { VoiceNotePlayer } from './VoiceNotePlayer';
+import { uploadCustomerAvatar } from '../services/imgbbService';
 
 export const CustomerProfileModal = () => {
   const { 
@@ -134,11 +135,25 @@ export const CustomerProfileModal = () => {
         ctx.drawImage(img, 0, 0, width, height);
         const compressedBase64 = canvas.toDataURL('image/jpeg', 0.85);
 
+        // Immediate visual preview
         if (currentCustomer) {
           updateCustomerProfile({ avatar: compressedBase64 });
         } else {
           setGuestAvatar(compressedBase64);
         }
+
+        // Upload to ImgBB Cloud in background for permanent hosted URL
+        uploadCustomerAvatar(compressedBase64, currentCustomer?.phone || 'customer')
+          .then(res => {
+            if (res && res.success && res.url) {
+              if (currentCustomer) {
+                updateCustomerProfile({ avatar: res.url });
+              } else {
+                setGuestAvatar(res.url);
+              }
+            }
+          })
+          .catch(err => console.warn('ImgBB avatar upload fallback to local base64:', err));
       };
       img.src = event.target.result;
     };
