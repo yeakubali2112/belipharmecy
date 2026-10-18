@@ -81,6 +81,7 @@ import { VoiceNotePlayer } from './VoiceNotePlayer';
 import { convertFileToBase64, createSyntheticVoiceAudio } from '../utils/voiceNoteHelper';
 import { AdminUserManagement } from './AdminUserManagement';
 import { AdminForgotPasswordModal } from './AdminForgotPasswordModal';
+import { ConfirmModal } from './ConfirmModal';
 import { 
   uploadImageToImgBB, 
   uploadMedicinePhoto, 
@@ -176,6 +177,46 @@ export const AdminPortal = () => {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loginError, setLoginError] = useState('');
+
+  // Centered Delete & Action Confirmation Modal State
+  const [confirmDialog, setConfirmDialog] = useState({
+    isOpen: false,
+    title: '',
+    message: '',
+    itemName: '',
+    subMessage: '',
+    confirmText: '',
+    cancelText: '',
+    isDanger: true,
+    onConfirm: null,
+  });
+
+  const requestConfirm = ({
+    title = '',
+    message = '',
+    itemName = '',
+    subMessage = '',
+    confirmText = '',
+    cancelText = '',
+    isDanger = true,
+    onConfirm = null,
+  }) => {
+    setConfirmDialog({
+      isOpen: true,
+      title,
+      message,
+      itemName,
+      subMessage,
+      confirmText,
+      cancelText,
+      isDanger,
+      onConfirm,
+    });
+  };
+
+  const closeConfirmDialog = () => {
+    setConfirmDialog(prev => ({ ...prev, isOpen: false, onConfirm: null }));
+  };
 
   // Forgot Password Modal State
   const [isForgotModalOpen, setIsForgotModalOpen] = useState(false);
@@ -1667,9 +1708,16 @@ export const AdminPortal = () => {
   };
 
   const handleDeleteCustomer = (phone, name) => {
-    if (window.confirm(lang === 'bn' ? `আপনি কি নিশ্চিতভাবে "${name}" (${phone}) গ্রাহকের প্রোফাইল ডিলিট করতে চান?` : `Are you sure you want to delete ${name} (${phone})?`)) {
-      adminDeleteCustomer(phone);
-    }
+    requestConfirm({
+      title: lang === 'bn' ? 'গ্রাহক মুছে ফেলার নিশ্চিতকরণ' : 'Delete Customer Confirmation',
+      message: lang === 'bn' ? `আপনি কি নিশ্চিতভাবে "${name}" (${phone}) গ্রাহকের প্রোফাইল ডিলিট করতে চান?` : `Are you sure you want to delete ${name} (${phone})?`,
+      itemName: `${name} • ${phone}`,
+      subMessage: lang === 'bn' ? 'গ্রাহকের যাবতীয় প্রোফাইল ও সংরক্ষিত তথ্য স্থায়ীভাবে মুছে যাবে।' : 'Customer profile and saved records will be permanently deleted.',
+      confirmText: lang === 'bn' ? 'হ্যাঁ, ডিলিট করুন' : 'Yes, Delete',
+      cancelText: lang === 'bn' ? 'বাতিল' : 'Cancel',
+      isDanger: true,
+      onConfirm: () => adminDeleteCustomer(phone)
+    });
   };
 
   // ==========================================
@@ -4228,9 +4276,15 @@ export const AdminPortal = () => {
                       <button
                         type="button"
                         onClick={() => {
-                          if (window.confirm('আপনি কি সকল স্টক ইন হিস্টোরি মুছে ফেলতে চান?')) {
-                            clearRestockLogs();
-                          }
+                          requestConfirm({
+                            title: lang === 'bn' ? 'স্টক হিস্টোরি ক্লিয়ার' : 'Clear Restock History',
+                            message: lang === 'bn' ? 'আপনি কি সকল স্টক ইন হিস্টোরি মুছে ফেলতে চান?' : 'Are you sure you want to clear all restock history logs?',
+                            subMessage: lang === 'bn' ? 'অতীতের স্টক লগের সমস্ত ডাটা মুছে যাবে এবং পুনরুদ্ধার করা যাবে না।' : 'All past restock history logs will be erased permanently.',
+                            confirmText: lang === 'bn' ? 'হ্যাঁ, লগ মুছুন' : 'Yes, Clear Logs',
+                            cancelText: lang === 'bn' ? 'বাতিল' : 'Cancel',
+                            isDanger: true,
+                            onConfirm: () => clearRestockLogs()
+                          });
                         }}
                         className="px-3 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold transition-all cursor-pointer"
                       >
@@ -5605,7 +5659,17 @@ export const AdminPortal = () => {
                   </button>
 
                   <button
-                    onClick={resetToDefaultMedicines}
+                    onClick={() => {
+                      requestConfirm({
+                        title: lang === 'bn' ? 'ডিফল্ট ক্যাটালগ রিস্টোর' : 'Restore Default Catalog',
+                        message: lang === 'bn' ? 'আপনি কি সকল ওষুধ রিসেট করে ডিফল্ট ক্যাটালগে ফিরতে চান?' : 'Are you sure you want to reset all medicines to the default catalog?',
+                        subMessage: lang === 'bn' ? 'আপনার যোগ করা কাস্টম ওষুধ ও পরিবর্তিত মূল্য রিসেট হয়ে মূল ডিফল্ট তালিকায় ফিরবে।' : 'Custom added medicines and edited prices will be reset to default.',
+                        confirmText: lang === 'bn' ? 'হ্যাঁ, ডিফল্ট করুন' : 'Yes, Restore Default',
+                        cancelText: lang === 'bn' ? 'বাতিল' : 'Cancel',
+                        isDanger: true,
+                        onConfirm: () => resetToDefaultMedicines()
+                      });
+                    }}
                     className="flex items-center gap-1.5 text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold px-3 py-2 rounded-none cursor-pointer"
                   >
                     <RotateCcw className="w-3.5 h-3.5" />
@@ -5884,9 +5948,16 @@ export const AdminPortal = () => {
                               </button>
                               <button
                                 onClick={() => {
-                                  if (window.confirm(`আপনি কি নিশ্চিত যে "${med.name}" মুছে ফেলতে চান?`)) {
-                                    deleteMedicine(med.id);
-                                  }
+                                  requestConfirm({
+                                    title: lang === 'bn' ? 'ওষুধ মুছে ফেলার নিশ্চিতকরণ' : 'Delete Medicine Confirmation',
+                                    message: lang === 'bn' ? `আপনি কি নিশ্চিত যে "${med.name}" মুছে ফেলতে চান?` : `Are you sure you want to delete "${med.name}"?`,
+                                    itemName: `${med.name} (${med.company || ''})`,
+                                    subMessage: lang === 'bn' ? 'এই ওষুধটি মুছে ফেললে ক্যাটালগ ও ইনভেন্টরি থেকে এটি পুরোপুরি বাদ যাবে।' : 'This medicine will be permanently removed from catalog and inventory.',
+                                    confirmText: lang === 'bn' ? 'হ্যাঁ, মুছে ফেলুন' : 'Yes, Delete',
+                                    cancelText: lang === 'bn' ? 'বাতিল' : 'Cancel',
+                                    isDanger: true,
+                                    onConfirm: () => deleteMedicine(med.id)
+                                  });
                                 }}
                                 className="text-slate-400 hover:text-rose-600 hover:bg-rose-50 p-1.5 rounded-none transition-colors cursor-pointer"
                                 title="মুছে ফেলুন (Delete)"
@@ -6207,9 +6278,16 @@ export const AdminPortal = () => {
                               </button>
                               <button
                                 onClick={() => {
-                                  if (window.confirm(`কুপন '${coupon.code}' ডিলিট করতে চান?`)) {
-                                    deleteCoupon(coupon.id);
-                                  }
+                                  requestConfirm({
+                                    title: lang === 'bn' ? 'কুপন ডিলিট নিশ্চিতকরণ' : 'Delete Coupon Confirmation',
+                                    message: lang === 'bn' ? `কুপন '${coupon.code}' ডিলিট করতে চান?` : `Are you sure you want to delete coupon '${coupon.code}'?`,
+                                    itemName: `কুপন কোড: ${coupon.code}`,
+                                    subMessage: lang === 'bn' ? 'এই কুপন কোডটি গ্রাহকরা চেকআউটে আর প্রয়োগ করতে পারবেন না।' : 'Customers will no longer be able to use this coupon code.',
+                                    confirmText: lang === 'bn' ? 'হ্যাঁ, ডিলিট করুন' : 'Yes, Delete',
+                                    cancelText: lang === 'bn' ? 'বাতিল' : 'Cancel',
+                                    isDanger: true,
+                                    onConfirm: () => deleteCoupon(coupon.id)
+                                  });
                                 }}
                                 className="p-1.5 hover:bg-rose-50 text-rose-600 rounded-sm transition-colors cursor-pointer"
                                 title="মুছে ফেলুন"
@@ -6345,9 +6423,15 @@ export const AdminPortal = () => {
                         <button
                           type="button"
                           onClick={() => {
-                            if (window.confirm('আপনি কি নিশ্চিত যে সকল ব্যানার স্লাইড মুছে ফেলে ডিফল্ট ব্র‍্যান্ড থিমে ফেরত যেতে চান?')) {
-                              handleResetAllHeroSlides();
-                            }
+                            requestConfirm({
+                              title: lang === 'bn' ? 'সকল স্লাইড রিসেট' : 'Reset All Slides',
+                              message: lang === 'bn' ? 'আপনি কি নিশ্চিত যে সকল ব্যানার স্লাইড মুছে ফেলে ডিফল্ট ব্র‍্যান্ড থিমে ফেরত যেতে চান?' : 'Are you sure you want to reset all banner slides to default brand theme?',
+                              subMessage: lang === 'bn' ? 'আপনার সাজানো ব্যানারগুলো মুছে প্রাথমিক ডিফল্ট ব্যানার ফিরে আসবে।' : 'All custom hero banners will be restored to default banners.',
+                              confirmText: lang === 'bn' ? 'হ্যাঁ, সব রিসেট করুন' : 'Yes, Reset All',
+                              cancelText: lang === 'bn' ? 'বাতিল' : 'Cancel',
+                              isDanger: true,
+                              onConfirm: () => handleResetAllHeroSlides()
+                            });
                           }}
                           className="text-xs text-rose-600 hover:text-rose-800 bg-rose-50 hover:bg-rose-100 border border-rose-200 px-3 py-1.5 rounded-xl font-bold flex items-center gap-1 transition-all cursor-pointer"
                         >
@@ -6470,9 +6554,16 @@ export const AdminPortal = () => {
                                     <button
                                       type="button"
                                       onClick={() => {
-                                        if (window.confirm(`ব্যানার স্লাইড #${index + 1} মুছে ফেলতে চান?`)) {
-                                          handleDeleteSlide(slide.id);
-                                        }
+                                        requestConfirm({
+                                          title: lang === 'bn' ? 'ব্যানার স্লাইড ডিলিট' : 'Delete Banner Slide',
+                                          message: lang === 'bn' ? `ব্যানার স্লাইড #${index + 1} মুছে ফেলতে চান?` : `Are you sure you want to delete banner slide #${index + 1}?`,
+                                          itemName: `ব্যানার স্লাইড #${index + 1}`,
+                                          subMessage: lang === 'bn' ? 'এই স্লাইডারটি হোমপেজ থেকে অপসারিত হবে।' : 'This banner slide will be removed from homepage.',
+                                          confirmText: lang === 'bn' ? 'হ্যাঁ, মুছে ফেলুন' : 'Yes, Delete',
+                                          cancelText: lang === 'bn' ? 'বাতিল' : 'Cancel',
+                                          isDanger: true,
+                                          onConfirm: () => handleDeleteSlide(slide.id)
+                                        });
                                       }}
                                       className="p-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 transition-all cursor-pointer"
                                       title="মুছে ফেলুন"
@@ -7179,9 +7270,16 @@ export const AdminPortal = () => {
                             <button
                               type="button"
                               onClick={() => {
-                                if (window.confirm(`আপনি কি নিশ্চিত যে "${bank.bankName}" অ্যাকাউন্টটি রিমুভ করতে চান?`)) {
-                                  deleteBank(bank.id);
-                                }
+                                requestConfirm({
+                                  title: lang === 'bn' ? 'ব্যাংক একাউন্ট রিমুভ' : 'Remove Bank Account',
+                                  message: lang === 'bn' ? `আপনি কি নিশ্চিত যে "${bank.bankName}" অ্যাকাউন্টটি রিমুভ করতে চান?` : `Are you sure you want to remove "${bank.bankName}" account?`,
+                                  itemName: bank.bankName,
+                                  subMessage: lang === 'bn' ? 'গ্রাহকরা চেকআউটে আর এই ব্যাংক বা পেমেন্ট অপশনটি পাবেন না।' : 'Customers will no longer see this payment method at checkout.',
+                                  confirmText: lang === 'bn' ? 'হ্যাঁ, রিমুভ করুন' : 'Yes, Remove',
+                                  cancelText: lang === 'bn' ? 'বাতিল' : 'Cancel',
+                                  isDanger: true,
+                                  onConfirm: () => deleteBank(bank.id)
+                                });
                               }}
                               className="px-3 py-1.5 bg-white hover:bg-rose-50 text-rose-600 border border-rose-200 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors shadow-2xs"
                             >
@@ -10053,6 +10151,21 @@ export const AdminPortal = () => {
         onClose={() => setIsForgotModalOpen(false)}
         initialUsername={forgotModalUsername}
         onSuccess={() => {}}
+      />
+
+      {/* Centered Delete & Action Confirmation Modal */}
+      <ConfirmModal
+        isOpen={confirmDialog.isOpen}
+        onClose={closeConfirmDialog}
+        onConfirm={confirmDialog.onConfirm}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        itemName={confirmDialog.itemName}
+        subMessage={confirmDialog.subMessage}
+        confirmText={confirmDialog.confirmText}
+        cancelText={confirmDialog.cancelText}
+        isDanger={confirmDialog.isDanger}
+        lang={lang}
       />
 
     </div>
