@@ -90,7 +90,7 @@ export const ShopProvider = ({ children }) => {
 
   // Ad Banner / Offer Popup Settings (Synced with LocalStorage and Firebase Cloud)
   const DEFAULT_AD_BANNER = {
-    isActive: true,
+    isActive: false,
     title: 'বেলী ফার্মেসির বিশেষ অফার!',
     subtitle: 'ঘরে বসেই আসল ওষুধ অর্ডার করুন দ্রুততম ডেলিভারিতে। বিশেষ কুপন কোড ব্যবহারে আকর্ষণীয় ছাড় লুফে নিন!',
     imageUrl: 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?auto=format&fit=crop&w=900&q=80',
