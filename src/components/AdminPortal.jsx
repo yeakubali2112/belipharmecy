@@ -5647,16 +5647,6 @@ export const AdminPortal = () => {
                 </div>
 
                 <div className="flex gap-2 flex-wrap">
-                  <button
-                    type="button"
-                    onClick={handleSyncCloudMedicines}
-                    disabled={isSyncingCloudMeds}
-                    className="flex items-center gap-1.5 text-xs bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold px-3 py-2 rounded-none border border-indigo-200 cursor-pointer transition-colors"
-                    title="সব ওষুধের নিজস্ব ফটো ক্লাউডে সিঙ্ক করুন যাতে যেকোনো ডিভাইসে লাইভ দেখা যায়"
-                  >
-                    <Cloud className="w-3.5 h-3.5 text-indigo-600" />
-                    <span>{isSyncingCloudMeds ? 'সিঙ্ক হচ্ছে...' : 'ক্লাউড সিঙ্ক'}</span>
-                  </button>
 
                   <button
                     onClick={() => {
