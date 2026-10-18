@@ -37,9 +37,14 @@ export const CartDrawer = () => {
 
   if (!isCartOpen) return null;
 
-  const deliveryFee = cartSubtotal >= config.freeDeliveryThreshold ? 0 : (cart.length > 0 ? config.deliveryFee : 0);
-  const grandTotal = Math.max(0, cartSubtotal - discountAmount + deliveryFee);
-  const freeDeliveryRemaining = Math.max(0, config.freeDeliveryThreshold - cartSubtotal);
+  const subtotal = Number.isFinite(Number(cartSubtotal)) ? Number(cartSubtotal) : 0;
+  const discount = Number.isFinite(Number(discountAmount)) ? Number(discountAmount) : 0;
+  const freeThreshold = Number.isFinite(Number(config?.freeDeliveryThreshold)) ? Number(config.freeDeliveryThreshold) : 500;
+  const standardFee = Number.isFinite(Number(config?.deliveryFee)) ? Number(config.deliveryFee) : 40;
+
+  const deliveryFee = subtotal >= freeThreshold ? 0 : (cart.length > 0 ? standardFee : 0);
+  const grandTotal = Math.max(0, Number((subtotal - discount + deliveryFee).toFixed(2)));
+  const freeDeliveryRemaining = Math.max(0, Number((freeThreshold - subtotal).toFixed(2)));
 
   const handleApplyPromo = (e) => {
     e.preventDefault();

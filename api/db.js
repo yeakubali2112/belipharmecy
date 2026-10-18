@@ -58,7 +58,15 @@ export default async function handler(req, res) {
         const rows = await sql`SELECT key, data FROM settings;`;
         const settingsMap = {};
         rows.forEach(r => {
-          settingsMap[r.key] = r.data;
+          let val = r.data;
+          while (typeof val === 'string') {
+            try {
+              val = JSON.parse(val);
+            } catch {
+              break;
+            }
+          }
+          settingsMap[r.key] = val;
         });
         return res.status(200).json({ success: true, data: settingsMap });
       }
@@ -240,9 +248,19 @@ export default async function handler(req, res) {
       if (action === 'save_settings') {
         const { key, data } = body;
         if (!key || !data) return res.status(400).json({ error: 'Missing key or data' });
+        
+        let cleanData = data;
+        while (typeof cleanData === 'string') {
+          try {
+            cleanData = JSON.parse(cleanData);
+          } catch {
+            break;
+          }
+        }
+
         await sql`
           INSERT INTO settings (key, data, updated_at)
-          VALUES (${key}, ${JSON.stringify(data)}, NOW())
+          VALUES (${key}, ${sql.json(cleanData)}, NOW())
           ON CONFLICT (key) DO UPDATE
           SET data = EXCLUDED.data, updated_at = NOW();
         `;

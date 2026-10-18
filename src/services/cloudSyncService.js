@@ -44,21 +44,40 @@ export const initDatabaseSchema = async () => {
 // 1. SETTINGS SYNC (Hero, Delivery, Payment, Ads, Coupons, Users)
 // ==========================================
 
+const safeParse = (val, fallback = null) => {
+  if (val === undefined || val === null) return fallback;
+  let parsed = val;
+  while (typeof parsed === 'string') {
+    try {
+      parsed = JSON.parse(parsed);
+    } catch {
+      break;
+    }
+  }
+  return parsed ?? fallback;
+};
+
 export const fetchCloudSettings = async () => {
   try {
     const res = await fetch(`${API_BASE}?type=settings`, { cache: 'no-store' });
     if (!res.ok) return null;
     const json = await res.json();
     if (json.success && json.data) {
-      // Re-map into standard settings structure
+      // Re-map into standard settings structure with guaranteed parsed objects
+      const deliverySettings = safeParse(json.data.delivery_settings || json.data.deliverySettings);
+      const paymentSettings = safeParse(json.data.payment_settings || json.data.paymentSettings);
+      const coupons = safeParse(json.data.coupons);
+      const adBanner = safeParse(json.data.ad_banner || json.data.adBanner);
+      const heroBanner = safeParse(json.data.hero_banner || json.data.heroBanner);
+      const adminUsers = safeParse(json.data.admin_users || json.data.adminUsers);
+
       return {
-        deliverySettings: json.data.delivery_settings || json.data.deliverySettings,
-        paymentSettings: json.data.payment_settings || json.data.paymentSettings,
-        coupons: json.data.coupons,
-        adBanner: json.data.ad_banner || json.data.adBanner,
-        heroBanner: json.data.hero_banner || json.data.heroBanner,
-        adminUsers: json.data.admin_users || json.data.adminUsers,
-        ...json.data
+        deliverySettings,
+        paymentSettings,
+        coupons,
+        adBanner,
+        heroBanner,
+        adminUsers
       };
     }
     return null;

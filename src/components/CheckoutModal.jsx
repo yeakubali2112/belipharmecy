@@ -78,9 +78,15 @@ export const CheckoutModal = () => {
 
   if (!isCheckoutModalOpen) return null;
 
-  const baseDeliveryFee = cartSubtotal >= config.freeDeliveryThreshold ? 0 : config.deliveryFee;
-  const deliveryFee = deliveryType === 'express' ? config.expressDeliveryFee : baseDeliveryFee;
-  const grandTotal = Number(Math.max(0, cartSubtotal - discountAmount + deliveryFee).toFixed(2));
+  const subtotalNum = Number.isFinite(Number(cartSubtotal)) ? Number(cartSubtotal) : 0;
+  const discountNum = Number.isFinite(Number(discountAmount)) ? Number(discountAmount) : 0;
+  const deliveryFeeNum = Number.isFinite(Number(config?.deliveryFee)) ? Number(config.deliveryFee) : 40;
+  const freeThresholdNum = Number.isFinite(Number(config?.freeDeliveryThreshold)) ? Number(config.freeDeliveryThreshold) : 500;
+  const expressFeeNum = Number.isFinite(Number(config?.expressDeliveryFee)) ? Number(config.expressDeliveryFee) : 80;
+
+  const baseDeliveryFee = subtotalNum >= freeThresholdNum ? 0 : deliveryFeeNum;
+  const deliveryFee = deliveryType === 'express' ? expressFeeNum : baseDeliveryFee;
+  const grandTotal = Number(Math.max(0, subtotalNum - discountNum + deliveryFee).toFixed(2));
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -305,10 +311,10 @@ export const CheckoutModal = () => {
                     {lang === 'bn' ? 'নিয়মিত ডেলিভারি' : 'Regular Delivery'}
                   </div>
                   <p className="text-[11px] text-slate-500">
-                    {lang === 'bn' ? 'আজকের মধ্যে ডেলিভারি (৳৫০০+ অর্ডারে ফ্রি)' : 'Same-day delivery (Free above ৳500)'}
+                    {lang === 'bn' ? `আজকের মধ্যে ডেলিভারি (৳${freeThresholdNum}+ অর্ডারে ফ্রি)` : `Same-day delivery (Free above ৳${freeThresholdNum})`}
                   </p>
                   <span className="text-xs font-bold text-emerald-700 mt-1 block">
-                    {cartSubtotal >= config.freeDeliveryThreshold ? (lang === 'bn' ? 'ফ্রি' : 'Free') : `৳${config.deliveryFee}`}
+                    {subtotalNum >= freeThresholdNum ? (lang === 'bn' ? 'ফ্রি' : 'Free') : `+৳${deliveryFeeNum}`}
                   </span>
                 </div>
               </div>
@@ -337,7 +343,7 @@ export const CheckoutModal = () => {
                     {lang === 'bn' ? 'জরুরি প্রয়োজনে স্পিড রাইডার দ্বারা দ্রুততম ডেলিভারি' : 'Dedicated instant dispatch'}
                   </p>
                   <span className="text-xs font-bold text-emerald-700 mt-1 block">
-                    ৳{config.expressDeliveryFee}
+                    +৳{expressFeeNum}
                   </span>
                 </div>
               </div>
@@ -732,7 +738,9 @@ export const CheckoutModal = () => {
             )}
             <div className="flex justify-between">
               <span>{lang === 'bn' ? 'ডেলিভারি চার্জ' : 'Delivery Fee'}</span>
-              <span className="font-semibold text-slate-900">৳{deliveryFee.toFixed(2)}</span>
+              <span className="font-semibold text-slate-900">
+                {deliveryFee === 0 ? (lang === 'bn' ? 'ফ্রি' : 'Free') : `৳${deliveryFee.toFixed(2)}`}
+              </span>
             </div>
             <div className="flex justify-between text-sm font-black text-slate-900 pt-1.5 border-t border-slate-200">
               <span>{lang === 'bn' ? 'মোট পরিশোধযোগ্য' : 'Grand Total'}</span>

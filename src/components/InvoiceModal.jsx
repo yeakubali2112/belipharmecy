@@ -200,12 +200,12 @@ export const InvoiceModal = () => {
               <div className="flex justify-between text-slate-600">
                 <span>ডেলিভারি ফি:</span>
                 <span className="font-semibold">
-                  {activeInvoiceOrder.deliveryFee === 0 ? 'ফ্রি (৳0)' : `৳${activeInvoiceOrder.deliveryFee?.toFixed(2)}`}
+                  {Number(activeInvoiceOrder.deliveryFee) === 0 ? 'ফ্রি (৳০)' : `৳${(Number(activeInvoiceOrder.deliveryFee) || 0).toFixed(2)}`}
                 </span>
               </div>
               <div className="flex justify-between text-sm font-black text-slate-900 pt-2 border-t border-slate-200">
                 <span>সর্বমোট প্রদেয়:</span>
-                <span className="text-emerald-800">৳{activeInvoiceOrder.grandTotal?.toFixed(2)}</span>
+                <span className="text-emerald-800">৳{(Number(activeInvoiceOrder.grandTotal ?? activeInvoiceOrder.total) || 0).toFixed(2)}</span>
               </div>
             </div>
           </div>

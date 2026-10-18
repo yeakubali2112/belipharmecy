@@ -70,21 +70,42 @@ const safeSetItem = (key, value) => {
 };
 
 export const ShopProvider = ({ children }) => {
-  // Delivery Settings (Saved in localStorage so admin updates persist)
-  const DEFAULT_DELIVERY = {
-    deliveryFee: PHARMACY_CONFIG.deliveryFee || 40,
-    freeDeliveryThreshold: PHARMACY_CONFIG.freeDeliveryThreshold || 500,
-    expressDeliveryFee: PHARMACY_CONFIG.expressDeliveryFee || 80,
+  // Delivery Settings Sanitizer (Guarantees valid finite numbers, avoids NaN)
+  const sanitizeDeliverySettings = (input) => {
+    const DEFAULT_DELIVERY = {
+      deliveryFee: Number(PHARMACY_CONFIG.deliveryFee) || 40,
+      freeDeliveryThreshold: Number(PHARMACY_CONFIG.freeDeliveryThreshold) || 500,
+      expressDeliveryFee: Number(PHARMACY_CONFIG.expressDeliveryFee) || 80,
+    };
+    if (!input) return DEFAULT_DELIVERY;
+    let s = input;
+    while (typeof s === 'string') {
+      try {
+        s = JSON.parse(s);
+      } catch {
+        break;
+      }
+    }
+    if (!s || typeof s !== 'object') return DEFAULT_DELIVERY;
+
+    const dFee = Number(s.deliveryFee);
+    const fThreshold = Number(s.freeDeliveryThreshold);
+    const eFee = Number(s.expressDeliveryFee);
+
+    return {
+      deliveryFee: Number.isFinite(dFee) && dFee >= 0 ? dFee : DEFAULT_DELIVERY.deliveryFee,
+      freeDeliveryThreshold: Number.isFinite(fThreshold) && fThreshold >= 0 ? fThreshold : DEFAULT_DELIVERY.freeDeliveryThreshold,
+      expressDeliveryFee: Number.isFinite(eFee) && eFee >= 0 ? eFee : DEFAULT_DELIVERY.expressDeliveryFee,
+    };
   };
 
   const [deliverySettings, setDeliverySettings] = useState(() => {
     const saved = localStorage.getItem('beli_delivery_settings');
-    if (!saved) return DEFAULT_DELIVERY;
+    if (!saved) return sanitizeDeliverySettings(null);
     try {
-      const parsed = JSON.parse(saved);
-      return { ...DEFAULT_DELIVERY, ...parsed };
+      return sanitizeDeliverySettings(JSON.parse(saved));
     } catch {
-      return DEFAULT_DELIVERY;
+      return sanitizeDeliverySettings(null);
     }
   });
 
@@ -184,11 +205,11 @@ export const ShopProvider = ({ children }) => {
   };
 
   const updateDeliverySettings = (newSettings) => {
-    const updated = {
-      deliveryFee: Number(newSettings.deliveryFee ?? deliverySettings.deliveryFee),
-      freeDeliveryThreshold: Number(newSettings.freeDeliveryThreshold ?? deliverySettings.freeDeliveryThreshold),
-      expressDeliveryFee: Number(newSettings.expressDeliveryFee ?? deliverySettings.expressDeliveryFee),
-    };
+    const updated = sanitizeDeliverySettings({
+      deliveryFee: newSettings.deliveryFee ?? deliverySettings.deliveryFee,
+      freeDeliveryThreshold: newSettings.freeDeliveryThreshold ?? deliverySettings.freeDeliveryThreshold,
+      expressDeliveryFee: newSettings.expressDeliveryFee ?? deliverySettings.expressDeliveryFee,
+    });
     setDeliverySettings(updated);
     safeSetItem('beli_delivery_settings', JSON.stringify(updated));
     saveCloudSettings({ heroBanner, paymentSettings, deliverySettings: updated, coupons, adBanner, adminUsers });
@@ -323,14 +344,15 @@ export const ShopProvider = ({ children }) => {
   });
 
   // Dynamic config merging default config with admin delivery settings, payment settings, and active admin password
+  const cleanDelivery = sanitizeDeliverySettings(deliverySettings);
   const config = {
     ...PHARMACY_CONFIG,
     bkashNumber: paymentSettings?.bkash?.number || PHARMACY_CONFIG.bkashNumber,
     nagadNumber: paymentSettings?.nagad?.number || PHARMACY_CONFIG.nagadNumber,
     adminPassword: customAdminPassword,
-    deliveryFee: Number(deliverySettings.deliveryFee),
-    freeDeliveryThreshold: Number(deliverySettings.freeDeliveryThreshold),
-    expressDeliveryFee: Number(deliverySettings.expressDeliveryFee),
+    deliveryFee: cleanDelivery.deliveryFee,
+    freeDeliveryThreshold: cleanDelivery.freeDeliveryThreshold,
+    expressDeliveryFee: cleanDelivery.expressDeliveryFee,
   };
 
   // Medicines (saved in localStorage so admin edits persist, merged with full INITIAL_MEDICINES catalog, automatically deduplicated)
@@ -1588,8 +1610,9 @@ export const ShopProvider = ({ children }) => {
       setAdBanner(event.adBanner);
       safeSetItem('beli_ad_banner', JSON.stringify(event.adBanner));
     } else if (event.type === 'DELIVERY_SETTINGS_UPDATED' && event.deliverySettings) {
-      setDeliverySettings(event.deliverySettings);
-      safeSetItem('beli_delivery_settings', JSON.stringify(event.deliverySettings));
+      const sanitized = sanitizeDeliverySettings(event.deliverySettings);
+      setDeliverySettings(sanitized);
+      safeSetItem('beli_delivery_settings', JSON.stringify(sanitized));
     } else if (event.type === 'PAYMENT_SETTINGS_UPDATED' && event.paymentSettings) {
       setPaymentSettings(event.paymentSettings);
       safeSetItem('beli_payment_settings', JSON.stringify(event.paymentSettings));
@@ -1599,8 +1622,9 @@ export const ShopProvider = ({ children }) => {
     } else if (event.type === 'ALL_SETTINGS_SYNCED' || event.type === 'SETTINGS_UPDATED') {
       const s = event.settings || event;
       if (s.deliverySettings) {
-        setDeliverySettings(s.deliverySettings);
-        safeSetItem('beli_delivery_settings', JSON.stringify(s.deliverySettings));
+        const sanitized = sanitizeDeliverySettings(s.deliverySettings);
+        setDeliverySettings(sanitized);
+        safeSetItem('beli_delivery_settings', JSON.stringify(sanitized));
       }
       if (s.paymentSettings) {
         setPaymentSettings(s.paymentSettings);
@@ -1654,8 +1678,9 @@ export const ShopProvider = ({ children }) => {
         const cloudSettings = await fetchCloudSettings();
         if (cloudSettings && isMounted) {
           if (cloudSettings.deliverySettings) {
-            setDeliverySettings(cloudSettings.deliverySettings);
-            safeSetItem('beli_delivery_settings', JSON.stringify(cloudSettings.deliverySettings));
+            const sanitized = sanitizeDeliverySettings(cloudSettings.deliverySettings);
+            setDeliverySettings(sanitized);
+            safeSetItem('beli_delivery_settings', JSON.stringify(sanitized));
           }
           if (cloudSettings.paymentSettings) {
             setPaymentSettings(cloudSettings.paymentSettings);
@@ -1840,7 +1865,7 @@ export const ShopProvider = ({ children }) => {
           if (parsed && typeof parsed === 'object') setPaymentSettings(parsed);
         } else if (e.key === 'beli_delivery_settings') {
           const parsed = JSON.parse(e.newValue);
-          if (parsed && typeof parsed === 'object') setDeliverySettings(parsed);
+          if (parsed) setDeliverySettings(sanitizeDeliverySettings(parsed));
         } else if (e.key === 'beli_medicines') {
           const parsed = JSON.parse(e.newValue);
           if (Array.isArray(parsed)) {
@@ -2564,8 +2589,9 @@ export const ShopProvider = ({ children }) => {
         safeSetItem('beli_payment_settings', JSON.stringify(data.paymentSettings));
       }
       if (data.deliverySettings) {
-        setDeliverySettings(data.deliverySettings);
-        safeSetItem('beli_delivery_settings', JSON.stringify(data.deliverySettings));
+        const sanitized = sanitizeDeliverySettings(data.deliverySettings);
+        setDeliverySettings(sanitized);
+        safeSetItem('beli_delivery_settings', JSON.stringify(sanitized));
       }
       if (data.adBanner) {
         setAdBanner(data.adBanner);
