@@ -131,6 +131,7 @@ const MainApp = () => {
 
         <AdminPortal />
         <InvoiceModal />
+        <AdPopupModal />
       </div>
     );
   }

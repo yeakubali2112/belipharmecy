@@ -91,6 +91,33 @@ import {
 import { checkDatabaseStatus, initDatabaseSchema } from '../services/cloudSyncService';
 import { Database, Server } from 'lucide-react';
 
+export const PRESET_OFFER_BANNERS = [
+  {
+    id: 'preset-1',
+    title: '১০% বিশেষ ছাড় (BELI10)',
+    imageUrl: 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?auto=format&fit=crop&w=900&q=80',
+    tag: 'জনপ্রিয় অফার'
+  },
+  {
+    id: 'preset-2',
+    title: 'ফ্রি হোম ডেলিভারি অফার (৳৫০০+)',
+    imageUrl: 'https://images.unsplash.com/photo-1631549916768-4119b2e5f926?auto=format&fit=crop&w=900&q=80',
+    tag: 'ডেলিভারি'
+  },
+  {
+    id: 'preset-3',
+    title: '১০০% জেনুইন ওষুধ ও প্রেসক্রিপশন সেবা',
+    imageUrl: 'https://images.unsplash.com/photo-1576602976047-174e57a47881?auto=format&fit=crop&w=900&q=80',
+    tag: 'কোয়ালিটি'
+  },
+  {
+    id: 'preset-4',
+    title: '২৪/৭ জরুরি ওষুধ সার্ভিস',
+    imageUrl: 'https://images.unsplash.com/photo-1587854692152-cbe660dbde88?auto=format&fit=crop&w=900&q=80',
+    tag: 'জরুরি সেবা'
+  }
+];
+
 export const AdminPortal = () => {
   const { 
     config, 
@@ -6814,43 +6841,108 @@ export const AdminPortal = () => {
               {/* ================================================= */}
               {bannerTab === 'popup' && (
                 <div className="space-y-6">
-                  {/* Quick Status Bar */}
+                  {/* Smart Master Status & Live Action Bar */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="bg-white border border-slate-200 p-4 shadow-xs rounded-xl flex items-center justify-between">
-                      <div>
-                        <span className="text-xs text-slate-500 font-bold block">পপআপ ফটো বিজ্ঞাপন স্ট্যাটাস</span>
-                        <span className={`text-xl font-black ${adForm.isActive ? 'text-[#02975E]' : 'text-slate-400'}`}>
-                          {adForm.isActive ? '✅ চালু রয়েছে (Active)' : '❌ বন্ধ রয়েছে (Disabled)'}
+                    {/* Status Card with Master Live Switch */}
+                    <div className="bg-white border border-slate-200 p-5 shadow-xs rounded-2xl flex items-center justify-between gap-4">
+                      <div className="space-y-1">
+                        <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">
+                          পপআপ ব্যানার লাইভ স্ট্যাটাস
                         </span>
+                        <div>
+                          {adForm.isActive && adForm.imageUrl ? (
+                            <div className="flex items-center gap-2">
+                              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                              <span className="text-base sm:text-lg font-black text-[#02975E]">
+                                লাইভ চালু রয়েছে (Active)
+                              </span>
+                            </div>
+                          ) : adForm.isActive && !adForm.imageUrl ? (
+                            <div className="flex items-center gap-2">
+                              <span className="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
+                              <span className="text-base sm:text-lg font-black text-amber-600">
+                                ফটো প্রয়োজন (অসম্পূর্ণ)
+                              </span>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-2">
+                              <span className="w-2.5 h-2.5 rounded-full bg-slate-400"></span>
+                              <span className="text-base sm:text-lg font-black text-slate-400">
+                                বন্ধ রয়েছে (Disabled)
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                        <p className="text-[11px] text-slate-400">
+                          {adForm.isActive && adForm.imageUrl
+                            ? 'গ্রাহক ওয়েবসাইটে প্রবেশ করলেই এই অফার পপআপ দেখতে পাবেন'
+                            : adForm.isActive && !adForm.imageUrl
+                            ? 'বিজ্ঞাপন সক্রিয় কিন্তু ছবি না থাকায় ওয়েবসাইটে প্রদর্শিত হবে না'
+                            : 'বর্তমানে ওয়েবসাইটে কোনো পপআপ দেখানো হচ্ছে না'}
+                        </p>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const next = !adForm.isActive;
-                          setAdForm(prev => ({ ...prev, isActive: next }));
-                          updateAdBanner({ ...adForm, isActive: next });
-                        }}
-                        className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                          adForm.isActive 
-                            ? 'bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200' 
-                            : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200'
-                        }`}
-                      >
-                        {adForm.isActive ? 'বিজ্ঞাপন বন্ধ করুন' : 'বিজ্ঞাপন চালু করুন'}
-                      </button>
+
+                      {/* Unified Master Switch */}
+                      <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                        <input 
+                          type="checkbox" 
+                          checked={adForm.isActive}
+                          onChange={(e) => {
+                            const val = e.target.checked;
+                            const updated = {
+                              ...adBanner,
+                              ...adForm,
+                              isActive: val,
+                              updatedAt: new Date().toISOString()
+                            };
+                            setAdForm(updated);
+                            updateAdBanner(updated);
+                            showToast?.(
+                              val 
+                                ? (adForm.imageUrl ? 'পপআপ বিজ্ঞাপন সক্রিয় করা হয়েছে!' : 'পপআপ সুইচ অন হয়েছে। অনুগ্রহ করে একটি ছবি নির্বাচন করুন!') 
+                                : 'পপআপ বিজ্ঞাপন বন্ধ করা হয়েছে!', 
+                              val && !adForm.imageUrl ? 'info' : 'success'
+                            );
+                          }}
+                          className="sr-only peer"
+                        />
+                        <div className="w-12 h-7 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[3px] after:left-[3px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5.5 after:w-5.5 after:transition-all peer-checked:bg-[#02975E] shadow-inner"></div>
+                      </label>
                     </div>
 
-                    <div className="bg-white border border-slate-200 p-4 shadow-xs rounded-xl flex items-center justify-between">
-                      <div>
-                        <span className="text-xs text-slate-500 font-bold block">লাইভ পপআপ টেস্ট</span>
-                        <span className="text-xs text-slate-400">ওয়েবসাইটে ছবি কেমন দেখাবে দেখুন</span>
+                    {/* Live Test & Preview Modal Launcher */}
+                    <div className="bg-white border border-slate-200 p-5 shadow-xs rounded-2xl flex items-center justify-between gap-4">
+                      <div className="space-y-1">
+                        <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">
+                          লাইভ পপআপ টেস্ট (Live Test)
+                        </span>
+                        <span className="text-sm font-black text-slate-800 block">
+                          গ্রাহকের স্ক্রিনে কেমন দেখাবে?
+                        </span>
+                        <p className="text-[11px] text-slate-400">
+                          ওয়েবসাইটে যেভাবে পপআপ ও টাইমার কাউন্টডাউন আসবে
+                        </p>
                       </div>
                       <button
                         type="button"
                         onClick={() => {
+                          if (!adForm.imageUrl) {
+                            // If no image, auto-assign first preset so test modal actually displays
+                            const demoPreset = PRESET_OFFER_BANNERS[0];
+                            const updated = {
+                              ...adBanner,
+                              ...adForm,
+                              imageUrl: demoPreset.imageUrl,
+                              isActive: true,
+                              updatedAt: new Date().toISOString()
+                            };
+                            setAdForm(updated);
+                            updateAdBanner(updated);
+                            showToast?.('নমুনা ব্যানার সেট করে টেস্ট ওপেন করা হলো!', 'info');
+                          }
                           setIsAdModalOpen(true);
                         }}
-                        className="bg-[#123184] hover:bg-[#0d2463] text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer"
+                        className="bg-gradient-to-r from-[#123184] to-[#02975E] hover:from-[#0d2463] hover:to-[#027e4e] text-white px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 shadow-md transition-all cursor-pointer hover:scale-102 shrink-0"
                       >
                         <Eye className="w-4 h-4" />
                         <span>পপআপ টেস্ট করুন</span>
@@ -6858,58 +6950,136 @@ export const AdminPortal = () => {
                     </div>
                   </div>
 
+                  {/* Warning Notice when Active but No Image Provided */}
+                  {adForm.isActive && !adForm.imageUrl && (
+                    <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-amber-900 animate-in fade-in duration-200">
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">
+                          <AlertCircle className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <p className="text-xs font-bold">⚠️ সতর্কবার্তা: পপআপ চালু আছে কিন্তু কোনো ফটো আপলোড করা নেই!</p>
+                          <p className="text-[11px] text-amber-700">ছবি ছাড়া গ্রাহকরা ওয়েবসাইটে কোনো পপআপ দেখতে পাবেন না। নিচে রেডিমেড ব্যানার থেকে যেকোনো একটিতে ক্লিক করুন অথবা আপনার ডিভাইস থেকে ছবি আপলোড করুন।</p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const demo = PRESET_OFFER_BANNERS[0];
+                          const updated = {
+                            ...adBanner,
+                            ...adForm,
+                            imageUrl: demo.imageUrl,
+                            isActive: true,
+                            updatedAt: new Date().toISOString()
+                          };
+                          setAdForm(updated);
+                          updateAdBanner(updated);
+                          showToast?.('✓ রেডিমেড অফার ব্যানার সেট ও লাইভ করা হয়েছে!', 'success');
+                        }}
+                        className="px-3.5 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold shrink-0 transition-colors cursor-pointer shadow-xs"
+                      >
+                        ⚡ রেডিমেড ব্যানার ব্যবহার করুন
+                      </button>
+                    </div>
+                  )}
+
                   {/* Main Form & Live Preview Grid */}
                   <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
                     
-                    {/* Left Column: Photo Upload Form (6 cols) */}
-                    <div className="lg:col-span-6 bg-white border border-slate-200 p-6 shadow-xs rounded-2xl space-y-5">
+                    {/* Left Column: Photo Upload Form & 1-Click Presets (7 cols) */}
+                    <div className="lg:col-span-7 bg-white border border-slate-200 p-6 shadow-xs rounded-2xl space-y-6">
                       <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
-                        <div className="w-9 h-9 rounded-xl bg-[#02975E]/10 text-[#02975E] flex items-center justify-center">
+                        <div className="w-10 h-10 rounded-xl bg-[#02975E]/10 text-[#02975E] flex items-center justify-center shrink-0">
                           <Sparkles className="w-5 h-5" />
                         </div>
                         <div>
                           <h3 className="font-extrabold text-base text-[#123184]">
-                            অফার / অ্যাডস ফটো আপলোড
+                            অফার / অ্যাডস ব্যানার কন্ট্রোল
                           </h3>
                           <p className="text-xs text-slate-500">
-                            এখানে আপনার যেকোনো অফারের ফটো/ব্যানার আপলোড করুন। গ্রাহক ওয়েবসাইটে ঢুকলে শুধু এই ছবিটিই পপআপ আকারে দেখতে পাবেন।
+                            এখানে আপনার অফার বা বিজ্ঞাপনের ফটো আপলোড করুন অথবা রেডিমেড ব্যানার থেকে পছন্দ করুন। গ্রাহক ওয়েবসাইটে ঢুকলে সুন্দর পপআপ আকারে এই ব্যানারটি প্রদর্শিত হবে।
                           </p>
                         </div>
                       </div>
 
-                      <form onSubmit={handleSaveAdBanner} className="space-y-5">
-                        
-                        {/* Status Toggle */}
-                        <div className="flex items-center justify-between p-3.5 bg-slate-50 border border-slate-200 rounded-xl">
-                          <div>
-                            <span className="text-xs font-bold text-slate-800 block">বিজ্ঞাপন পপআপ সক্রিয় রাখুন</span>
-                            <span className="text-[11px] text-slate-500">গ্রাহক পেজ ওপেন করলে ছবির পপআপ আসবে কিনা</span>
-                          </div>
-                          <label className="relative inline-flex items-center cursor-pointer">
-                            <input 
-                              type="checkbox" 
-                              checked={adForm.isActive}
-                              onChange={(e) => {
-                                const val = e.target.checked;
-                                const updated = {
-                                  ...adBanner,
-                                  ...adForm,
-                                  isActive: val,
-                                  updatedAt: new Date().toISOString()
-                                };
-                                setAdForm(updated);
-                                updateAdBanner(updated);
-                              }}
-                              className="sr-only peer"
-                            />
-                            <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#02975E]"></div>
+                      {/* Ready-made Preset Offer Banners (1-Click selection) */}
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                            <Sparkles className="w-3.5 h-3.5 text-[#02975E]" />
+                            <span>রেডিমেড ফার্মেসি অফার ব্যানার (১-ক্লিক নির্বাচন):</span>
                           </label>
+                          <span className="text-[11px] text-slate-400">ক্লিক করলেই লাইভ সেট হবে</span>
                         </div>
 
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                          {PRESET_OFFER_BANNERS.map((preset) => {
+                            const isCurrent = adForm.imageUrl === preset.imageUrl;
+                            return (
+                              <div
+                                key={preset.id}
+                                onClick={() => {
+                                  const updated = {
+                                    ...adBanner,
+                                    ...adForm,
+                                    imageUrl: preset.imageUrl,
+                                    isActive: true,
+                                    updatedAt: new Date().toISOString()
+                                  };
+                                  setAdForm(updated);
+                                  updateAdBanner(updated);
+                                  showToast?.(`✓ '${preset.title}' ব্যানারটি সফলভাবে লাইভ সেট করা হয়েছে!`, 'success');
+                                }}
+                                className={`p-2.5 rounded-xl border-2 transition-all cursor-pointer flex items-center gap-3 ${
+                                  isCurrent
+                                    ? 'bg-emerald-50/80 border-[#02975E] shadow-xs'
+                                    : 'bg-slate-50 border-slate-200 hover:border-slate-300 hover:bg-white'
+                                }`}
+                              >
+                                <img 
+                                  src={preset.imageUrl} 
+                                  alt={preset.title}
+                                  className="w-14 h-14 rounded-lg object-cover shrink-0 border border-slate-200" 
+                                />
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-[#123184]/10 text-[#123184]">
+                                      {preset.tag}
+                                    </span>
+                                    {isCurrent && (
+                                      <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-[#02975E] text-white flex items-center gap-0.5">
+                                        <Check className="w-2.5 h-2.5" />
+                                        <span>সক্রিয়</span>
+                                      </span>
+                                    )}
+                                  </div>
+                                  <p className="text-xs font-bold text-slate-800 truncate mt-1">
+                                    {preset.title}
+                                  </p>
+                                  <span className="text-[10px] text-slate-400 block">
+                                    {isCurrent ? 'বর্তমানে ওয়েবসাইটে লাইভ' : 'ব্যবহার করতে ক্লিক করুন'}
+                                  </span>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      <div className="relative flex items-center justify-center my-4">
+                        <div className="border-t border-slate-200 w-full"></div>
+                        <span className="bg-white px-3 text-[11px] font-bold text-slate-400 absolute uppercase">
+                          অথবা নিজস্ব ছবি দিন
+                        </span>
+                      </div>
+
+                      <form onSubmit={handleSaveAdBanner} className="space-y-5">
+                        
                         {/* Image Selection Method (File upload vs Direct URL) */}
                         <div className="space-y-3">
                           <label className="text-xs font-bold text-slate-700 block">
-                            বিজ্ঞাপনের ফটো আপলোড বা লিংক নির্বাচন:
+                            নিজস্ব ব্যানার ছবি আপলোড বা অনলাইন লিংক:
                           </label>
                           <div className="flex gap-2">
                             <button
@@ -6934,7 +7104,7 @@ export const AdminPortal = () => {
                               }`}
                             >
                               <ExternalLink className="w-3.5 h-3.5" />
-                              <span>ছবির অনলাইন লিংক (URL)</span>
+                              <span>ছবির সরাসরি লিংক (URL)</span>
                             </button>
                           </div>
 
@@ -6958,10 +7128,10 @@ export const AdminPortal = () => {
                                     disabled={isUploadingImage}
                                     className="bg-[#02975E] hover:bg-[#027e4e] text-white text-xs font-bold px-5 py-2.5 rounded-xl shadow-xs transition-colors cursor-pointer"
                                   >
-                                    {isUploadingImage ? 'ছবি অপটিমাইজ ও সেভ হচ্ছে...' : 'কম্পিউটার বা মোবাইল থেকে ফটো নির্বাচন করুন'}
+                                    {isUploadingImage ? 'ছবি অপটিমাইজ ও আপলোড হচ্ছে...' : 'কম্পিউটার বা মোবাইল থেকে ফটো নির্বাচন করুন'}
                                   </button>
                                   <span className="block text-[11px] text-slate-400 mt-2">
-                                    JPG, PNG, WebP ফরম্যাট সমর্থিত (অটোমেটিক কম্প্রেস ও সেভ হবে)
+                                    JPG, PNG, WebP ফরম্যাট সমর্থিত (ImgBB ক্লাউড ও লোকাল স্টোরেজে স্বয়ংক্রিয় সেভ হবে)
                                   </span>
                                 </div>
                               </div>
@@ -6989,11 +7159,11 @@ export const AdminPortal = () => {
                                     updateAdBanner(updated);
                                   }
                                 }}
-                                placeholder="https://example.com/offer-banner.jpg"
+                                placeholder="https://i.ibb.co/example/banner.jpg"
                                 className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 focus:bg-white focus:border-[#123184] outline-none text-xs text-slate-900 rounded-xl transition-colors"
                               />
                               <span className="text-[10px] text-slate-400 block">
-                                যেকোনো অনলাইন ছবির সরাসরি লিংক পেস্ট করুন
+                                যেকোনো সরাসরি ছবির লিংক পেস্ট করুন (যেমন: ImgBB, Unsplash ইত্যাদি)
                               </span>
                             </div>
                           )}
@@ -7006,32 +7176,32 @@ export const AdminPortal = () => {
                             className="w-full bg-gradient-to-r from-[#123184] to-[#02975E] hover:from-[#0e2669] hover:to-[#027e4e] text-white py-3.5 px-4 text-sm font-bold rounded-xl flex items-center justify-center gap-2 shadow-md transition-all cursor-pointer"
                           >
                             <Save className="w-4 h-4" />
-                            <span>ফটো ব্যানার সেভ ও লাইভ পাবলিশ করুন (Save & Publish)</span>
+                            <span>ব্যানার সেভ ও লাইভ পাবলিশ করুন (Save & Publish)</span>
                           </button>
                         </div>
 
                       </form>
                     </div>
 
-                    {/* Right Column: Real-Time Live Preview (6 cols) */}
-                    <div className="lg:col-span-6 space-y-3">
+                    {/* Right Column: Real-Time Live Preview (5 cols) */}
+                    <div className="lg:col-span-5 space-y-4">
                       <div className="flex items-center justify-between">
                         <span className="text-xs font-black text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
                           <Eye className="w-3.5 h-3.5 text-[#123184]" />
                           <span>লাইভ ফটো প্রিভিউ (Live Preview):</span>
                         </span>
-                        <span className="text-[11px] text-slate-400">গ্রাহক ঠিক এই ফটোটিই দেখতে পাবেন</span>
+                        <span className="text-[11px] text-slate-400">গ্রাহক ঠিক এটিই দেখতে পাবেন</span>
                       </div>
 
                       {/* Pure Photo Preview Mockup */}
-                      <div className="relative bg-slate-900/10 p-3 rounded-2xl border-2 border-slate-200 shadow-xl overflow-hidden max-w-sm sm:max-w-md mx-auto text-center">
+                      <div className="relative bg-slate-900/10 p-3 rounded-2xl border-2 border-slate-200 shadow-xl overflow-hidden max-w-sm mx-auto text-center group">
                         {/* Simulated Close Button */}
                         <div className="absolute top-5 right-5 z-20 w-8 h-8 rounded-full bg-black/70 text-white flex items-center justify-center shadow-md border border-white/20">
                           <X className="w-4 h-4" />
                         </div>
 
                         {/* Banner Image */}
-                        <div className="relative w-full rounded-xl overflow-hidden bg-slate-100 flex items-center justify-center min-h-[220px]">
+                        <div className="relative w-full rounded-xl overflow-hidden bg-slate-100 flex items-center justify-center min-h-[240px]">
                           {adForm.imageUrl ? (
                             <img 
                               src={adForm.imageUrl} 
@@ -7039,21 +7209,74 @@ export const AdminPortal = () => {
                               className="w-full h-auto max-h-[380px] object-contain rounded-xl"
                             />
                           ) : (
-                            <div className="flex flex-col items-center justify-center text-slate-400 text-xs gap-2 p-8">
-                              <ImageIcon className="w-10 h-10 text-slate-300" />
-                              <span>কোনো ব্যানার ছবি দেওয়া হয়নি</span>
+                            <div className="flex flex-col items-center justify-center text-slate-400 text-xs gap-3 p-8">
+                              <ImageIcon className="w-12 h-12 text-slate-300" />
+                              <span className="font-bold">কোনো ব্যানার ছবি দেওয়া হয়নি</span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const demo = PRESET_OFFER_BANNERS[0];
+                                  const updated = {
+                                    ...adBanner,
+                                    ...adForm,
+                                    imageUrl: demo.imageUrl,
+                                    isActive: true,
+                                    updatedAt: new Date().toISOString()
+                                  };
+                                  setAdForm(updated);
+                                  updateAdBanner(updated);
+                                  showToast?.('✓ নমুনা ব্যানার প্রিভিউতে লোড করা হয়েছে!', 'success');
+                                }}
+                                className="px-3 py-1.5 bg-[#123184] hover:bg-[#0e2669] text-white rounded-lg text-[11px] font-bold cursor-pointer transition-colors shadow-xs"
+                              >
+                                ⚡ রেডিমেড ব্যানার যুক্ত করুন
+                              </button>
                             </div>
                           )}
                         </div>
                       </div>
 
-                      <div className="p-3.5 bg-blue-50/70 border border-blue-200 text-xs text-blue-900 rounded-2xl space-y-1">
+                      {/* Quick Action Buttons for the Preview */}
+                      {adForm.imageUrl && (
+                        <div className="flex gap-2 max-w-sm mx-auto">
+                          <button
+                            type="button"
+                            onClick={() => setIsAdModalOpen(true)}
+                            className="flex-1 py-2 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer border border-slate-200"
+                          >
+                            <Eye className="w-3.5 h-3.5 text-[#123184]" />
+                            <span>ফুলস্ক্রিনে টেস্ট দেখুন</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const updated = {
+                                ...adBanner,
+                                ...adForm,
+                                imageUrl: '',
+                                isActive: false,
+                                updatedAt: new Date().toISOString()
+                              };
+                              setAdForm(updated);
+                              updateAdBanner(updated);
+                              showToast?.('ব্যানার ছবি সরানো হয়েছে ও বিজ্ঞাপন নিষ্ক্রিয় করা হয়েছে', 'info');
+                            }}
+                            className="py-2 px-3 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer border border-rose-200"
+                            title="ছবি মুছে ফেলুন"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            <span>মুছুন</span>
+                          </button>
+                        </div>
+                      )}
+
+                      <div className="p-3.5 bg-blue-50/70 border border-blue-200 text-xs text-blue-900 rounded-2xl space-y-1 max-w-sm mx-auto">
                         <p className="font-bold flex items-center gap-1">
                           <Sparkles className="w-3.5 h-3.5 text-blue-700" />
                           <span>টিপস:</span>
                         </p>
                         <p className="text-[11px] text-blue-800 leading-relaxed">
-                          বিজ্ঞাপনের ব্যানারে কোনো অতিরিক্ত টেক্সট বক্স বা ওষুধের নাম থাকবে না। আপনার অফারের লেখা, কুপন বা ওষুধের ছবি সরাসরি ব্যানারের ভেতরে ডিজাইন করে ফটোটি আপলোড করে দিন।
+                          বিজ্ঞাপনের ব্যানারে আপনার বিশেষ অফার, ডিসকাউন্ট বা কুপন কোড (যেমন: BELI10) ডিজাইন করে দিন। গ্রাহক পেজ ওপেন করলে ছবিটিতে ক্লিক করে সরাসরি ওষুধ অর্ডার করতে পারবেন।
                         </p>
                       </div>
                     </div>
