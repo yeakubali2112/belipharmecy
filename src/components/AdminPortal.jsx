@@ -9,6 +9,7 @@ import {
   Trash2, 
   Edit3, 
   Check, 
+  Loader2,
   Clock, 
   Eye, 
   EyeOff, 
@@ -1219,6 +1220,7 @@ export const AdminPortal = () => {
 
   // Edit medicine modal state & handlers
   const [editingMed, setEditingMed] = useState(null);
+  const [editSaveStatus, setEditSaveStatus] = useState('idle'); // 'idle' | 'saving' | 'done'
 
   // Product photo upload refs & handlers
   const editImageInputRef = useRef(null);
@@ -1335,14 +1337,32 @@ export const AdminPortal = () => {
   };
 
   const handleStartEdit = (med) => {
+    setEditSaveStatus('idle');
     setEditingMed({ ...med });
   };
 
-  const handleSaveEdit = (e) => {
+  const handleSaveEdit = async (e) => {
     e.preventDefault();
     if (!editingMed || !editingMed.name || !editingMed.generic) return;
-    updateMedicine(editingMed);
-    setEditingMed(null);
+    if (editSaveStatus === 'saving' || editSaveStatus === 'done') return;
+
+    setEditSaveStatus('saving');
+
+    try {
+      await updateMedicine(editingMed);
+
+      // Smooth loading animation delay
+      await new Promise(resolve => setTimeout(resolve, 600));
+      setEditSaveStatus('done');
+
+      // Keep "done" checkmark visible so user sees it succeeded
+      await new Promise(resolve => setTimeout(resolve, 800));
+      setEditingMed(null);
+      setEditSaveStatus('idle');
+    } catch (err) {
+      console.error('Error saving medicine:', err);
+      setEditSaveStatus('idle');
+    }
   };
 
   const totalSales = orders.reduce((sum, o) => sum + (o.grandTotal || 0), 0);
@@ -8288,7 +8308,12 @@ export const AdminPortal = () => {
       {editingMed && (
         <div 
           className="fixed inset-0 z-60 bg-slate-900/65 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto animate-in fade-in"
-          onClick={() => setEditingMed(null)}
+          onClick={() => {
+            if (editSaveStatus !== 'saving') {
+              setEditSaveStatus('idle');
+              setEditingMed(null);
+            }
+          }}
         >
           <div 
             className="bg-white rounded-none max-w-2xl w-full my-6 shadow-2xl border border-slate-100 overflow-hidden flex flex-col max-h-[92vh] animate-in zoom-in-95 duration-150"
@@ -8312,9 +8337,15 @@ export const AdminPortal = () => {
 
               <button
                 type="button"
-                onClick={() => setEditingMed(null)}
+                disabled={editSaveStatus === 'saving'}
+                onClick={() => {
+                  if (editSaveStatus !== 'saving') {
+                    setEditSaveStatus('idle');
+                    setEditingMed(null);
+                  }
+                }}
                 title="বন্ধ করুন"
-                className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/25 text-white flex items-center justify-center cursor-pointer transition-all duration-200 hover:scale-110 hover:rotate-90 active:scale-90"
+                className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/25 text-white flex items-center justify-center cursor-pointer transition-all duration-200 hover:scale-110 hover:rotate-90 active:scale-90 disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -8597,17 +8628,42 @@ export const AdminPortal = () => {
               <div className="flex justify-end gap-2.5 pt-3 border-t border-slate-200">
                 <button
                   type="button"
-                  onClick={() => setEditingMed(null)}
-                  className="px-4 py-2.5 text-xs font-semibold rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 cursor-pointer transition-all duration-200 hover:scale-[1.02] active:scale-95 hover:shadow-xs"
+                  disabled={editSaveStatus === 'saving' || editSaveStatus === 'done'}
+                  onClick={() => {
+                    setEditSaveStatus('idle');
+                    setEditingMed(null);
+                  }}
+                  className="px-4 py-2.5 text-xs font-semibold rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 cursor-pointer transition-all duration-200 hover:scale-[1.02] active:scale-95 hover:shadow-xs disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   বাতিল
                 </button>
                 <button
                   type="submit"
-                  className="group btn-animated-shine btn-glow-green px-6 py-2.5 text-xs font-bold rounded-xl bg-[#02975E] hover:bg-[#027e4e] text-white cursor-pointer shadow-md flex items-center gap-2 transition-all duration-200 hover:scale-[1.03] hover:-translate-y-0.5 active:scale-95 hover:shadow-xl hover:shadow-emerald-600/35"
+                  disabled={editSaveStatus === 'saving' || editSaveStatus === 'done'}
+                  className={`group btn-animated-shine px-6 py-2.5 text-xs font-bold rounded-xl text-white shadow-md flex items-center gap-2 transition-all duration-200 active:scale-95 ${
+                    editSaveStatus === 'done'
+                      ? 'bg-emerald-600 hover:bg-emerald-600 shadow-emerald-600/40 ring-2 ring-emerald-300 scale-[1.02] cursor-default'
+                      : editSaveStatus === 'saving'
+                      ? 'bg-[#027e4e] cursor-wait opacity-95 ring-2 ring-emerald-400/50'
+                      : 'bg-[#02975E] hover:bg-[#027e4e] btn-glow-green cursor-pointer hover:scale-[1.03] hover:-translate-y-0.5 hover:shadow-xl hover:shadow-emerald-600/35'
+                  }`}
                 >
-                  <Save className="w-4 h-4 transition-transform duration-200 group-hover:scale-110 group-hover:rotate-6" />
-                  <span>পরিবর্তন সংরক্ষণ করুন</span>
+                  {editSaveStatus === 'saving' ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin text-white" />
+                      <span>সংরক্ষণ হচ্ছে...</span>
+                    </>
+                  ) : editSaveStatus === 'done' ? (
+                    <>
+                      <CheckCircle2 className="w-4 h-4 text-white animate-bounce" />
+                      <span>✓ সংরক্ষিত হয়েছে!</span>
+                    </>
+                  ) : (
+                    <>
+                      <Save className="w-4 h-4 transition-transform duration-200 group-hover:scale-110 group-hover:rotate-6" />
+                      <span>পরিবর্তন সংরক্ষণ করুন</span>
+                    </>
+                  )}
                 </button>
               </div>
             </form>
