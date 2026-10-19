@@ -2457,12 +2457,12 @@ export const AdminPortal = () => {
     <div className="min-h-screen bg-slate-100 flex flex-col md:flex-row text-slate-800">
       
       {/* Sidebar Navigation */}
-      <aside className="w-full md:w-64 bg-gradient-to-b from-[#0b1b44] via-[#123184] to-[#02975E] text-white flex flex-col justify-between border-r border-white/10 shrink-0 shadow-xl">
+      <aside className="w-full md:w-64 bg-gradient-to-b from-[#0b1b44] via-[#123184] to-[#02975E] text-white flex flex-col justify-between border-r border-white/10 shrink-0 shadow-2xl">
         
         {/* Sidebar Header & Nav */}
         <div>
           {/* Logo container */}
-          <div className="p-3.5 border-b border-white/10 flex items-center">
+          <div className="p-4 border-b border-white/10 flex items-center">
             <div className="bg-white p-2 rounded-xl shadow-xs">
               <img 
                 src="/logo.png" 
@@ -2473,61 +2473,61 @@ export const AdminPortal = () => {
           </div>
 
           {/* Navigation Links */}
-          <nav className="p-2.5 space-y-1 font-sans">
+          <nav className="p-3 space-y-1.5 text-xs font-bold">
             {canAccessTab('overview') && (
               <button
                 onClick={() => setActiveTab('overview')}
-                className={`w-full flex items-center gap-3 px-3 py-2.2 rounded-xl transition-all duration-150 cursor-pointer text-left ${
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all cursor-pointer text-left ${
                   activeTab === 'overview' 
-                    ? 'bg-white/20 text-white font-bold shadow-md backdrop-blur-md border border-white/30 ring-1 ring-white/20' 
-                    : 'text-white/85 font-semibold hover:text-white hover:bg-white/15'
+                    ? 'bg-white/20 text-white shadow-md backdrop-blur-xs border border-white/20' 
+                    : 'text-blue-100/80 hover:bg-white/10'
                 }`}
               >
-                <BarChart3 className="w-4.5 h-4.5 text-emerald-300 shrink-0" />
-                <span className="text-[13.5px] font-bold leading-normal text-white">সামগ্রিক পরিসংখ্যান</span>
+                <BarChart3 className="w-4 h-4 text-emerald-300" />
+                <span>সামগ্রিক পরিসংখ্যান</span>
               </button>
             )}
 
             {canAccessTab('sell') && (
               <button
                 onClick={() => setActiveTab('sell')}
-                className={`w-full flex items-center gap-3 px-3 py-2.2 rounded-xl transition-all duration-150 cursor-pointer text-left ${
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all cursor-pointer text-left ${
                   activeTab === 'sell' 
-                    ? 'bg-gradient-to-r from-emerald-500/35 to-teal-500/30 text-white shadow-md backdrop-blur-md border border-emerald-400/40 font-bold' 
-                    : 'text-white/85 font-semibold hover:text-white hover:bg-white/15'
+                    ? 'bg-gradient-to-r from-emerald-500/35 to-teal-500/30 text-white shadow-md backdrop-blur-xs border border-emerald-400/40 font-bold' 
+                    : 'text-blue-100/80 hover:bg-white/10'
                 }`}
               >
-                <ShoppingCart className="w-4.5 h-4.5 text-emerald-300 shrink-0" />
-                <span className="text-[13.5px] font-bold leading-normal text-white">সেল (Sell / POS)</span>
+                <ShoppingCart className="w-4 h-4 text-emerald-300" />
+                <span>সেল (Sell / POS)</span>
               </button>
             )}
 
             {canAccessTab('restock') && (
               <button
                 onClick={() => setActiveTab('restock')}
-                className={`w-full flex items-center gap-3 px-3 py-2.2 rounded-xl transition-all duration-150 cursor-pointer text-left ${
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all cursor-pointer text-left ${
                   activeTab === 'restock' 
-                    ? 'bg-gradient-to-r from-teal-500/35 to-emerald-500/35 text-white shadow-md backdrop-blur-md border border-emerald-400/40 font-bold' 
-                    : 'text-white/85 font-semibold hover:text-white hover:bg-white/15'
+                    ? 'bg-gradient-to-r from-teal-500/35 to-emerald-500/35 text-white shadow-md backdrop-blur-xs border border-emerald-400/40 font-bold' 
+                    : 'text-blue-100/80 hover:bg-white/10'
                 }`}
               >
-                <PackagePlus className="w-4.5 h-4.5 text-emerald-300 shrink-0" />
-                <span className="text-[13.5px] font-bold leading-normal text-white">স্টক ইন ও রিস্টক</span>
+                <PackagePlus className="w-4 h-4 text-emerald-300" />
+                <span>স্টক ইন ও রিস্টক</span>
               </button>
             )}
 
             {canAccessTab('orders') && (
               <button
                 onClick={() => setActiveTab('orders')}
-                className={`w-full flex items-center justify-between px-3 py-2.2 rounded-xl transition-all duration-150 cursor-pointer text-left ${
+                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-all cursor-pointer text-left ${
                   activeTab === 'orders' 
-                    ? 'bg-white/20 text-white font-bold shadow-md backdrop-blur-md border border-white/30 ring-1 ring-white/20' 
-                    : 'text-white/85 font-semibold hover:text-white hover:bg-white/15'
+                    ? 'bg-white/20 text-white shadow-md backdrop-blur-xs border border-white/20' 
+                    : 'text-blue-100/80 hover:bg-white/10'
                 }`}
               >
                 <span className="flex items-center gap-3">
-                  <Package className="w-4.5 h-4.5 text-emerald-300 shrink-0" />
-                  <span className="text-[13.5px] font-bold leading-normal text-white">গ্রাহকের অর্ডার</span>
+                  <Package className="w-4 h-4 text-emerald-300" />
+                  <span>গ্রাহকের অর্ডার</span>
                 </span>
                 {pendingOrders > 0 && (
                   <span className="bg-rose-500 text-white text-[10px] px-1.5 py-0.2 rounded-full font-bold shadow-xs">
@@ -2540,15 +2540,15 @@ export const AdminPortal = () => {
             {canAccessTab('prescriptions') && (
               <button
                 onClick={() => setActiveTab('prescriptions')}
-                className={`w-full flex items-center justify-between px-3 py-2.2 rounded-xl transition-all duration-150 cursor-pointer text-left ${
+                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-all cursor-pointer text-left ${
                   activeTab === 'prescriptions' 
-                    ? 'bg-white/20 text-white font-bold shadow-md backdrop-blur-md border border-white/30 ring-1 ring-white/20' 
-                    : 'text-white/85 font-semibold hover:text-white hover:bg-white/15'
+                    ? 'bg-white/20 text-white shadow-md backdrop-blur-xs border border-white/20' 
+                    : 'text-blue-100/80 hover:bg-white/10'
                 }`}
               >
                 <span className="flex items-center gap-3">
-                  <FileText className="w-4.5 h-4.5 text-emerald-300 shrink-0" />
-                  <span className="text-[13.5px] font-bold leading-normal text-white">প্রেসক্রিপশন সমূহ</span>
+                  <FileText className="w-4 h-4 text-emerald-300" />
+                  <span>প্রেসক্রিপশন সমূহ</span>
                 </span>
                 {pendingRx > 0 && (
                   <span className="bg-amber-400 text-slate-900 text-[10px] px-1.5 py-0.2 rounded-full font-bold shadow-xs">
@@ -2561,59 +2561,59 @@ export const AdminPortal = () => {
             {canAccessTab('customers') && (
               <button
                 onClick={() => setActiveTab('customers')}
-                className={`w-full flex items-center gap-3 px-3 py-2.2 rounded-xl transition-all duration-150 cursor-pointer text-left ${
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all cursor-pointer text-left ${
                   activeTab === 'customers' 
-                    ? 'bg-white/20 text-white font-bold shadow-md backdrop-blur-md border border-white/30 ring-1 ring-white/20' 
-                    : 'text-white/85 font-semibold hover:text-white hover:bg-white/15'
+                    ? 'bg-white/20 text-white shadow-md backdrop-blur-xs border border-white/20' 
+                    : 'text-blue-100/80 hover:bg-white/10'
                 }`}
               >
-                <Users className="w-4.5 h-4.5 text-emerald-300 shrink-0" />
-                <span className="text-[13.5px] font-bold leading-normal text-white">গ্রাহক ম্যানেজমেন্ট</span>
+                <Users className="w-4 h-4 text-emerald-300" />
+                <span>গ্রাহক ম্যানেজমেন্ট</span>
               </button>
             )}
 
             {canAccessTab('medicines') && (
               <button
                 onClick={() => setActiveTab('medicines')}
-                className={`w-full flex items-center gap-3 px-3 py-2.2 rounded-xl transition-all duration-150 cursor-pointer text-left ${
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all cursor-pointer text-left ${
                   activeTab === 'medicines' 
-                    ? 'bg-white/20 text-white font-bold shadow-md backdrop-blur-md border border-white/30 ring-1 ring-white/20' 
-                    : 'text-white/85 font-semibold hover:text-white hover:bg-white/15'
+                    ? 'bg-white/20 text-white shadow-md backdrop-blur-xs border border-white/20' 
+                    : 'text-blue-100/80 hover:bg-white/10'
                 }`}
               >
-                <Pill className="w-4.5 h-4.5 text-emerald-300 shrink-0" />
-                <span className="text-[13.5px] font-bold leading-normal text-white">ওষুধ ক্যাটালগ ও স্টক</span>
+                <Pill className="w-4 h-4 text-emerald-300" />
+                <span>ওষুধ ক্যাটালগ ও স্টক</span>
               </button>
             )}
 
             {canAccessTab('coupons') && (
               <button
                 onClick={() => setActiveTab('coupons')}
-                className={`w-full flex items-center gap-3 px-3 py-2.2 rounded-xl transition-all duration-150 cursor-pointer text-left ${
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all cursor-pointer text-left ${
                   activeTab === 'coupons' 
-                    ? 'bg-white/20 text-white font-bold shadow-md backdrop-blur-md border border-white/30 ring-1 ring-white/20' 
-                    : 'text-white/85 font-semibold hover:text-white hover:bg-white/15'
+                    ? 'bg-white/20 text-white shadow-md backdrop-blur-xs border border-white/20' 
+                    : 'text-blue-100/80 hover:bg-white/10'
                 }`}
               >
-                <Tag className="w-4.5 h-4.5 text-emerald-300 shrink-0" />
-                <span className="text-[13.5px] font-bold leading-normal text-white">ডেলিভারি চার্জ ও কুপন কোড</span>
+                <Tag className="w-4 h-4 text-emerald-300" />
+                <span>ডেলিভারি চার্জ ও কুপন কোড</span>
               </button>
             )}
 
             {canAccessTab('ads') && (
               <button
                 onClick={() => setActiveTab('ads')}
-                className={`w-full flex items-center gap-3 px-3 py-2.2 rounded-xl transition-all duration-150 cursor-pointer text-left ${
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all cursor-pointer text-left ${
                   activeTab === 'ads' 
-                    ? 'bg-white/20 text-white font-bold shadow-md backdrop-blur-md border border-white/30 ring-1 ring-white/20' 
-                    : 'text-white/85 font-semibold hover:text-white hover:bg-white/15'
+                    ? 'bg-white/20 text-white shadow-md backdrop-blur-xs border border-white/20' 
+                    : 'text-blue-100/80 hover:bg-white/10'
                 }`}
               >
-                <ImageIcon className="w-4.5 h-4.5 text-emerald-300 shrink-0" />
+                <ImageIcon className="w-4 h-4 text-emerald-300" />
                 <div className="flex-1 flex items-center justify-between">
-                  <span className="text-[13.5px] font-bold leading-normal text-white">হিরো ব্যানার স্লাইডার</span>
+                  <span>হিরো ব্যানার স্লাইডার</span>
                   {(heroBanner?.slides?.length > 0 || heroBanner?.imageUrl) && (
-                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shadow-sm" title="ব্যানার স্লাইডার সক্রিয়" />
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" title="ব্যানার স্লাইডার সক্রিয়" />
                   )}
                 </div>
               </button>
@@ -2622,30 +2622,31 @@ export const AdminPortal = () => {
             {canAccessTab('payments') && (
               <button
                 onClick={() => setActiveTab('payments')}
-                className={`w-full flex items-center gap-3 px-3 py-2.2 rounded-xl transition-all duration-150 cursor-pointer text-left ${
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all cursor-pointer text-left ${
                   activeTab === 'payments' 
-                    ? 'bg-white/20 text-white font-bold shadow-md backdrop-blur-md border border-white/30 ring-1 ring-white/20' 
-                    : 'text-white/85 font-semibold hover:text-white hover:bg-white/15'
+                    ? 'bg-white/20 text-white shadow-md backdrop-blur-xs border border-white/20' 
+                    : 'text-blue-100/80 hover:bg-white/10'
                 }`}
               >
-                <CreditCard className="w-4.5 h-4.5 text-emerald-300 shrink-0" />
-                <span className="text-[13.5px] font-bold leading-normal text-white">পেমেন্ট মেথড ও ব্যাংক</span>
+                <CreditCard className="w-4 h-4 text-emerald-300" />
+                <span>পেমেন্ট মেথড ও ব্যাংক</span>
               </button>
             )}
 
             {canAccessTab('settings') && (
               <button
                 onClick={() => setActiveTab('settings')}
-                className={`w-full flex items-center gap-3 px-3 py-2.2 rounded-xl transition-all duration-150 cursor-pointer text-left ${
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all cursor-pointer text-left ${
                   activeTab === 'settings' 
-                    ? 'bg-white/20 text-white font-bold shadow-md backdrop-blur-md border border-white/30 ring-1 ring-white/20' 
-                    : 'text-white/85 font-semibold hover:text-white hover:bg-white/15'
+                    ? 'bg-white/20 text-white shadow-md backdrop-blur-xs border border-white/20' 
+                    : 'text-blue-100/80 hover:bg-white/10'
                 }`}
               >
-                <Settings className="w-4.5 h-4.5 text-emerald-300 shrink-0" />
-                <span className="text-[13.5px] font-bold leading-normal text-white">ফার্মেসি সেটিংস ও প্রোফাইল</span>
+                <Settings className="w-4 h-4 text-emerald-300" />
+                <span>ফার্মেসি সেটিংস ও প্রোফাইল</span>
               </button>
             )}
+
 
           </nav>
         </div>
