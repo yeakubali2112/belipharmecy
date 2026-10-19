@@ -64,13 +64,21 @@ const MainApp = () => {
   }, [selectedCategory, searchQuery, filterRx, sortBy]);
 
   React.useEffect(() => {
-    document.title = 'Beli Pharmacy | বেলী ফার্মেসি';
-    // Preload large 50k medicine dataset on idle so initial page load and reload are instant
+    if (currentView === 'admin') {
+      document.title = 'বেলী ফার্মেসি অ্যাডমিন পোর্টাল | Admin Panel';
+    } else {
+      document.title = 'Beli Pharmacy | বেলী ফার্মেসি';
+    }
+  }, [currentView]);
+
+  React.useEffect(() => {
+    // Only preload 50k medicine dataset if on store view
+    if (currentView === 'admin') return;
     const timer = setTimeout(() => {
       preload50kMedicines();
     }, 1200);
     return () => clearTimeout(timer);
-  }, []);
+  }, [currentView]);
 
   // Filter & sort logic (powered by bilingual Bangladesh medicine search + Live MedEx sync)
   const filteredMedicines = useMemo(() => {

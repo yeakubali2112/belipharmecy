@@ -15,7 +15,7 @@ import {
   batchSaveCloudMedicines,
   syncAllDataToCloud
 } from '../services/cloudSyncService';
-import { subscribeLiveSync, publishLiveSync, fetchRecentSyncEvents } from '../services/liveSyncService';
+import { subscribeLiveSync, publishLiveSync } from '../services/liveSyncService';
 import { fetchMedexSearchResults, deduplicateMedicines } from '../utils/medicineSearch';
 
 const ShopContext = createContext();
@@ -39,13 +39,16 @@ const safeSetItem = (key, value) => {
                    m.name !== init.name ||
                    m.generic !== init.generic;
           });
-          localStorage.setItem(key, JSON.stringify(delta));
+          const deltaStr = JSON.stringify(delta);
+          if (localStorage.getItem(key) === deltaStr) return true;
+          localStorage.setItem(key, deltaStr);
           return true;
         }
       } catch (e) {
         // Fallback to regular set
       }
     }
+    if (localStorage.getItem(key) === value) return true;
     localStorage.setItem(key, value);
     return true;
   } catch (err) {
@@ -1220,12 +1223,15 @@ export const ShopProvider = ({ children }) => {
   }, [orders]);
 
   // Sync state to local storage (only when data actually changes, avoiding cross-tab storage storms on reload)
+  const isExternalSyncRef = useRef(false);
+
   const isMedMountRef = useRef(true);
   useEffect(() => {
     if (isMedMountRef.current) {
       isMedMountRef.current = false;
       return;
     }
+    if (isExternalSyncRef.current) return;
     safeSetItem('beli_medicines', JSON.stringify(medicines));
   }, [medicines]);
 
@@ -1235,6 +1241,7 @@ export const ShopProvider = ({ children }) => {
       isCartMountRef.current = false;
       return;
     }
+    if (isExternalSyncRef.current) return;
     safeSetItem('beli_cart', JSON.stringify(cart));
   }, [cart]);
 
@@ -1244,6 +1251,7 @@ export const ShopProvider = ({ children }) => {
       isOrdersMountRef.current = false;
       return;
     }
+    if (isExternalSyncRef.current) return;
     safeSetItem('beli_orders', JSON.stringify(orders));
   }, [orders]);
 
@@ -1253,6 +1261,7 @@ export const ShopProvider = ({ children }) => {
       isRxMountRef.current = false;
       return;
     }
+    if (isExternalSyncRef.current) return;
     safeSetItem('beli_prescriptions', JSON.stringify(prescriptions));
   }, [prescriptions]);
 
@@ -1262,6 +1271,7 @@ export const ShopProvider = ({ children }) => {
       isLangMountRef.current = false;
       return;
     }
+    if (isExternalSyncRef.current) return;
     safeSetItem('beli_lang', lang);
   }, [lang]);
 
@@ -1271,6 +1281,7 @@ export const ShopProvider = ({ children }) => {
       isLogsMountRef.current = false;
       return;
     }
+    if (isExternalSyncRef.current) return;
     safeSetItem('beli_restock_logs', JSON.stringify(restockLogs));
   }, [restockLogs]);
 
@@ -1695,13 +1706,6 @@ export const ShopProvider = ({ children }) => {
     let isMounted = true;
     let lastCloudSyncTime = Date.now();
 
-    // 1. Initial catch-up from cloud
-    fetchRecentSyncEvents().then(events => {
-      if (Array.isArray(events) && events.length > 0 && isMounted) {
-        events.forEach(handleIncomingSyncEvent);
-      }
-    });
-
     const syncCloudDataOnce = async () => {
       try {
         // 1. Fetch Cloud Settings first (Hero Banner Slides, Payments, Delivery, Ads, Coupons, Users)
@@ -1875,6 +1879,7 @@ export const ShopProvider = ({ children }) => {
     // 2. Storage event listener (only updates when a DIFFERENT tab actually changes data, never duplicates)
     const handleStorageChange = (e) => {
       if (!isMounted || !e || !e.key || !e.newValue || e.newValue === e.oldValue) return;
+      isExternalSyncRef.current = true;
       try {
         if (e.key === 'beli_payment_settings') {
           const parsed = JSON.parse(e.newValue);
@@ -1882,18 +1887,6 @@ export const ShopProvider = ({ children }) => {
         } else if (e.key === 'beli_delivery_settings') {
           const parsed = JSON.parse(e.newValue);
           if (parsed) setDeliverySettings(sanitizeDeliverySettings(parsed));
-        } else if (e.key === 'beli_medicines') {
-          const parsed = JSON.parse(e.newValue);
-          if (Array.isArray(parsed)) {
-            setMedicines(prev => {
-              const cloudMap = new Map(parsed.map(m => [m.id, m]));
-              const next = prev.map(m => cloudMap.has(m.id) ? { ...m, ...cloudMap.get(m.id) } : m);
-              parsed.forEach(cm => {
-                if (!next.some(m => m.id === cm.id)) next.unshift(cm);
-              });
-              return deduplicateMedicines(next);
-            });
-          }
         } else if (e.key === 'beli_orders') {
           const parsed = JSON.parse(e.newValue);
           if (Array.isArray(parsed)) setOrders(parsed);
@@ -1910,7 +1903,12 @@ export const ShopProvider = ({ children }) => {
           const parsed = JSON.parse(e.newValue);
           if (Array.isArray(parsed)) setCoupons(parsed);
         }
-      } catch (err) {}
+      } catch (err) {
+      } finally {
+        setTimeout(() => {
+          isExternalSyncRef.current = false;
+        }, 150);
+      }
     };
     window.addEventListener('storage', handleStorageChange);
 
