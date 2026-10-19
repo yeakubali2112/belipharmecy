@@ -8119,7 +8119,8 @@ export const AdminPortal = () => {
                         <button
                           type="button"
                           onClick={() => setIsBankModalOpen(false)}
-                          className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center cursor-pointer transition-colors"
+                          title="বন্ধ করুন"
+                          className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/25 text-white flex items-center justify-center cursor-pointer transition-all duration-200 hover:scale-110 hover:rotate-90 active:scale-90"
                         >
                           <X className="w-4 h-4" />
                         </button>
@@ -8229,16 +8230,16 @@ export const AdminPortal = () => {
                           <button
                             type="button"
                             onClick={() => setIsBankModalOpen(false)}
-                            className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold cursor-pointer transition-colors"
+                            className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold cursor-pointer transition-all duration-200 hover:scale-[1.02] active:scale-95"
                           >
                             বাতিল করুন
                           </button>
 
                           <button
                             type="submit"
-                            className="px-5 py-2 bg-gradient-to-r from-[#123184] to-[#02975E] hover:from-[#0d2463] hover:to-[#027e4e] text-white rounded-xl text-xs font-black cursor-pointer shadow-md hover:shadow-lg transition-all"
+                            className="group btn-animated-shine btn-glow-blue px-5 py-2 bg-gradient-to-r from-[#123184] to-[#02975E] hover:from-[#0d2463] hover:to-[#027e4e] text-white rounded-xl text-xs font-black cursor-pointer shadow-md hover:shadow-xl hover:shadow-blue-900/30 transition-all duration-200 hover:scale-[1.03] hover:-translate-y-0.5 active:scale-95"
                           >
-                            {editingBankId ? 'আপডেট করুন' : 'ব্যাংক যোগ সম্পন্ন করুন'}
+                            <span>{editingBankId ? 'আপডেট করুন' : 'ব্যাংক যোগ সম্পন্ন করুন'}</span>
                           </button>
                         </div>
                       </form>
@@ -8312,7 +8313,8 @@ export const AdminPortal = () => {
               <button
                 type="button"
                 onClick={() => setEditingMed(null)}
-                className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center cursor-pointer transition-colors"
+                title="বন্ধ করুন"
+                className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/25 text-white flex items-center justify-center cursor-pointer transition-all duration-200 hover:scale-110 hover:rotate-90 active:scale-90"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -8506,7 +8508,7 @@ export const AdminPortal = () => {
                           type="button"
                           onClick={() => setEditingMed({ ...editingMed, image: '' })}
                           title="ছবি রিমুভ করুন"
-                          className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-rose-500 text-white flex items-center justify-center shadow-md hover:bg-rose-600 cursor-pointer"
+                          className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-rose-500 text-white flex items-center justify-center shadow-md hover:bg-rose-600 cursor-pointer transition-all duration-200 hover:scale-110 hover:rotate-90 active:scale-90"
                         >
                           ✕
                         </button>
@@ -8527,9 +8529,9 @@ export const AdminPortal = () => {
                         <button
                           type="button"
                           onClick={() => editImageInputRef.current?.click()}
-                          className="px-4 py-2.5 rounded-xl bg-[#02975E] hover:bg-[#027e4e] text-white font-bold text-xs flex items-center gap-2 shadow-xs cursor-pointer transition-all hover:shadow"
+                          className="group btn-animated-shine px-4 py-2.5 rounded-xl bg-[#02975E] hover:bg-[#027e4e] text-white font-bold text-xs flex items-center gap-2 shadow-xs cursor-pointer transition-all duration-200 hover:scale-[1.02] hover:-translate-y-0.5 active:scale-95 hover:shadow-md hover:shadow-emerald-600/30"
                         >
-                          <Upload className="w-4 h-4" />
+                          <Upload className="w-4 h-4 transition-transform duration-200 group-hover:-translate-y-0.5 group-hover:scale-110" />
                           <span>ডিভাইস থেকে ছবি আপলোড করুন</span>
                         </button>
 
@@ -8537,7 +8539,7 @@ export const AdminPortal = () => {
                           <button
                             type="button"
                             onClick={() => setEditingMed({ ...editingMed, image: '' })}
-                            className="px-3 py-2.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-semibold cursor-pointer transition-colors"
+                            className="px-3 py-2.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-semibold cursor-pointer transition-all duration-200 hover:scale-[1.02] active:scale-95 hover:shadow-xs"
                           >
                             ছবি মুছুন
                           </button>
@@ -8596,15 +8598,15 @@ export const AdminPortal = () => {
                 <button
                   type="button"
                   onClick={() => setEditingMed(null)}
-                  className="px-4 py-2.5 text-xs font-semibold rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 cursor-pointer transition-colors"
+                  className="px-4 py-2.5 text-xs font-semibold rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 cursor-pointer transition-all duration-200 hover:scale-[1.02] active:scale-95 hover:shadow-xs"
                 >
                   বাতিল
                 </button>
                 <button
                   type="submit"
-                  className="px-6 py-2.5 text-xs font-bold rounded-xl bg-[#02975E] hover:bg-[#027e4e] text-white cursor-pointer shadow-md flex items-center gap-2 transition-all hover:shadow-lg"
+                  className="group btn-animated-shine btn-glow-green px-6 py-2.5 text-xs font-bold rounded-xl bg-[#02975E] hover:bg-[#027e4e] text-white cursor-pointer shadow-md flex items-center gap-2 transition-all duration-200 hover:scale-[1.03] hover:-translate-y-0.5 active:scale-95 hover:shadow-xl hover:shadow-emerald-600/35"
                 >
-                  <Save className="w-4 h-4" />
+                  <Save className="w-4 h-4 transition-transform duration-200 group-hover:scale-110 group-hover:rotate-6" />
                   <span>পরিবর্তন সংরক্ষণ করুন</span>
                 </button>
               </div>
@@ -8633,7 +8635,8 @@ export const AdminPortal = () => {
               </div>
               <button
                 onClick={() => setShowCouponModal(false)}
-                className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white cursor-pointer"
+                title="বন্ধ করুন"
+                className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/25 flex items-center justify-center text-white cursor-pointer transition-all duration-200 hover:scale-110 hover:rotate-90 active:scale-90"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -8747,15 +8750,15 @@ export const AdminPortal = () => {
                 <button
                   type="button"
                   onClick={() => setShowCouponModal(false)}
-                  className="px-4 py-2 border border-slate-300 text-slate-600 font-bold hover:bg-slate-50 cursor-pointer"
+                  className="px-4 py-2 border border-slate-300 text-slate-600 font-bold hover:bg-slate-50 cursor-pointer transition-all duration-200 hover:scale-[1.02] active:scale-95"
                 >
                   বাতিল
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 bg-[#02975E] hover:bg-[#027e4e] text-white font-bold flex items-center gap-1.5 shadow-xs cursor-pointer"
+                  className="group btn-animated-shine btn-glow-green px-5 py-2 bg-[#02975E] hover:bg-[#027e4e] text-white font-bold flex items-center gap-1.5 shadow-md cursor-pointer transition-all duration-200 hover:scale-[1.03] hover:-translate-y-0.5 active:scale-95 hover:shadow-lg hover:shadow-emerald-600/35"
                 >
-                  <Save className="w-4 h-4" />
+                  <Save className="w-4 h-4 transition-transform duration-200 group-hover:scale-110 group-hover:rotate-6" />
                   <span>{editingCouponId ? 'আপডেট করুন' : 'তৈরি করুন'}</span>
                 </button>
               </div>
@@ -8795,7 +8798,8 @@ export const AdminPortal = () => {
 
               <button
                 onClick={() => setActiveRxForMedicines(null)}
-                className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white cursor-pointer"
+                title="বন্ধ করুন"
+                className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/25 flex items-center justify-center text-white cursor-pointer transition-all duration-200 hover:scale-110 hover:rotate-90 active:scale-90"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -9272,7 +9276,7 @@ export const AdminPortal = () => {
                     <button
                       type="button"
                       onClick={() => setActiveRxForMedicines(null)}
-                      className="px-4 py-2 border border-slate-300 text-slate-700 font-bold text-xs hover:bg-white cursor-pointer"
+                      className="px-4 py-2 border border-slate-300 text-slate-700 font-bold text-xs hover:bg-white cursor-pointer transition-all duration-200 hover:scale-[1.02] active:scale-95"
                     >
                       বাতিল
                     </button>
@@ -9281,9 +9285,9 @@ export const AdminPortal = () => {
                       type="button"
                       onClick={handleSavePrescriptionMedicines}
                       disabled={rxMedicinesList.length === 0}
-                      className="px-5 py-2 bg-[#02975E] hover:bg-[#027e4e] disabled:bg-slate-300 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm cursor-pointer disabled:cursor-not-allowed transition-colors"
+                      className="group btn-animated-shine btn-glow-green px-5 py-2 bg-[#02975E] hover:bg-[#027e4e] disabled:bg-slate-300 text-white font-bold text-xs flex items-center gap-1.5 shadow-md cursor-pointer disabled:cursor-not-allowed transition-all duration-200 hover:scale-[1.03] hover:-translate-y-0.5 active:scale-95 hover:shadow-lg hover:shadow-emerald-600/35"
                     >
-                      <Save className="w-4 h-4" />
+                      <Save className="w-4 h-4 transition-transform duration-200 group-hover:scale-110 group-hover:rotate-6" />
                       <span>সংরক্ষণ ও প্রোফাইলে পাঠান</span>
                     </button>
                   </div>
@@ -9324,7 +9328,8 @@ export const AdminPortal = () => {
               <button
                 type="button"
                 onClick={() => setEditingCustomer(null)}
-                className="text-white/80 hover:text-white p-1 rounded-lg hover:bg-white/10 text-sm font-bold cursor-pointer"
+                title="বন্ধ করুন"
+                className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/25 flex items-center justify-center text-white cursor-pointer transition-all duration-200 hover:scale-110 hover:rotate-90 active:scale-90"
               >
                 ✕
               </button>
@@ -9462,15 +9467,15 @@ export const AdminPortal = () => {
                 <button
                   type="button"
                   onClick={() => setEditingCustomer(null)}
-                  className="px-4 py-2 border border-slate-300 text-slate-700 rounded-lg font-bold hover:bg-slate-100 cursor-pointer"
+                  className="px-4 py-2 border border-slate-300 text-slate-700 rounded-lg font-bold hover:bg-slate-100 cursor-pointer transition-all duration-200 hover:scale-[1.02] active:scale-95"
                 >
                   বাতিল
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 bg-gradient-to-r from-[#123184] to-[#02975E] text-white rounded-lg font-extrabold flex items-center gap-1.5 shadow-md hover:opacity-95 cursor-pointer"
+                  className="group btn-animated-shine btn-glow-blue px-5 py-2 bg-gradient-to-r from-[#123184] to-[#02975E] text-white rounded-lg font-extrabold flex items-center gap-1.5 shadow-md hover:shadow-xl hover:shadow-blue-900/30 cursor-pointer transition-all duration-200 hover:scale-[1.03] hover:-translate-y-0.5 active:scale-95"
                 >
-                  <Save className="w-4 h-4" />
+                  <Save className="w-4 h-4 transition-transform duration-200 group-hover:scale-110 group-hover:rotate-6" />
                   <span>সংরক্ষণ করুন (Save)</span>
                 </button>
               </div>
@@ -9507,7 +9512,8 @@ export const AdminPortal = () => {
               <button
                 type="button"
                 onClick={() => setShowAddCustomerModal(false)}
-                className="text-white/80 hover:text-white p-1 rounded-lg hover:bg-white/10 text-sm font-bold cursor-pointer"
+                title="বন্ধ করুন"
+                className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/25 flex items-center justify-center text-white cursor-pointer transition-all duration-200 hover:scale-110 hover:rotate-90 active:scale-90"
               >
                 ✕
               </button>
@@ -9641,15 +9647,15 @@ export const AdminPortal = () => {
                 <button
                   type="button"
                   onClick={() => setShowAddCustomerModal(false)}
-                  className="px-4 py-2 border border-slate-300 text-slate-700 rounded-lg font-bold hover:bg-slate-100 cursor-pointer"
+                  className="px-4 py-2 border border-slate-300 text-slate-700 rounded-lg font-bold hover:bg-slate-100 cursor-pointer transition-all duration-200 hover:scale-[1.02] active:scale-95"
                 >
                   বাতিল
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 bg-[#02975E] hover:bg-[#027e4e] text-white rounded-lg font-extrabold flex items-center gap-1.5 shadow-md cursor-pointer transition-colors"
+                  className="group btn-animated-shine btn-glow-green px-5 py-2 bg-[#02975E] hover:bg-[#027e4e] text-white rounded-lg font-extrabold flex items-center gap-1.5 shadow-md cursor-pointer transition-all duration-200 hover:scale-[1.03] hover:-translate-y-0.5 active:scale-95 hover:shadow-lg hover:shadow-emerald-600/35"
                 >
-                  <UserPlus className="w-4 h-4" />
+                  <UserPlus className="w-4 h-4 transition-transform duration-200 group-hover:scale-110" />
                   <span>গ্রাহক তৈরি করুন</span>
                 </button>
               </div>
@@ -9686,7 +9692,8 @@ export const AdminPortal = () => {
               <button
                 type="button"
                 onClick={() => setInspectCustomer(null)}
-                className="text-white/80 hover:text-white p-1 rounded-lg hover:bg-white/10 text-sm font-bold cursor-pointer"
+                title="বন্ধ করুন"
+                className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/25 flex items-center justify-center text-white cursor-pointer transition-all duration-200 hover:scale-110 hover:rotate-90 active:scale-90"
               >
                 ✕
               </button>

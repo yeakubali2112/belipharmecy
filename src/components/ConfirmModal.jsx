@@ -53,7 +53,7 @@ export const ConfirmModal = ({
         <button
           type="button"
           onClick={onClose}
-          className="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 flex items-center justify-center transition-colors cursor-pointer z-10"
+          className="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 flex items-center justify-center transition-all duration-200 hover:scale-110 hover:rotate-90 active:scale-90 cursor-pointer z-10"
           title={lang === 'bn' ? 'বন্ধ করুন' : 'Close'}
         >
           <X className="w-4 h-4" />
@@ -122,7 +122,7 @@ export const ConfirmModal = ({
             <button
               type="button"
               onClick={onClose}
-              className="w-full py-2.5 px-4 rounded-xl border border-slate-200 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs sm:text-sm cursor-pointer transition-colors shadow-2xs"
+              className="w-full py-2.5 px-4 rounded-xl border border-slate-200 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs sm:text-sm cursor-pointer transition-all duration-200 hover:scale-[1.02] active:scale-95 shadow-2xs"
             >
               {cancelText || defaultCancelText}
             </button>
@@ -136,13 +136,17 @@ export const ConfirmModal = ({
                   action();
                 }
               }}
-              className={`w-full py-2.5 px-4 rounded-xl text-white font-bold text-xs sm:text-sm cursor-pointer transition-all flex items-center justify-center gap-1.5 active:scale-[0.98] ${
+              className={`group btn-animated-shine w-full py-2.5 px-4 rounded-xl text-white font-bold text-xs sm:text-sm cursor-pointer transition-all duration-200 flex items-center justify-center gap-1.5 hover:scale-[1.03] hover:-translate-y-0.5 active:scale-95 ${
                 isDanger
-                  ? 'bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-700 hover:to-red-700 shadow-md shadow-rose-600/30'
-                  : 'bg-gradient-to-r from-[#123184] to-[#02975E] hover:opacity-95 shadow-md shadow-blue-900/30'
+                  ? 'btn-glow-danger bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-700 hover:to-red-700 shadow-md shadow-rose-600/30 hover:shadow-xl hover:shadow-rose-600/40'
+                  : 'btn-glow-blue bg-gradient-to-r from-[#123184] to-[#02975E] hover:opacity-95 shadow-md shadow-blue-900/30 hover:shadow-xl hover:shadow-blue-900/40'
               }`}
             >
-              {isDanger ? <Trash2 className="w-4 h-4" /> : <RotateCcw className="w-4 h-4" />}
+              {isDanger ? (
+                <Trash2 className="w-4 h-4 transition-transform duration-200 group-hover:scale-110 group-hover:rotate-6" />
+              ) : (
+                <RotateCcw className="w-4 h-4 transition-transform duration-200 group-hover:scale-110 group-hover:-rotate-45" />
+              )}
               <span>{confirmText || defaultConfirmText}</span>
             </button>
           </div>

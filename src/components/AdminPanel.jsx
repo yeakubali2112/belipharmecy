@@ -16,7 +16,8 @@ import {
   RotateCcw,
   AlertCircle,
   ExternalLink,
-  Printer
+  Printer,
+  Save
 } from 'lucide-react';
 import { useShop } from '../context/ShopContext';
 import { CATEGORIES } from '../data/medicines';
@@ -612,15 +613,16 @@ export const AdminPanel = () => {
                         <button
                           type="button"
                           onClick={() => setShowAddForm(false)}
-                          className="px-4 py-2 text-xs font-semibold rounded-xl bg-slate-100 hover:bg-slate-200 cursor-pointer"
+                          className="px-4 py-2 text-xs font-semibold rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 cursor-pointer transition-all duration-200 hover:scale-[1.02] active:scale-95 shadow-2xs"
                         >
                           বাতিল
                         </button>
                         <button
                           type="submit"
-                          className="px-5 py-2 text-xs font-bold rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer shadow-md"
+                          className="group btn-animated-shine btn-glow-green px-5 py-2 text-xs font-bold rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer shadow-md transition-all duration-200 hover:scale-[1.03] hover:-translate-y-0.5 active:scale-95 hover:shadow-xl hover:shadow-emerald-600/35 flex items-center gap-1.5"
                         >
-                          সংরক্ষণ করুন
+                          <Save className="w-4 h-4 transition-transform duration-200 group-hover:scale-110 group-hover:rotate-6" />
+                          <span>সংরক্ষণ করুন</span>
                         </button>
                       </div>
                     </form>
