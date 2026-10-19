@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { ShopProvider, useShop } from './context/ShopContext';
-import { searchMedicines, mergeSearchResults } from './utils/medicineSearch';
+import { searchMedicines, mergeSearchResults, preload50kMedicines } from './utils/medicineSearch';
 import { Header } from './components/Header';
 import { Hero } from './components/Hero';
 import { CategoryFilter } from './components/CategoryFilter';
@@ -12,11 +12,12 @@ import { PrescriptionUploadModal } from './components/PrescriptionUploadModal';
 import { OrderTrackingModal } from './components/OrderTrackingModal';
 import { HealthToolsModal } from './components/HealthToolsModal';
 import { InvoiceModal } from './components/InvoiceModal';
-import { AdminPortal } from './components/AdminPortal';
 import { CustomerProfileModal } from './components/CustomerProfileModal';
 import { AdPopupModal } from './components/AdPopupModal';
 import { Footer } from './components/Footer';
 import { OrderNotificationToast } from './components/OrderNotificationToast';
+
+const AdminPortal = React.lazy(() => import('./components/AdminPortal').then(m => ({ default: m.AdminPortal })));
 import { 
   Phone, 
   MessageCircle, 
@@ -64,6 +65,11 @@ const MainApp = () => {
 
   React.useEffect(() => {
     document.title = 'Beli Pharmacy | বেলী ফার্মেসি';
+    // Preload large 50k medicine dataset on idle so initial page load and reload are instant
+    const timer = setTimeout(() => {
+      preload50kMedicines();
+    }, 1200);
+    return () => clearTimeout(timer);
   }, []);
 
   // Filter & sort logic (powered by bilingual Bangladesh medicine search + Live MedEx sync)
@@ -129,7 +135,16 @@ const MainApp = () => {
         {/* Real-time Order Notification & Toast Alert (Bottom-Right) */}
         <OrderNotificationToast isUserView={false} />
 
-        <AdminPortal />
+        <React.Suspense fallback={
+          <div className="min-h-screen flex items-center justify-center bg-slate-900 text-white font-bold">
+            <div className="flex flex-col items-center gap-3">
+              <div className="w-10 h-10 border-4 border-emerald-400 border-t-transparent rounded-full animate-spin" />
+              <p>বেলী ফার্মেসি অ্যাডমিন পোর্টাল লোড হচ্ছে...</p>
+            </div>
+          </div>
+        }>
+          <AdminPortal />
+        </React.Suspense>
         <InvoiceModal />
       </div>
     );

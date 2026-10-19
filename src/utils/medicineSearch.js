@@ -3,7 +3,45 @@
  * Supports bilingual search: Bengali (বাংলা) & English
  * Searches Brand Names, Generics, Companies, Indications, Symptoms & Dosage Forms
  */
-import { BANGLADESH_50K_MEDICINES, expandCompactMedicine } from '../data/bangladeshMedicines50k.js';
+export function expandCompactMedicine(t) {
+  if (!t || !Array.isArray(t)) return null;
+  return {
+    id: t[0],
+    name: t[1],
+    nameBn: t[2] || t[1],
+    generic: t[3],
+    genericBn: t[3],
+    company: t[4],
+    category: t[5],
+    type: t[6],
+    stripSize: t[7],
+    pricePerUnit: t[8],
+    pricePerStrip: t[9],
+    requiresPrescription: Boolean(t[10]),
+    discountPercent: 5,
+    stock: 250,
+    image: 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=500&auto=format&fit=crop&q=60',
+    description: t[4] + ' কর্তৃক প্রস্তুতকৃত মানসম্মত ' + t[1] + ' (' + t[6] + ')।',
+    indications: 'চিকিৎসকের পরামর্শ ও প্রেসক্রিপশন অনুযায়ী সেব্য।',
+    dosage: 'ডাক্তারের নির্দেশিত মাত্রায় আহারের পর বা পূর্বে সেবনীয়।',
+    sideEffects: 'পার্শ্বপ্রতিক্রিয়া দেখা দিলে চিকিৎসকের পরামর্শ নিন।'
+  };
+}
+
+let bd50kCache = null;
+let bd50kLoadingPromise = null;
+
+export function preload50kMedicines() {
+  if (bd50kCache) return Promise.resolve(bd50kCache);
+  if (bd50kLoadingPromise) return bd50kLoadingPromise;
+  bd50kLoadingPromise = import('../data/bangladeshMedicines50k.js')
+    .then(mod => {
+      bd50kCache = mod.BANGLADESH_50K_MEDICINES;
+      return bd50kCache;
+    })
+    .catch(() => null);
+  return bd50kLoadingPromise;
+}
 
 // Bengali phonetic & synonym mapping for Bangladesh pharmaceuticals and medical terms
 export const BANGLA_SYNONYM_MAP = {
@@ -207,31 +245,29 @@ export function deduplicateMedicines(arr) {
   const map = new Map();
   const result = [];
 
-  for (const med of arr) {
+  for (let i = 0; i < arr.length; i++) {
+    const med = arr[i];
     if (!med || !med.name) continue;
     const dedupeKey = getMedicineDedupeKey(med);
 
     if (map.has(dedupeKey)) {
-      const existing = map.get(dedupeKey);
+      const idx = map.get(dedupeKey);
+      const existing = result[idx];
       const existingHasMg = /\d+\s*mg\b/i.test(existing.name);
       const currentHasMg = /\d+\s*mg\b/i.test(med.name);
       const currentHasImage = med.image && med.image.startsWith('data:image/');
       const existingHasImage = existing.image && existing.image.startsWith('data:image/');
 
       if ((!existingHasMg && currentHasMg) || (currentHasImage && !existingHasImage)) {
-        const idx = result.indexOf(existing);
-        if (idx !== -1) {
-          result[idx] = {
-            ...existing,
-            ...med,
-            image: currentHasImage ? med.image : (existingHasImage ? existing.image : med.image),
-            stock: Math.max(existing.stock || 0, med.stock || 0)
-          };
-          map.set(dedupeKey, result[idx]);
-        }
+        result[idx] = {
+          ...existing,
+          ...med,
+          image: currentHasImage ? med.image : (existingHasImage ? existing.image : med.image),
+          stock: Math.max(existing.stock || 0, med.stock || 0)
+        };
       }
     } else {
-      map.set(dedupeKey, med);
+      map.set(dedupeKey, result.length);
       result.push(med);
     }
   }
@@ -467,9 +503,10 @@ export function searchMedicines(medicinesList = [], query = '', options = {}) {
 
   // 2. Search in the 50,000+ Bangladesh registered medicines database
   // If we already have strong curated matches, avoid bloating results with synthetic items
-  if (!hasStrongCurated && Array.isArray(BANGLADESH_50K_MEDICINES)) {
-    for (let i = 0; i < BANGLADESH_50K_MEDICINES.length; i++) {
-      const t = BANGLADESH_50K_MEDICINES[i];
+  if (!hasStrongCurated) {
+    if (Array.isArray(bd50kCache)) {
+      for (let i = 0; i < bd50kCache.length; i++) {
+        const t = bd50kCache[i];
       const id = t[0];
       if (seenIds.has(id)) continue;
 
@@ -531,7 +568,10 @@ export function searchMedicines(medicinesList = [], query = '', options = {}) {
         break;
       }
     }
+  } else {
+    preload50kMedicines();
   }
+}
 
   // Sort by highest score first
   scored.sort((a, b) => {
