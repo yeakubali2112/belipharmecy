@@ -1219,28 +1219,58 @@ export const ShopProvider = ({ children }) => {
     }
   }, [orders]);
 
-  // Sync state to local storage
+  // Sync state to local storage (only when data actually changes, avoiding cross-tab storage storms on reload)
+  const isMedMountRef = useRef(true);
   useEffect(() => {
+    if (isMedMountRef.current) {
+      isMedMountRef.current = false;
+      return;
+    }
     safeSetItem('beli_medicines', JSON.stringify(medicines));
   }, [medicines]);
 
+  const isCartMountRef = useRef(true);
   useEffect(() => {
+    if (isCartMountRef.current) {
+      isCartMountRef.current = false;
+      return;
+    }
     safeSetItem('beli_cart', JSON.stringify(cart));
   }, [cart]);
 
+  const isOrdersMountRef = useRef(true);
   useEffect(() => {
+    if (isOrdersMountRef.current) {
+      isOrdersMountRef.current = false;
+      return;
+    }
     safeSetItem('beli_orders', JSON.stringify(orders));
   }, [orders]);
 
+  const isRxMountRef = useRef(true);
   useEffect(() => {
+    if (isRxMountRef.current) {
+      isRxMountRef.current = false;
+      return;
+    }
     safeSetItem('beli_prescriptions', JSON.stringify(prescriptions));
   }, [prescriptions]);
 
+  const isLangMountRef = useRef(true);
   useEffect(() => {
+    if (isLangMountRef.current) {
+      isLangMountRef.current = false;
+      return;
+    }
     safeSetItem('beli_lang', lang);
   }, [lang]);
 
+  const isLogsMountRef = useRef(true);
   useEffect(() => {
+    if (isLogsMountRef.current) {
+      isLogsMountRef.current = false;
+      return;
+    }
     safeSetItem('beli_restock_logs', JSON.stringify(restockLogs));
   }, [restockLogs]);
 
@@ -1776,11 +1806,7 @@ export const ShopProvider = ({ children }) => {
           });
 
           if (unpushed.length > 0) {
-            batchSaveCloudMedicines(unpushed).then(res => {
-              if (res) {
-                publishLiveSync({ type: 'ALL_MEDICINES_SYNCED', count: unpushed.length });
-              }
-            });
+            batchSaveCloudMedicines(unpushed);
           }
         }
 
@@ -1839,26 +1865,16 @@ export const ShopProvider = ({ children }) => {
 
     syncCloudDataOnce();
 
-    // Fast focus sync (5s throttle since kvdb has no rate limit)
-    const handleWindowFocus = () => {
-      const now = Date.now();
-      if (now - lastCloudSyncTime > 5000) {
-        lastCloudSyncTime = now;
-        syncCloudDataOnce();
-      }
-    };
-    window.addEventListener('focus', handleWindowFocus);
-
-    // Periodic live cloud polling every 25 seconds for open devices/mobiles
+    // Periodic live cloud polling every 45 seconds for open background tabs
     const intervalId = setInterval(() => {
       if (isMounted) {
         syncCloudDataOnce();
       }
-    }, 25000);
+    }, 45000);
 
-    // 2. Storage event listener (guaranteed instant tab-to-tab sync across all windows on same browser)
+    // 2. Storage event listener (only updates when a DIFFERENT tab actually changes data, never duplicates)
     const handleStorageChange = (e) => {
-      if (!isMounted || !e || !e.key || !e.newValue) return;
+      if (!isMounted || !e || !e.key || !e.newValue || e.newValue === e.oldValue) return;
       try {
         if (e.key === 'beli_payment_settings') {
           const parsed = JSON.parse(e.newValue);
@@ -1908,7 +1924,6 @@ export const ShopProvider = ({ children }) => {
     return () => {
       isMounted = false;
       clearInterval(intervalId);
-      window.removeEventListener('focus', handleWindowFocus);
       window.removeEventListener('storage', handleStorageChange);
       unsubscribeSSE();
     };
