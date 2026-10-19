@@ -76,4 +76,20 @@ export default defineConfig({
     tailwindcss(),
     apiDevPlugin(),
   ],
+  build: {
+    chunkSizeWarningLimit: 10000,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('bangladeshMedicines50k')) {
+            return 'medicines-db-50k';
+          }
+          if (id.includes('node_modules')) {
+            if (id.includes('lucide-react')) return 'icons';
+            if (id.includes('react')) return 'vendor';
+          }
+        }
+      }
+    }
+  }
 })
